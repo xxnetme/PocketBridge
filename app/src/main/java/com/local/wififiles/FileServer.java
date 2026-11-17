@@ -148,6 +148,8 @@ final class FileServer {
                 else sendText(out,404,"Not found");
             } catch(ApiException e) { sendText(out,e.status,e.getMessage()); }
             catch(Exception e) { sendText(out,400,e.getMessage()==null ? "Ошибка операции" : e.getMessage()); }
+        } catch(javax.net.ssl.SSLException e) {
+            android.util.Log.d("WiFiFiles","tls handshake rejected: "+e.getMessage());   // ожидаемо: клиент не подтвердил сертификат
         } catch(Exception e) { android.util.Log.w("WiFiFiles","request failed: "+e.getMessage()); }
     }
 
