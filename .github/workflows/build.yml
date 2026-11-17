@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    tags: ['v*']
+  tags: ['v*']
   pull_request:
 
 permissions:
@@ -46,14 +46,16 @@ jobs:
           java-version: '17'
       - name: Install Android SDK
         run: |
-          mkdir -p /tmp/android-sdk
+          SDK_DIR=/tmp/android-sdk
+          mkdir -p "$SDK_DIR"
           cd /tmp
           curl -sL -o cmdline-tools.zip https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
-          unzip -qo cmdline-tools.zip -d /tmp/android-sdk/
-          mkdir -p /tmp/android-sdk/cmdline-tools
-          mv /tmp/android-sdk/cmdline-tools-latest /tmp/android-sdk/cmdline-tools/latest
-          export ANDROID_HOME=/tmp/android-sdk
-          yes | /tmp/android-sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=/tmp/android-sdk "platform-tools" "platforms;android-35" "build-tools;34.0.0" >/dev/null 2>&1
+          unzip -qo cmdline-tools.zip -d "$SDK_DIR/"
+          mkdir -p "$SDK_DIR/cmdline-tools"
+          mv "$SDK_DIR/cmdline-tools-latest" "$SDK_DIR/cmdline-tools/latest"
+          echo "ANDROID_HOME=$SDK_DIR" >> $GITHUB_ENV
+          echo "$SDK_DIR/cmdline-tools/latest/bin" >> $GITHUB_PATH
+          yes | sdkmanager --sdk_root="$SDK_DIR" "platform-tools" "platforms;android-35" "build-tools;34.0.0" >/dev/null 2>&1
       - name: Cache Gradle
         uses: actions/cache@v4
         with:
@@ -95,14 +97,16 @@ jobs:
             ${{ runner.os }}-gradle-
       - name: Install Android SDK
         run: |
-          mkdir -p /tmp/android-sdk
+          SDK_DIR=/tmp/android-sdk
+          mkdir -p "$SDK_DIR"
           cd /tmp
           curl -sL -o cmdline-tools.zip https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
-          unzip -qo cmdline-tools.zip -d /tmp/android-sdk/
-          mkdir -p /tmp/android-sdk/cmdline-tools
-          mv /tmp/android-sdk/cmdline-tools-latest /tmp/android-sdk/cmdline-tools/latest
-          export ANDROID_HOME=/tmp/android-sdk
-          yes | /tmp/android-sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=/tmp/android-sdk "platform-tools" "platforms;android-35" "build-tools;34.0.0" >/dev/null 2>&1
+          unzip -qo cmdline-tools.zip -d "$SDK_DIR/"
+          mkdir -p "$SDK_DIR/cmdline-tools"
+          mv "$SDK_DIR/cmdline-tools-latest" "$SDK_DIR/cmdline-tools/latest"
+          echo "ANDROID_HOME=$SDK_DIR" >> $GITHUB_ENV
+          echo "$SDK_DIR/cmdline-tools/latest/bin" >> $GITHUB_PATH
+          yes | sdkmanager --sdk_root="$SDK_DIR" "platform-tools" "platforms;android-35" "build-tools;34.0.0" >/dev/null 2>&1
       - name: Build debug APK
         env:
           ANDROID_HOME: /tmp/android-sdk
@@ -127,14 +131,16 @@ jobs:
           java-version: '17'
       - name: Install Android SDK
         run: |
-          mkdir -p /tmp/android-sdk
+          SDK_DIR=/tmp/android-sdk
+          mkdir -p "$SDK_DIR"
           cd /tmp
           curl -sL -o cmdline-tools.zip https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
-          unzip -qo cmdline-tools.zip -d /tmp/android-sdk/
-          mkdir -p /tmp/android-sdk/cmdline-tools
-          mv /tmp/android-sdk/cmdline-tools-latest /tmp/android-sdk/cmdline-tools/latest
-          export ANDROID_HOME=/tmp/android-sdk
-          yes | /tmp/android-sdk/cmdline-tools/latest/bin/sdkmanager --sdk_root=/tmp/android-sdk "platform-tools" "platforms;android-35" "build-tools;34.0.0" >/dev/null 2>&1
+          unzip -qo cmdline-tools.zip -d "$SDK_DIR/"
+          mkdir -p "$SDK_DIR/cmdline-tools"
+          mv "$SDK_DIR/cmdline-tools-latest" "$SDK_DIR/cmdline-tools/latest"
+          echo "ANDROID_HOME=$SDK_DIR" >> $GITHUB_ENV
+          echo "$SDK_DIR/cmdline-tools/latest/bin" >> $GITHUB_PATH
+          yes | sdkmanager --sdk_root="$SDK_DIR" "platform-tools" "platforms;android-35" "build-tools;34.0.0" >/dev/null 2>&1
       - name: Cache Gradle
         uses: actions/cache@v4
         with:
@@ -144,8 +150,6 @@ jobs:
           key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*') }}
           restore-keys: |
             ${{ runner.os }}-gradle-
-      - name: Install Android SDK (export for gradle)
-        run: echo "ANDROID_HOME=/tmp/android-sdk" >> $GITHUB_ENV
       - name: Restore keystore
         run: |
           echo "${{ secrets.PB_KEYSTORE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/pocketbridge.jks"
@@ -153,6 +157,7 @@ jobs:
         env:
           PB_KEYSTORE: ${{ runner.temp }}/pocketbridge.jks
           PB_KEYSTORE_PASSWORD: ${{ secrets.PB_KEYSTORE_PASSWORD }}
+          ANDROID_HOME: /tmp/android-sdk
         run: ./gradlew --no-daemon assembleRelease
       - name: Get release version
         id: version
