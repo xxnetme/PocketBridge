@@ -17,7 +17,8 @@ public final class ServerMain {
             File dir = Files.createTempDirectory("pocketbridge-tls").toFile();
             context = SelfSignedCertificate.createContext(dir);
         }
-        FileServer server = new FileServer(new Context(new File(assets)), root, key, context);
+        File cache = new File(System.getProperty("java.io.tmpdir"), "pb-thumbs");
+        FileServer server = new FileServer(new Context(new File(assets)), root, key, context, cache, 8765);
         int port = server.start();
         System.out.println("PORT=" + port + " ROOT=" + root + " KEY=" + key + " TLS=" + tls);
         System.out.println("READY");

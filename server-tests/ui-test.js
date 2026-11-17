@@ -362,6 +362,64 @@ async function waitMsg(page, expectSubstring, timeout = 15000) {
   await page.waitForTimeout(250); await page.click('#dialogAccept'); await page.waitForTimeout(600);
   await page.click('#up'); await page.waitForTimeout(300);
 
+  /* ---------- 12c. функции v2 ---------- */
+  await openFolder(page, 'Фото');
+  await openFolder(page, 'Отпуск');
+  await page.click('#view');
+  await page.waitForTimeout(1200);
+  const cards = await page.locator('#grid .card').count();
+  const thumbInfo = await page.locator('#grid .card img').first().evaluate(img => ({ w: img.naturalWidth, h: img.naturalHeight, src: img.src.slice(0, 24) })).catch(() => null);
+  rec('Плитка: карточки и миниатюры загрузились', cards >= 6 && !!thumbInfo && thumbInfo.w > 0, 'карточек=' + cards + ' миниатюра=' + (thumbInfo ? thumbInfo.w + 'x' + thumbInfo.h : 'нет'));
+  await page.screenshot({ path: shots + '/24-grid-thumbs.png' });
+
+  await page.locator('#grid .card').first().locator('.thumb').click();
+  await page.waitForTimeout(800);
+  const gridPreview = await page.locator('#previewBody img').count();
+  rec('Плитка: клик по карточке открывает просмотр', gridPreview > 0, '');
+  await closePreview(page);
+  await page.click('#view'); await page.waitForTimeout(400);
+  rec('Переключение обратно в список', (await page.locator('#rows tr').count()) >= 6 && await page.locator('#tableWrap').isVisible(), '');
+
+  const themeBefore = await page.evaluate(() => document.documentElement.dataset.theme);
+  await page.click('#theme'); await page.waitForTimeout(500);
+  const themeAfter = await page.evaluate(() => ({ theme: document.documentElement.dataset.theme, bg: getComputedStyle(document.body).backgroundColor }));
+  rec('Переключение темы меняет оформление', themeAfter.theme !== themeBefore && !!themeAfter.bg, themeBefore + ' -> ' + themeAfter.theme + ' bg=' + themeAfter.bg);
+  await page.evaluate(() => { if (document.documentElement.dataset.theme !== 'light') document.getElementById('theme').click(); });
+  await page.waitForTimeout(400);
+  const lightBg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+  const lightOk = await page.evaluate(() => document.documentElement.dataset.theme === 'light');
+  rec('Светлая тема применяется', lightOk, 'bg=' + lightBg);
+  await page.screenshot({ path: shots + '/25-light-theme.png' });
+  await page.evaluate(() => { document.getElementById('theme').click(); });
+  await page.waitForTimeout(400);
+  rec('Тёмная тема возвращается', (await page.evaluate(() => document.documentElement.dataset.theme)) === 'dark', '');
+
+  // загрузка папки с сохранением структуры
+  const folderName = 'pb-up-' + Date.now();
+  const uploadDir = path.join(WORK, 'dir-upload', folderName);
+  fs.mkdirSync(path.join(uploadDir, 'sub'), { recursive: true });
+  fs.writeFileSync(path.join(uploadDir, 'top.txt'), 'top file\n');
+  fs.writeFileSync(path.join(uploadDir, 'sub', 'nested.txt'), 'nested file\n');
+  await page.click('#up'); await page.waitForTimeout(300);
+  await page.click('#up'); await page.waitForTimeout(400);
+  await openFolder(page, 'Загрузки');
+  await page.setInputFiles('#dirInput', uploadDir);
+  const folderMsg = await waitMsg(page, 'Папка загружена', 30000);
+  const folderRow = await page.locator('#rows tr', { hasText: folderName }).count();
+  await openFolder(page, folderName);
+  const topFile = await page.locator('#rows tr', { hasText: 'top.txt' }).count();
+  const subFolder = await page.locator('#rows tr', { hasText: 'sub' }).count();
+  await openFolder(page, 'sub');
+  const deepFile = await page.locator('#rows tr', { hasText: 'nested.txt' }).count();
+  rec('Загрузка папки сохраняет структуру', folderMsg.includes('Папка загружена') && folderRow === 1 && topFile === 1 && subFolder === 1 && deepFile === 1, 'папка=' + folderRow + ' top=' + topFile + ' sub=' + subFolder + ' вложенный=' + deepFile);
+
+  // уборка: удаляем загруженную папку
+  await page.click('#up'); await page.waitForTimeout(200);
+  await page.click('#up'); await page.waitForTimeout(300);
+  await page.locator('#rows tr', { hasText: folderName }).getByText('Удалить').click();
+  await page.waitForTimeout(250); await page.click('#dialogAccept'); await page.waitForTimeout(700);
+  await page.click('#up'); await page.waitForTimeout(300);
+
   /* ---------- 13. мобильная вёрстка ---------- */
   const mctx = await browser.newContext({ ...devices['iPhone 13'], ignoreHTTPSErrors: true });
   const mp = await mctx.newPage();

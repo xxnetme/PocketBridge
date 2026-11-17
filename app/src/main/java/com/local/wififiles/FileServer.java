@@ -31,11 +31,15 @@ final class FileServer {
     private static final int REQUEST_TIMEOUT_MS = 120000;
     private static final int BODY_TIMEOUT_MS = 600000;
     private static final int ZIP_MAX_FILES = 5000;
+    private static final long SESSION_TTL = 2L * 60 * 60 * 1000;
+    private static final int SESSION_LIMIT = 16;
+    private static final int THUMB_WIDTH = 320;
 
-    private final Context context; private final File root; private final String key; private final SSLContext ssl;
+    private final Context context; private final File root; private final String key; private final SSLContext ssl; private final File cacheDir; private final int portStart;
     private ServerSocket listener; private ThreadPoolExecutor workers;
     private final Set<Socket> connections = ConcurrentHashMap.newKeySet();
     private final Map<String,Ticket> tickets = new ConcurrentHashMap<>();
+    private final Map<String,Long> sessions = new ConcurrentHashMap<>();
     private volatile long lastActivity = System.currentTimeMillis();
 
     private static final class ZipItem { final File file; final String name; ZipItem(File file,String name) { this.file=file; this.name=name; } }
@@ -52,9 +56,11 @@ final class FileServer {
         ApiException(int status,String message) { super(message); this.status=status; }
     }
 
-    FileServer(Context c, File root, String key) throws IOException { this(c, root, key, null); }
-    FileServer(Context c, File root, String key, SSLContext ssl) throws IOException {
+    FileServer(Context c, File root, String key) throws IOException { this(c, root, key, null, null, 8765); }
+    FileServer(Context c, File root, String key, SSLContext ssl) throws IOException { this(c, root, key, ssl, null, 8765); }
+    FileServer(Context c, File root, String key, SSLContext ssl, File cacheDir, int portStart) throws IOException {
         this.context=c.getApplicationContext(); this.root=root.getCanonicalFile(); this.key=key; this.ssl=ssl;
+        this.cacheDir=cacheDir; this.portStart=Math.max(1024, Math.min(65000, portStart));
     }
 
     String key() { return key; }
@@ -63,7 +69,7 @@ final class FileServer {
 
     int start() throws IOException {
         IOException last=null;
-        for(int p=8765;p<=8780;p++) try {
+        for(int p=portStart;p<portStart+16;p++) try {
             listener = ssl != null ? ssl.getServerSocketFactory().createServerSocket() : new ServerSocket();
             listener.setReuseAddress(true);
             listener.bind(new InetSocketAddress(p));
@@ -107,7 +113,7 @@ final class FileServer {
         try { if(listener!=null) listener.close(); } catch(IOException ignored) {}
         for(Socket s:connections) try { s.close(); } catch(IOException ignored) {}
         if(workers!=null) workers.shutdownNow();
-        tickets.clear();
+        tickets.clear(); sessions.clear();
     }
 
     private static String line(InputStream in, int max) throws IOException {
@@ -128,6 +134,7 @@ final class FileServer {
             if ("GET".equals(parts[0]) && "/".equals(endpoint)) { byte[] html; try(InputStream a=context.getAssets().open("index.html")) { ByteArrayOutputStream b=new ByteArrayOutputStream(); byte[] buf=new byte[8192]; int n; while((n=a.read(buf))!=-1) b.write(buf,0,n); html=b.toByteArray(); } send(out,200,"text/html; charset=utf-8",html,null); return; }
             if("GET".equals(parts[0]) && "/preview".equals(endpoint)) { try { streamTicket(out,q.get("ticket"),true,headers.get("range")); } catch(Exception e) { sendText(out,safeStatus(e),e.getMessage()==null?"Ошибка просмотра":e.getMessage()); } return; }
             if("GET".equals(parts[0]) && "/dl".equals(endpoint)) { try { streamTicket(out,q.get("ticket"),false,headers.get("range")); } catch(Exception e) { sendText(out,safeStatus(e),e.getMessage()==null?"Ошибка скачивания":e.getMessage()); } return; }
+            if("GET".equals(parts[0]) && "/thumb".equals(endpoint)) { try { thumbnail(out,q.get("token"),q.get("path"),q.get("w")); } catch(Exception e) { sendText(out,safeStatus(e),e.getMessage()==null?"Ошибка миниатюры":e.getMessage()); } return; }
             if(!endpoint.startsWith("/api/")) { sendText(out,404,"Not found"); return; }
             String supplied=headers.getOrDefault("x-access-key",""); if(!MessageDigest.isEqual(key.getBytes(StandardCharsets.UTF_8), supplied.getBytes(StandardCharsets.UTF_8))) { sendText(out,403,"Неверный код доступа"); return; }
             try {
@@ -135,6 +142,8 @@ final class FileServer {
                 else if("GET".equals(parts[0]) && "/api/search".equals(endpoint)) { search(out,q.getOrDefault("path","/"),q.get("q")); }
                 else if("GET".equals(parts[0]) && "/api/download".equals(endpoint)) { download(out,q.getOrDefault("path","/"),headers.get("range")); }
                 else if("GET".equals(parts[0]) && "/api/size".equals(endpoint)) { folderSize(out,q.getOrDefault("path","/")); }
+                else if("POST".equals(parts[0]) && "/api/session".equals(endpoint)) { session(out); }
+                else if("POST".equals(parts[0]) && "/api/mkdirs".equals(endpoint)) { mkdirs(out,q.get("path")); }
                 else if("POST".equals(parts[0]) && "/api/preview-ticket".equals(endpoint)) { previewTicket(out,q.get("path")); }
                 else if("POST".equals(parts[0]) && "/api/download-ticket".equals(endpoint)) { downloadTicket(out,q.get("path")); }
                 else if("POST".equals(parts[0]) && "/api/zip-ticket".equals(endpoint)) { zipTicket(out,in,headers,q.getOrDefault("base","/")); }
@@ -222,11 +231,78 @@ final class FileServer {
     }
     private File readable(String path) throws IOException { File f=resolve(path); if(!f.isFile() || !f.canRead()) throw new ApiException(400,"Файл недоступен"); return f; }
 
+    private String issueSession() throws IOException {
+        long now=System.currentTimeMillis();
+        for(Map.Entry<String,Long> e:sessions.entrySet()) if(e.getValue()<now) sessions.remove(e.getKey());
+        if(sessions.size()>=SESSION_LIMIT) sessions.clear();     // старые браузерные сессии не должны блокировать новые
+        byte[] random=new byte[16]; new SecureRandom().nextBytes(random); StringBuilder id=new StringBuilder(); for(byte b:random) id.append(String.format(Locale.US,"%02x",b & 255));
+        sessions.put(id.toString(),now+SESSION_TTL); return id.toString();
+    }
+
+    private void requireSession(String token) throws ApiException {
+        Long expires=token==null?null:sessions.get(token);
+        if(expires==null || expires<System.currentTimeMillis()) throw new ApiException(403,"Сессия истекла. Обновите страницу.");
+    }
+
     private String issue(String type,String path,String mime,String name,List<ZipItem> items,long ttl) throws IOException {
         long now=System.currentTimeMillis(); for(Map.Entry<String,Ticket> e:tickets.entrySet()) if(e.getValue().expires<now) tickets.remove(e.getKey());
         if(tickets.size()>=TICKET_LIMIT) throw new ApiException(429,"Слишком много активных передач. Подождите пару минут.");
         byte[] random=new byte[16]; new SecureRandom().nextBytes(random); StringBuilder id=new StringBuilder(); for(byte b:random) id.append(String.format(Locale.US,"%02x",b & 255));
         tickets.put(id.toString(),new Ticket(type,path,mime,name,items,now+ttl)); return id.toString();
+    }
+
+    private void session(OutputStream out) throws Exception {
+        JSONObject json=new JSONObject(); json.put("token",issueSession()); json.put("ttl",SESSION_TTL);
+        send(out,200,"application/json; charset=utf-8",json.toString().getBytes(StandardCharsets.UTF_8),null);
+    }
+
+    private void mkdirs(OutputStream out,String path) throws Exception {
+        if(path==null) throw new ApiException(400,"Недопустимый путь");
+        String clean=path; while(clean.startsWith("/")) clean=clean.substring(1);
+        File current=root;
+        for(String segment:clean.split("/")) {
+            if(segment.isEmpty()||segment.equals(".")) continue;
+            current=safeChild(current,segment);
+            if(!current.exists() && !current.mkdir()) throw new ApiException(409,"Не удалось создать папку: "+segment);
+            if(!current.isDirectory()) throw new ApiException(409,"Занято файлом: "+segment);
+        }
+        ok(out);
+    }
+
+    private void thumbnail(OutputStream out,String token,String path,String width) throws Exception {
+        requireSession(token);
+        File f=readable(path);
+        String mime=mediaMime(f);
+        if(mime==null || !mime.startsWith("image/")) throw new ApiException(400,"Миниатюры доступны только для изображений");
+        int requested=THUMB_WIDTH; try { if(width!=null && !width.isEmpty()) requested=Integer.parseInt(width); } catch(Exception ignored) {}
+        String key=thumbnailKey(f,requested);
+        byte[] jpeg=null;
+        if(cacheDir!=null) {
+            File cache=new File(cacheDir,"thumbs");
+            File cached=new File(cache,key+".jpg");
+            if(cached.isFile() && cached.length()>0 && cached.lastModified()>=f.lastModified()) {
+                jpeg=Files.readAllBytes(cached.toPath());
+            } else {
+                jpeg=Thumbnails.jpeg(f,requested);
+                try {
+                    if(!cache.isDirectory()) cache.mkdirs();
+                    File tmp=File.createTempFile("thumb-",".part",cache);
+                    Files.write(tmp.toPath(),jpeg);
+                    Files.move(tmp.toPath(),cached.toPath(),StandardCopyOption.REPLACE_EXISTING);
+                } catch(Exception ignored) { /* кеш не критичен */ }
+            }
+        } else {
+            jpeg=Thumbnails.jpeg(f,requested);
+        }
+        String extra="X-Thumb-Key: "+key+"\r\n";
+        send(out,200,"image/jpeg",jpeg,extra);
+    }
+
+    private String thumbnailKey(File f,int width) throws Exception {
+        String seed; try { seed=relative(f)+"|"+f.lastModified()+"|"+f.length()+"|"+width; } catch(IOException e) { seed=f.getAbsolutePath()+"|"+width; }
+        byte[] hash=MessageDigest.getInstance("SHA-256").digest(seed.getBytes(StandardCharsets.UTF_8));
+        StringBuilder hex=new StringBuilder(); for(byte b:hash) hex.append(String.format(Locale.US,"%02x",b & 255));
+        return hex.toString();
     }
 
     private void previewTicket(OutputStream out,String path) throws Exception {

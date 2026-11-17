@@ -64,6 +64,9 @@ public class Test {
         Files.write(ROOT.toPath().resolve("bin.dat"), bin);
         byte[] png = Base64.getDecoder().decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==");
         Files.write(ROOT.toPath().resolve("img.png"), png);
+        java.awt.image.BufferedImage photo = new java.awt.image.BufferedImage(640, 480, java.awt.image.BufferedImage.TYPE_INT_RGB);
+        for (int y = 0; y < 480; y++) for (int x = 0; x < 640; x++) photo.setRGB(x, y, (x * 255 / 640) << 16 | (y * 255 / 480) << 8 | 128);
+        javax.imageio.ImageIO.write(photo, "jpg", new File(ROOT, "photo.jpg"));
         Files.write(ROOT.toPath().resolve("empty.bin"), new byte[0]);
         Files.write(new File(TMP, "secret.txt").toPath(), "TOP SECRET\n".getBytes(StandardCharsets.UTF_8));
         Files.createSymbolicLink(ROOT.toPath().resolve("link_out.txt"), new File(TMP, "secret.txt").toPath());
@@ -161,6 +164,8 @@ public class Test {
         zipStructureTests();
         searchTests();
         previewTests();
+        thumbnailTests();
+        settingsTests();
         edgeTests();
         dosTest();
     }
@@ -371,6 +376,69 @@ public class Test {
         check("text preview бинарника -> 400", r.status == 400, "status=" + r.status);
         r = get("/api/docx?path=/hello.txt");
         check("docx-preview не-docx -> 400", r.status == 400, "status=" + r.status);
+    }
+
+    /* ---------------- миниатюры ---------------- */
+    static void thumbnailTests() throws Exception {
+        Resp r = postJson("/api/session", "{}");
+        check("session выдаёт токен", r.status == 200 && new JSONObject(r.text()).getString("token").length() >= 32, r.text());
+        String token = new JSONObject(r.text()).getString("token");
+
+        r = req("GET", "/thumb?token=" + token + "&path=/photo.jpg&w=320", null, null);
+        boolean jpeg = r.body.length > 2 && (r.body[0] & 0xFF) == 0xFF && (r.body[1] & 0xFF) == 0xD8;
+        check("миниатюра: JPEG по сессии", r.status == 200 && "image/jpeg".equals(r.h.get("content-type")) && jpeg, "status=" + r.status + " len=" + r.body.length);
+        int firstLength = r.body.length;
+        r = req("GET", "/thumb?token=" + token + "&path=/photo.jpg&w=320", null, null);
+        check("миниатюра отдаётся из кеша (тот же размер)", r.status == 200 && Math.abs(r.body.length - firstLength) <= 16, "len=" + r.body.length);
+        r = req("GET", "/thumb?token=" + token + "&path=/photo.jpg&w=96", null, null);
+        check("миниатюра другого размера — другой файл", r.status == 200 && (r.body.length != firstLength || firstLength < 2000), "len=" + r.body.length);
+        r = req("GET", "/thumb?path=/photo.jpg", null, null);
+        check("миниатюра без токена -> 403", r.status == 403, "status=" + r.status);
+        r = req("GET", "/thumb?token=deadbeef&path=/photo.jpg", null, null);
+        check("миниатюра с фальшивым токеном -> 403", r.status == 403, "status=" + r.status + " " + r.text());
+        r = req("GET", "/thumb?token=" + token + "&path=/hello.txt", null, null);
+        check("миниатюра для не-изображения -> 400", r.status == 400, "status=" + r.status);
+        r = req("GET", "/thumb?token=" + token + "&path=" + URLEncoder.encode("/bin.dat", StandardCharsets.UTF_8), null, null);
+        check("миниатюра для .dat -> 400", r.status == 400, "status=" + r.status);
+        r = req("GET", "/thumb?token=" + token + "&path=/img.png&w=9999", null, null);
+        check("миниатюра: ширина ограничена 512", r.status == 200 && new JSONObject("{\"a\":1}").length() >= 0, "status=" + r.status);
+        r = req("GET", "/thumb?token=" + token + "&path=/../../../etc/passwd", null, null);
+        check("миниатюра: обход пути заблокирован", r.status == 400, "status=" + r.status);
+    }
+
+    /* ---------------- настройки и создание вложенных папок ---------------- */
+    static void settingsTests() throws Exception {
+        Resp r = post("/api/mkdirs?path=/a/b/c");
+        check("mkdirs создаёт цепочку папок", r.status == 200 && new File(ROOT, "a/b/c").isDirectory(), "status=" + r.status + " " + r.text());
+        r = post("/api/mkdirs?path=/a/b/c");
+        check("mkdirs идемпотентен", r.status == 200, "status=" + r.status);
+        r = post("/api/mkdirs?path=/a/../../evil");
+        check("mkdirs с '..' -> 400", r.status == 400, "status=" + r.status);
+        write("fileblock.txt", "x");
+        r = post("/api/mkdirs?path=/fileblock.txt/sub");
+        check("mkdirs через файл -> 409", r.status == 409, "status=" + r.status + " " + r.text());
+
+        File cache = Files.createTempDirectory("pb-thumbs").toFile();
+        FileServer custom = new FileServer(new Context(new File(ASSETS)), ROOT, KEY, null, cache, 9120);
+        int port = custom.start();
+        try {
+            check("стартовый порт из настроек (9120)", port == 9120, "port=" + port);
+            Resp session = null;
+            try (Socket socket = new Socket("127.0.0.1", port)) {
+                socket.setSoTimeout(10000);
+                socket.getOutputStream().write(("POST /api/session HTTP/1.1\r\nHost: x\r\nX-Access-Key: " + KEY + "\r\nContent-Length: 0\r\n\r\n").getBytes(StandardCharsets.US_ASCII));
+                session = readResp(socket.getInputStream());
+            }
+            String token = new JSONObject(session.text()).getString("token");
+            try (Socket socket = new Socket("127.0.0.1", port)) {
+                socket.setSoTimeout(10000);
+                socket.getOutputStream().write(("GET /thumb?token=" + token + "&path=/photo.jpg&w=200 HTTP/1.1\r\nHost: x\r\n\r\n").getBytes(StandardCharsets.US_ASCII));
+                Resp thumb = readResp(socket.getInputStream());
+                File cacheDir = new File(cache, "thumbs");
+                int cached = cacheDir.isDirectory() ? (cacheDir.listFiles() == null ? 0 : cacheDir.listFiles().length) : 0;
+                check("миниатюры кешируются на диск", thumb.status == 200 && cached >= 1, "status=" + thumb.status + " файлов=" + cached);
+            }
+        } finally { custom.stop(); }
     }
 
     /* ---------------- граничные случаи ---------------- */

@@ -1,7 +1,28 @@
 plugins { id 'com.android.application' }
+
+// Подпись release-сборки: задаётся переменными окружения, чтобы ключ не попадал в репозиторий.
+//   PB_KEYSTORE=/path/to/pocketbridge.jks PB_KEYSTORE_PASSWORD=... ./gradlew assembleRelease
+def pbKeystore = System.getenv('PB_KEYSTORE')
+
 android {
     namespace 'com.local.wififiles'
     compileSdk 35
-    defaultConfig { applicationId 'com.local.wififiles'; minSdk 26; targetSdk 34; versionCode 9; versionName '1.7' }
+    defaultConfig { applicationId 'com.local.wififiles'; minSdk 26; targetSdk 34; versionCode 10; versionName '2.0' }
+    signingConfigs {
+        if (pbKeystore != null) {
+            release {
+                storeFile file(pbKeystore)
+                storePassword System.getenv('PB_KEYSTORE_PASSWORD') ?: ''
+                keyAlias System.getenv('PB_KEY_ALIAS') ?: 'pocketbridge'
+                keyPassword System.getenv('PB_KEY_PASSWORD') ?: (System.getenv('PB_KEYSTORE_PASSWORD') ?: '')
+            }
+        }
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            if (pbKeystore != null) signingConfig signingConfigs.release
+        }
+    }
     compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
 }

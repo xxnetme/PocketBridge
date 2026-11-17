@@ -36,6 +36,8 @@ public final class MainActivity extends Activity {
     private ServerService service;
     private boolean bound;
     private String key="",firstAddress="";
+    private TextView settingsPort,settingsAutoStop,settingsKeepScreen;
+    private android.content.SharedPreferences prefs;
     private int port;
 
     private final Runnable serverListener = () -> runOnUiThread(this::refreshView);
@@ -87,7 +89,16 @@ public final class MainActivity extends Activity {
         LinearLayout permissionCard=card(); permissionCard.setPadding(dp(18),dp(17),dp(18),dp(17));
         permissionCard.addView(label("Доступ к файлам",16,WHITE,true)); space(permissionCard,6);
         permissionStatus=label("",13,MUTED,false); permissionStatus.setLineSpacing(dp(2),1.0f); permissionCard.addView(permissionStatus); space(permissionCard,14);
-        permissionButton=button("Разрешить доступ",false); permissionButton.setOnClickListener(v -> requestAccess()); permissionCard.addView(permissionButton,new LinearLayout.LayoutParams(-1,dp(46))); page.addView(permissionCard); space(page,20);
+        permissionButton=button("Разрешить доступ",false); permissionButton.setOnClickListener(v -> requestAccess()); permissionCard.addView(permissionButton,new LinearLayout.LayoutParams(-1,dp(46))); page.addView(permissionCard); space(page,14);
+
+        prefs=getSharedPreferences(ServerService.PREFS,MODE_PRIVATE);
+        LinearLayout settingsCard=card(); settingsCard.setPadding(dp(18),dp(17),dp(18),dp(8));
+        settingsCard.addView(label("Настройки",16,WHITE,true)); space(settingsCard,6);
+        settingsCard.addView(label("Применяются сразу; запущенный сервер перезапустится.",12,MUTED,false)); space(settingsCard,12);
+        settingsPort=settingsRow(settingsCard,"Порт",this::editPort);
+        settingsAutoStop=settingsRow(settingsCard,"Автостоп",this::editAutoStop);
+        settingsKeepScreen=settingsRow(settingsCard,"Экран не гаснет",this::toggleKeepScreen);
+        page.addView(settingsCard); space(page,20);
 
         TextView security=label("БЕЗОПАСНОСТЬ",10,MUTED,true); security.setLetterSpacing(.13f); page.addView(security); space(page,8);
         TextView warning=label("Соединение шифруется (HTTPS) самоподписанным сертификатом: браузер один раз попросит подтвердить исключение — это нормально. Пользуйтесь доверенной сетью. Некоторые системные папки Android недоступны.",13,MUTED,false); warning.setLineSpacing(dp(3),1.0f); page.addView(warning);
@@ -126,10 +137,12 @@ public final class MainActivity extends Activity {
             if(ips.isEmpty()) addressText.setText("Нет адреса Wi-Fi. Проверьте подключение.");
             else { List<String> urls=new ArrayList<>(); for(String ip:ips)urls.add("https://"+ip+":"+port); addressText.setText(String.join("\n",urls)); }
             codeText.setText(key); copyAddress.setAlpha(ips.isEmpty()?0.45f:1f); copyAddress.setEnabled(!ips.isEmpty());
-            getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+            if(prefs==null || prefs.getBoolean(ServerService.PREF_KEEP_SCREEN,true)) getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+            else getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         } else {
             getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         }
+        refreshSettings();
     }
 
     private String linkWithKey() {
@@ -143,6 +156,76 @@ public final class MainActivity extends Activity {
             startService(new Intent(this, ServerService.class).setAction(ServerService.ACTION_START).putExtra(ServerService.EXTRA_KEY,fresh));
             Toast.makeText(this,"Новый код создан. Откройте страницу заново.",Toast.LENGTH_LONG).show();
         } catch(Exception e) { Toast.makeText(this,"Не удалось сменить код",Toast.LENGTH_SHORT).show(); }
+    }
+
+    private TextView settingsRow(LinearLayout parent,String caption,Runnable action) {
+        LinearLayout row=row(); row.setGravity(Gravity.CENTER_VERTICAL); row.setPadding(0,dp(9),0,dp(9));
+        TextView name=label(caption,14,WHITE,false); row.addView(name,new LinearLayout.LayoutParams(0,-2,1));
+        TextView value=label("",14,MINT,true); value.setGravity(Gravity.END); row.addView(value);
+        TextView chevron=label("  ›",16,MUTED,false); row.addView(chevron);
+        row.setClickable(true); row.setFocusable(true);
+        row.setOnClickListener(v -> action.run());
+        parent.addView(row);
+        View divider=new View(this); divider.setBackgroundColor(BORDER); parent.addView(divider,new LinearLayout.LayoutParams(-1,dp(1)));
+        return value;
+    }
+
+    private void refreshSettings() {
+        if(settingsPort==null) return;
+        settingsPort.setText(String.valueOf(prefs.getInt(ServerService.PREF_PORT,ServerService.DEFAULT_PORT)));
+        int minutes=prefs.getInt(ServerService.PREF_AUTOSTOP,ServerService.DEFAULT_AUTOSTOP);
+        settingsAutoStop.setText(minutes<=0?"Никогда":minutes+" мин");
+        settingsKeepScreen.setText(prefs.getBoolean(ServerService.PREF_KEEP_SCREEN,true)?"Вкл":"Выкл");
+    }
+
+    private void editPort() {
+        final android.widget.EditText input=new android.widget.EditText(this);
+        input.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
+        input.setText(String.valueOf(prefs.getInt(ServerService.PREF_PORT,ServerService.DEFAULT_PORT)));
+        input.setSelection(input.getText().length());
+        new android.app.AlertDialog.Builder(this)
+                .setTitle("Порт сервера")
+                .setMessage("Введите порт от 1024 до 65000. Если он занят, используется следующий свободный.")
+                .setView(input)
+                .setPositiveButton("Сохранить",(dialog,which) -> {
+                    try { int value=Integer.parseInt(input.getText().toString().trim());
+                        if(value<1024||value>65000) throw new NumberFormatException();
+                        prefs.edit().putInt(ServerService.PREF_PORT,value).apply();
+                        refreshSettings(); restartIfRunning();
+                    } catch(Exception e) { Toast.makeText(this,"Некорректный порт",Toast.LENGTH_SHORT).show(); }
+                })
+                .setNegativeButton("Отмена",null)
+                .show();
+    }
+
+    private void editAutoStop() {
+        final int[] values={15,30,60,0};
+        String[] labels={"15 минут","30 минут","1 час","Никогда"};
+        int current=prefs.getInt(ServerService.PREF_AUTOSTOP,ServerService.DEFAULT_AUTOSTOP);
+        int checked=0; for(int i=0;i<values.length;i++) if(values[i]==current) checked=i;
+        new android.app.AlertDialog.Builder(this)
+                .setTitle("Останавливать сервер без подключений")
+                .setSingleChoiceItems(labels,checked,(dialog,which) -> {
+                    prefs.edit().putInt(ServerService.PREF_AUTOSTOP,values[which]).apply();
+                    dialog.dismiss(); refreshSettings(); restartIfRunning();
+                })
+                .setNegativeButton("Отмена",null)
+                .show();
+    }
+
+    private void toggleKeepScreen() {
+        boolean value=!prefs.getBoolean(ServerService.PREF_KEEP_SCREEN,true);
+        prefs.edit().putBoolean(ServerService.PREF_KEEP_SCREEN,value).apply();
+        refreshSettings(); refreshView();
+    }
+
+    private void restartIfRunning() {
+        if(!isRunning()) return;
+        startService(new Intent(this,ServerService.class).setAction(ServerService.ACTION_STOP));
+        final String current=key;
+        new android.os.Handler(getMainLooper()).postDelayed(() -> {
+            try { startService(new Intent(this,ServerService.class).setAction(ServerService.ACTION_START).putExtra(ServerService.EXTRA_KEY,current)); } catch(Exception ignored) {}
+        },400);
     }
 
     private void copyValue(String label,String value) { if(value==null||value.isEmpty())return; ClipboardManager clip=(ClipboardManager)getSystemService(Context.CLIPBOARD_SERVICE); clip.setPrimaryClip(ClipData.newPlainText(label,value)); Toast.makeText(this,label+" скопирован",Toast.LENGTH_SHORT).show(); }
@@ -180,7 +263,7 @@ public final class MainActivity extends Activity {
 
     private void installCrashRecorder() {
         Thread.UncaughtExceptionHandler previous=Thread.getDefaultUncaughtExceptionHandler(); final File report=new File(getFilesDir(),"last-crash.txt");
-        Thread.setDefaultUncaughtExceptionHandler((thread,error)-> { try(PrintWriter out=new PrintWriter(new OutputStreamWriter(new FileOutputStream(report),"UTF-8"))) { out.println("Files Wi-Fi 1.7 / Android "+Build.VERSION.RELEASE+" (API "+Build.VERSION.SDK_INT+") / "+Build.MANUFACTURER+" "+Build.MODEL); out.println("Thread: "+thread.getName()); error.printStackTrace(out); } catch(Throwable ignored) {} if(previous!=null)previous.uncaughtException(thread,error); else android.os.Process.killProcess(android.os.Process.myPid()); });
+        Thread.setDefaultUncaughtExceptionHandler((thread,error)-> { try(PrintWriter out=new PrintWriter(new OutputStreamWriter(new FileOutputStream(report),"UTF-8"))) { out.println("Files Wi-Fi 2.0 / Android "+Build.VERSION.RELEASE+" (API "+Build.VERSION.SDK_INT+") / "+Build.MANUFACTURER+" "+Build.MODEL); out.println("Thread: "+thread.getName()); error.printStackTrace(out); } catch(Throwable ignored) {} if(previous!=null)previous.uncaughtException(thread,error); else android.os.Process.killProcess(android.os.Process.myPid()); });
     }
     private void copyCrashReport() { try(InputStream in=openFileInput("last-crash.txt"); ByteArrayOutputStream bytes=new ByteArrayOutputStream()) { byte[] b=new byte[4096]; int n; while((n=in.read(b))!=-1 && bytes.size()<32000)bytes.write(b,0,n); ClipboardManager clip=(ClipboardManager)getSystemService(Context.CLIPBOARD_SERVICE); clip.setPrimaryClip(ClipData.newPlainText("Журнал ошибки",bytes.toString("UTF-8"))); Toast.makeText(this,"Журнал скопирован",Toast.LENGTH_LONG).show(); } catch(Exception e) { Toast.makeText(this,"Не удалось прочитать журнал",Toast.LENGTH_LONG).show(); } }
 }

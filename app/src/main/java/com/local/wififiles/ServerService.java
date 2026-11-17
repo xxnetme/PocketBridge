@@ -24,8 +24,13 @@ public final class ServerService extends Service {
     static final String ACTION_START = "com.local.wififiles.action.START";
     static final String ACTION_STOP = "com.local.wififiles.action.STOP";
     static final String EXTRA_KEY = "key";
-    /** Сервер сам останавливается, если никто не подключался указанное время. */
-    static final long IDLE_LIMIT_MS = 30L * 60 * 1000;
+    /** Настройки, которые читает и экран, и сервис. */
+    static final String PREFS = "pb-settings";
+    static final String PREF_PORT = "port";
+    static final String PREF_AUTOSTOP = "autoStop";
+    static final String PREF_KEEP_SCREEN = "keepScreen";
+    static final int DEFAULT_PORT = 8765;
+    static final int DEFAULT_AUTOSTOP = 30;
     private static final String CHANNEL_ID = "server";
     private static final int NOTIFICATION_ID = 1;
 
@@ -63,7 +68,8 @@ public final class ServerService extends Service {
         startInForeground("Запуск доступа…");
         try {
             SSLContext ssl = SelfSignedCertificate.createContext(getFilesDir());
-            server = new FileServer(this, Environment.getExternalStorageDirectory(), key, ssl);
+            int preferredPort = getSharedPreferences(PREFS, MODE_PRIVATE).getInt(PREF_PORT, DEFAULT_PORT);
+            server = new FileServer(this, Environment.getExternalStorageDirectory(), key, ssl, getCacheDir(), preferredPort);
             port = server.start();
             startWatchdog();
         } catch (Exception e) {
@@ -79,11 +85,14 @@ public final class ServerService extends Service {
 
     private void startWatchdog() {
         if (watchdog != null) return;
+        int minutes = getSharedPreferences(PREFS, MODE_PRIVATE).getInt(PREF_AUTOSTOP, DEFAULT_AUTOSTOP);
+        if (minutes <= 0) return;                       // автостоп отключён
+        long limit = minutes * 60_000L;
         watchdog = Executors.newSingleThreadScheduledExecutor(r -> { Thread t = new Thread(r, "idle-watchdog"); t.setDaemon(true); return t; });
         watchdog.scheduleWithFixedDelay(() -> {
             FileServer current = server;
-            if (current != null && current.idleMillis() > IDLE_LIMIT_MS && current.activeConnections() == 0) {
-                error = "Сервер остановлен автоматически: 30 минут без подключений";
+            if (current != null && current.idleMillis() > limit && current.activeConnections() == 0) {
+                error = "Сервер остановлен автоматически: " + minutes + " мин без подключений";
                 shutdown();
             }
         }, 1, 1, TimeUnit.MINUTES);

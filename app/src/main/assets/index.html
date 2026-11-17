@@ -36,9 +36,86 @@
 .dropzone{outline:2px dashed #83e5c2;outline-offset:-10px;background:#102a26!important}
 .subpath{color:#6f8f8c;font-size:11px;margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .namewrap{min-width:0;display:flex;flex-direction:column}
-</style></head><body><main class="shell"><div class="top"><div class="brand"><div class="brandicon">▤</div><div>Файлы телефона<small>Wi-Fi проводник</small></div></div><div class="topright"><span class="dot"></span> Локальная сеть</div></div>
+
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:12px;padding:16px 22px 22px}
+.card{position:relative;border:1px solid var(--border);border-radius:14px;background:var(--panel2);overflow:hidden;display:flex;flex-direction:column;min-width:0;transition:transform .12s,box-shadow .12s}
+.card:hover{transform:translateY(-1px);box-shadow:0 10px 24px #0004}
+.card.selected{outline:2px solid #83e5c2;outline-offset:-2px}
+.card .thumb{position:relative;aspect-ratio:4/3;background:var(--thumbbg,#0d1a20);display:grid;place-items:center;overflow:hidden;cursor:pointer}
+.card .thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.card .thumb .ic{font-size:34px;color:#8fd4d0;opacity:.85}
+.card .pick{position:absolute;top:8px;left:8px;z-index:2;background:#0a1218a8;border-radius:6px;padding:4px;display:grid;place-items:center}
+.card .pick input{width:16px;height:16px;margin:0}
+.card .cap{padding:8px 10px 0;font-size:12px;font-weight:600;color:var(--text);word-break:break-all;line-height:1.35;max-height:2.8em;overflow:hidden;cursor:pointer}
+.card .sub{padding:2px 10px 8px;font-size:11px;color:var(--muted);display:flex;justify-content:space-between;gap:8px;align-items:center}
+.card .acts{display:flex;gap:2px;border-top:1px solid var(--border);margin-top:auto}
+.card .acts button{flex:1;border:0;background:transparent;color:var(--muted);padding:8px 0;font-size:12px;cursor:pointer}
+.card .acts button:hover{background:var(--row-hover);color:var(--text)}
+@media(max-width:700px){.grid{grid-template-columns:repeat(auto-fill,minmax(108px,1fr));gap:8px;padding:12px 14px 16px}.card .cap{font-size:11px}.card .acts button{padding:9px 0}}
+
+/* ---------- светлая тема ---------- */
+[data-theme=light]{color-scheme:light}
+[data-theme=light] body{background:radial-gradient(ellipse at 5% 0%,#d8efe8 0,transparent 42%),#f4f8f7;color:#10231f}
+[data-theme=light] .brand small,[data-theme=light] .topright{color:#5c7a74}
+[data-theme=light] .hero .sub,[data-theme=light] .sub{color:#526f6a}
+[data-theme=light] .badge{border-color:#cfe3de;color:#3f5f59}
+[data-theme=light] .panel{background:#ffffff;border-color:#d9e7e3;box-shadow:0 18px 50px #0c2c2412}
+[data-theme=light] .bar,[data-theme=light] .pathbar,[data-theme=light] .message:not(:empty){border-color:#e2eeea}
+[data-theme=light] .btn{background:#eef5f2;border-color:#cfe0db;color:#15322b}
+[data-theme=light] .btn:hover:not(:disabled){background:#e3efeb}
+[data-theme=light] .btn.primary{background:#0f9f7a;border-color:#0f9f7a;color:#fff}
+[data-theme=light] .btn.primary:hover{background:#0d8b6b}
+[data-theme=light] .btn.danger{background:#fdeeec;border-color:#f0c9c3;color:#b23b2c}
+[data-theme=light] .search,[data-theme=light] .sortsel,[data-theme=light] .dialog-input{background:#ffffff;border-color:#cfe0db;color:#132c26}
+[data-theme=light] .search:focus{border-color:#0f9f7a}
+[data-theme=light] .eyebrow{color:#0f9f7a}
+[data-theme=light] .caption,[data-theme=light] th{color:#5f7f79}
+[data-theme=light] th,[data-theme=light] .pathline,[data-theme=light] .tablewrap{border-color:#e2eeea}
+[data-theme=light] td{color:#2b463f;border-color:#e8f1ee}
+[data-theme=light] tbody tr:hover{background:#f1f8f5}
+[data-theme=light] tbody tr.selected{background:#e2f5ee}
+[data-theme=light] .filename{color:#10231f}
+[data-theme=light] .filename:hover{color:#0f9f7a}
+[data-theme=light] .detail{color:#5f7f79}
+[data-theme=light] .icon.folder{background:#e8f1d8;color:#5d7a22}
+[data-theme=light] .icon.file{background:#e3efee;color:#2f7a72}
+[data-theme=light] .iconbtn{color:#47655f}
+[data-theme=light] .iconbtn:hover{background:#e3efeb;color:#10231f}
+[data-theme=light] .selection{background:#e2f5ee;border-color:#bfe6d9}
+[data-theme=light] .selection strong{color:#0b6b53}
+[data-theme=light] .message{color:#b23b2c}
+[data-theme=light] .empty,[data-theme=light] .foot{color:#5f7f79}
+[data-theme=light] .crumbs button{color:#17332c}
+[data-theme=light] .crumbs button:hover{background:#e3efeb;color:#0f9f7a}
+[data-theme=light] .crumbs span{color:#93b0a9}
+[data-theme=light] .progress{background:#f4faf8;border-color:#e2eeea}
+[data-theme=light] .progress .plabel{color:#3d5c56}
+[data-theme=light] .progress .ptrack{background:#dcebe6}
+[data-theme=light] .progress .pfill{background:#0f9f7a}
+[data-theme=light] .overlay{background:#0c211c66}
+[data-theme=light] .viewer{background:#ffffff;border-color:#cfe0db;box-shadow:0 22px 70px #0c2c2426}
+[data-theme=light] .viewtop{border-color:#e2eeea}
+[data-theme=light] .viewtitle small{color:#5f7f79}
+[data-theme=light] .viewbody{background:#f5faf8}
+[data-theme=light] .viewempty{color:#3f5f59}
+[data-theme=light] .dialog-overlay{background:#0c211c55}
+[data-theme=light] .action-dialog{background:#ffffff;border-color:#cfe0db;box-shadow:0 22px 70px #0c2c2426}
+[data-theme=light] .action-dialog h2{color:#10231f}
+[data-theme=light] .dialog-message{color:#4d6b65}
+[data-theme=light] .dialog-symbol{background:#e2f5ee;color:#0f9f7a}
+[data-theme=light] .dialog-symbol.danger{background:#fdeeec;color:#b23b2c}
+[data-theme=light] .dialog-error{color:#b23b2c}
+[data-theme=light] .dialog-actions .danger-solid{background:#c4453a;border-color:#c4453a;color:#fff}
+[data-theme=light] .loginhelp{color:#4d6b65;border-color:#e2eeea}
+[data-theme=light] .card{background:#f7fbf9;border-color:#d9e7e3}
+[data-theme=light] .card .thumb{background:#e9f2ef}
+[data-theme=light] .card .thumb .ic{color:#2f7a72}
+[data-theme=light] .card .pick{background:#ffffffcc}
+[data-theme=light] .card.selected{outline-color:#0f9f7a}
+[data-theme=light] .themeBtn{background:#eef5f2;border-color:#cfe0db;color:#15322b}
+</style></head><body><main class="shell"><div class="top"><div class="brand"><div class="brandicon">▤</div><div>Файлы телефона<small>Wi-Fi проводник</small></div></div><div class="topright"><button id="theme" class="btn themeBtn" title="Светлая/тёмная тема" aria-label="Переключить тему">☀</button><span class="dot"></span> Локальная сеть</div></div>
 <section id="login" class="panel loginbox"><div class="eyebrow">Доступ по коду в локальной сети</div><h1>Ваш телефон рядом.</h1><p class="sub">Работайте с файлами телефона прямо в браузере компьютера.</p><form id="loginForm"><label class="label" for="code">Код с экрана телефона</label><input class="search" id="code" type="text" placeholder="Например, 1a2b3c4d..." autocomplete="off" spellcheck="false" required><button class="btn primary" type="submit">Подключиться →</button></form><div id="loginError" class="message"></div><div class="loginhelp">Оба устройства должны быть в одной сети Wi-Fi. Соединение шифруется самоподписанным сертификатом: при первом открытии браузер попросит подтвердить исключение («Дополнительно» → «Перейти на сайт»). Ссылку с кодом можно скопировать на телефоне — она входит автоматически.</div></section>
-<section id="app" class="hidden"><div class="hero"><div><div class="eyebrow">Ваше устройство · файлы</div><h1>Всё под рукой.</h1><p class="sub">Просматривайте файлы и управляйте ими без проводов.</p></div><div class="badge">● Телефон подключён</div></div><div class="panel"><div class="bar"><button class="btn" id="up" title="На уровень выше">← Назад</button><button class="btn" id="refresh" title="Обновить">↻</button><button class="btn" id="mkdir">＋ Папка</button><button class="btn" id="sizes">◫ Размеры папок</button><button class="btn primary" id="upload">↑ Загрузить файлы</button><input id="fileInput" type="file" multiple hidden><span class="spacer"></span><input class="search" type="search" id="search" placeholder="Поиск в этой папке" aria-label="Поиск"><select id="scope" class="sortsel" aria-label="Где искать"><option value="local">искать здесь</option><option value="global">искать везде</option></select><select id="sort" class="sortsel" aria-label="Сортировка"><option value="name">Сортировка: имя</option><option value="size">размер</option><option value="date">дата</option><option value="type">тип</option></select><button class="btn" id="logout">Выйти</button></div><div class="pathbar"><div class="pathline"><div class="caption">Текущая папка</div><div id="path" class="path">/</div></div><div id="itemCount" class="count"></div></div><div id="selection" class="selection hidden"><strong id="selectedCount"></strong><button id="downloadSelected" class="btn primary">↓ Скачать выбранные файлы ZIP</button><button id="deleteSelected" class="btn danger">Удалить выбранное</button><button id="clearSelected" class="btn">Снять выделение</button></div><div id="message" class="message"></div><div id="progress" class="progress hidden"><span class="plabel" id="progressLabel"></span><div class="ptrack"><div class="pfill" id="progressFill"></div></div><button class="btn" id="progressCancel" type="button">Отмена</button></div><div class="tablewrap"><table><thead><tr><th class="checkcol"><input type="checkbox" id="selectAll" title="Выделить все видимые" aria-label="Выделить все видимые"></th><th>Название</th><th>Размер</th><th>Изменён</th><th></th></tr></thead><tbody id="rows"></tbody></table><div id="empty" class="empty hidden"><span>◌</span>Здесь пока ничего нет</div></div></div><div class="foot">Для подсчёта размеров нажмите «Размеры папок». Подсчёт может быть неполным из-за ограничений Android. Не закрывайте приложение на телефоне во время передачи.</div></section></main><div id="preview" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="previewTitle"><div class="viewer"><div class="viewtop"><div class="viewtitle"><strong id="previewTitle"></strong><small id="previewHint"></small></div><button id="previewPrev" class="btn hidden" title="Предыдущий файл" aria-label="Предыдущий файл">⏮</button><button id="previewNext" class="btn hidden" title="Следующий файл" aria-label="Следующий файл">⏭</button><button id="previewDownload" class="btn">↓ Скачать</button><button id="previewClose" class="btn" aria-label="Закрыть">✕</button></div><div id="previewBody" class="viewbody"></div></div></div><div id="actionDialog" class="dialog-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="dialogTitle" aria-describedby="dialogMessage"><form class="action-dialog" id="dialogForm"><div id="dialogIcon" class="dialog-symbol">✦</div><h2 id="dialogTitle"></h2><p id="dialogMessage" class="dialog-message"></p><input id="dialogInput" class="dialog-input hidden" maxlength="200" autocomplete="off" aria-label="Имя"><div id="dialogError" class="dialog-error hidden"></div><div class="dialog-actions"><button id="dialogExtra" class="btn" type="button" hidden></button><button id="dialogCancel" class="btn" type="button">Отмена</button><button id="dialogAccept" class="btn primary" type="submit">Продолжить</button></div></form></div><script>
+<section id="app" class="hidden"><div class="hero"><div><div class="eyebrow">Ваше устройство · файлы</div><h1>Всё под рукой.</h1><p class="sub">Просматривайте файлы и управляйте ими без проводов.</p></div><div class="badge">● Телефон подключён</div></div><div class="panel"><div class="bar"><button class="btn" id="up" title="На уровень выше">← Назад</button><button class="btn" id="refresh" title="Обновить">↻</button><button class="btn" id="mkdir">＋ Папка</button><button class="btn" id="sizes">◫ Размеры папок</button><button class="btn" id="view" title="Вид: плитка или список">▦ Плитка</button><button class="btn primary" id="upload">↑ Загрузить файлы</button><button class="btn" id="uploadDir">⇪ Загрузить папку</button><input id="fileInput" type="file" multiple hidden><input id="dirInput" type="file" webkitdirectory multiple hidden><span class="spacer"></span><input class="search" type="search" id="search" placeholder="Поиск в этой папке" aria-label="Поиск"><select id="scope" class="sortsel" aria-label="Где искать"><option value="local">искать здесь</option><option value="global">искать везде</option></select><select id="sort" class="sortsel" aria-label="Сортировка"><option value="name">Сортировка: имя</option><option value="size">размер</option><option value="date">дата</option><option value="type">тип</option></select><button class="btn" id="logout">Выйти</button></div><div class="pathbar"><div class="pathline"><div class="caption">Текущая папка</div><div id="path" class="path">/</div></div><div id="itemCount" class="count"></div></div><div id="selection" class="selection hidden"><strong id="selectedCount"></strong><button id="downloadSelected" class="btn primary">↓ Скачать выбранные файлы ZIP</button><button id="deleteSelected" class="btn danger">Удалить выбранное</button><button id="clearSelected" class="btn">Снять выделение</button></div><div id="message" class="message"></div><div id="progress" class="progress hidden"><span class="plabel" id="progressLabel"></span><div class="ptrack"><div class="pfill" id="progressFill"></div></div><button class="btn" id="progressCancel" type="button">Отмена</button></div><div id="grid" class="grid hidden"></div><div class="tablewrap" id="tableWrap"><table><thead><tr><th class="checkcol"><input type="checkbox" id="selectAll" title="Выделить все видимые" aria-label="Выделить все видимые"></th><th>Название</th><th>Размер</th><th>Изменён</th><th></th></tr></thead><tbody id="rows"></tbody></table><div id="empty" class="empty hidden"><span>◌</span>Здесь пока ничего нет</div></div></div><div class="foot">Для подсчёта размеров нажмите «Размеры папок». Подсчёт может быть неполным из-за ограничений Android. Не закрывайте приложение на телефоне во время передачи.</div></section></main><div id="preview" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="previewTitle"><div class="viewer"><div class="viewtop"><div class="viewtitle"><strong id="previewTitle"></strong><small id="previewHint"></small></div><button id="previewPrev" class="btn hidden" title="Предыдущий файл" aria-label="Предыдущий файл">⏮</button><button id="previewNext" class="btn hidden" title="Следующий файл" aria-label="Следующий файл">⏭</button><button id="previewDownload" class="btn">↓ Скачать</button><button id="previewClose" class="btn" aria-label="Закрыть">✕</button></div><div id="previewBody" class="viewbody"></div></div></div><div id="actionDialog" class="dialog-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="dialogTitle" aria-describedby="dialogMessage"><form class="action-dialog" id="dialogForm"><div id="dialogIcon" class="dialog-symbol">✦</div><h2 id="dialogTitle"></h2><p id="dialogMessage" class="dialog-message"></p><input id="dialogInput" class="dialog-input hidden" maxlength="200" autocomplete="off" aria-label="Имя"><div id="dialogError" class="dialog-error hidden"></div><div class="dialog-actions"><button id="dialogExtra" class="btn" type="button" hidden></button><button id="dialogCancel" class="btn" type="button">Отмена</button><button id="dialogAccept" class="btn primary" type="submit">Продолжить</button></div></form></div><script>
 'use strict';const el=id=>document.getElementById(id);let key='',current='/',items=[],selected=new Set(),sizes=new Map(),generation=0,busy=false,scanning=false;
 async function api(route,params={},options={}){const q=new URLSearchParams(params);const r=await fetch('/api/'+route+'?'+q,{...options,headers:{'X-Access-Key':key,...(options.headers||{})},cache:'no-store'});if(!r.ok)throw Error(await r.text());return r}
 function msg(s,error=true){let m=el('message');m.textContent=s;m.style.color=error?'#ffb2a7':'#9be5ca'}
@@ -49,7 +126,29 @@ let mode=el('sort')?el('sort').value:'name';
 let cmp=(a,b)=>{if(a.dir!==b.dir)return a.dir?-1:1;if(mode==='size')return b.size-a.size;if(mode==='date')return (b.modified||0)-(a.modified||0);if(mode==='type')return extOf(a.name).localeCompare(extOf(b.name),'ru')||a.name.localeCompare(b.name,'ru',{numeric:true,sensitivity:'base'});return a.name.localeCompare(b.name,'ru',{numeric:true,sensitivity:'base'})};
 return arr.slice().sort(cmp)}
 function updateSelection(){let v=visible(),num=selected.size,sel=el('selection');sel.classList.toggle('hidden',!num);el('selectedCount').textContent='Выбрано: '+num;let all=el('selectAll'),n=v.filter(x=>selected.has(x.path)).length;all.checked=v.length>0&&n===v.length;all.indeterminate=n>0&&n<v.length;all.disabled=!v.length;el('downloadSelected').disabled=num===0}
-function render(){let rows=el('rows'),view=visible();rows.replaceChildren();el('empty').classList.toggle('hidden',view.length>0);el('empty').innerHTML=view.length?'':'<span>◌</span>'+ (items.length?'Ничего не найдено':'Папка пуста');el('itemCount').textContent='Элементов: '+view.length;for(const item of view){let tr=document.createElement('tr');tr.classList.toggle('selected',selected.has(item.path));let checkcell=document.createElement('td');checkcell.className='checkcol';let check=document.createElement('input');check.type='checkbox';check.checked=selected.has(item.path);check.setAttribute('aria-label','Выбрать '+item.name);check.onchange=()=>{if(check.checked)selected.add(item.path);else selected.delete(item.path);tr.classList.toggle('selected',check.checked);updateSelection()};checkcell.append(check);let n=document.createElement('td'),box=document.createElement('div');box.className='filecell';let icon=document.createElement('span');icon.className='icon '+(item.dir?'folder':'file');icon.textContent=item.dir?'▰':'▤';let name=document.createElement('button');name.className='filename';name.textContent=item.name;name.onclick=()=>item.dir?show(item.path):openPreview(item);
+let viewMode=localStorage.getItem('pb-view')||'list',sessionToken=null;
+function sessionValid(){return !!sessionToken}
+async function ensureSession(){if(sessionToken)return sessionToken;const d=await(await api('session',{},{method:'POST'})).json();sessionToken=d.token;return sessionToken}
+function thumbUrl(item){return '/thumb?token='+(sessionToken||'')+'&path='+encodeURIComponent(item.path)+'&w=320'}
+function render(){if(viewMode==='grid')renderGrid();else renderList()}
+function renderCounters(view){el('itemCount').textContent='Элементов: '+view.length;el('empty').classList.toggle('hidden',view.length>0);el('empty').innerHTML=view.length?'':'<span>◌</span>'+(items.length?'Ничего не найдено':'Папка пуста')}
+function renderGrid(){const grid=el('grid'),view=visible();grid.replaceChildren();el('tableWrap').classList.add('hidden');grid.classList.remove('hidden');renderCounters(view);
+for(const item of view){const card=document.createElement('div');card.className='card'+(selected.has(item.path)?' selected':'');
+const thumb=document.createElement('div');thumb.className='thumb';
+if(!item.dir&&kind(item.name)==='image'){const img=document.createElement('img');img.alt='';img.loading='lazy';img.onerror=()=>{if(!img.dataset.retried){img.dataset.retried='1';sessionToken=null;img.src=thumbUrl(item)}};img.src=thumbUrl(item);thumb.append(img)}
+else{const ic=document.createElement('span');ic.className='ic';ic.textContent=item.dir?'▰':'▤';thumb.append(ic)}
+thumb.onclick=()=>item.dir?show(item.path):openPreview(item);
+const pick=document.createElement('label');pick.className='pick';const check=document.createElement('input');check.type='checkbox';check.checked=selected.has(item.path);check.setAttribute('aria-label','Выбрать '+item.name);
+check.onchange=()=>{if(check.checked)selected.add(item.path);else selected.delete(item.path);card.classList.toggle('selected',check.checked);updateSelection()};pick.append(check);thumb.append(pick);
+const cap=document.createElement('div');cap.className='cap';cap.textContent=item.name;cap.title=item.name;cap.onclick=thumb.onclick;
+const sub=document.createElement('div');sub.className='sub';const sizeTxt=document.createElement('span');sizeTxt.className='size';sizeTxt.dataset.path=item.path;setSize(sizeTxt,item);sub.append(sizeTxt);
+if(remoteResults){const p=document.createElement('span');p.className='subpath';p.textContent=parentOf(item.path);sub.append(p)}
+const acts=document.createElement('div');acts.className='acts';const act=(label,title,fn)=>{const b=document.createElement('button');b.type='button';b.textContent=label;b.title=title;b.onclick=fn;acts.append(b)};
+if(item.dir){act('ZIP','Скачать папку в ZIP',()=>downloadFolderZip(item))}else{if(kind(item.name))act('◉','Просмотр',()=>openPreview(item));act('↓','Скачать',()=>download(item))}
+act('✎','Переименовать',()=>rename(item));act('✕','Удалить',()=>removeItem(item));
+card.append(thumb,cap,sub,acts);grid.append(card)}
+updateSelection()}
+function renderList(){let rows=el('rows'),view=visible();el('grid').classList.add('hidden');el('tableWrap').classList.remove('hidden');rows.replaceChildren();el('empty').classList.toggle('hidden',view.length>0);el('empty').innerHTML=view.length?'':'<span>◌</span>'+ (items.length?'Ничего не найдено':'Папка пуста');el('itemCount').textContent='Элементов: '+view.length;el('empty').classList.toggle('hidden',view.length>0);el('empty').innerHTML=view.length?'':'<span>◌</span>'+(items.length?'Ничего не найдено':'Папка пуста');for(const item of view){let tr=document.createElement('tr');tr.classList.toggle('selected',selected.has(item.path));let checkcell=document.createElement('td');checkcell.className='checkcol';let check=document.createElement('input');check.type='checkbox';check.checked=selected.has(item.path);check.setAttribute('aria-label','Выбрать '+item.name);check.onchange=()=>{if(check.checked)selected.add(item.path);else selected.delete(item.path);tr.classList.toggle('selected',check.checked);updateSelection()};checkcell.append(check);let n=document.createElement('td'),box=document.createElement('div');box.className='filecell';let icon=document.createElement('span');icon.className='icon '+(item.dir?'folder':'file');icon.textContent=item.dir?'▰':'▤';let name=document.createElement('button');name.className='filename';name.textContent=item.name;name.onclick=()=>item.dir?show(item.path):openPreview(item);
 let nameWrap=document.createElement('div');nameWrap.className='namewrap';nameWrap.append(name);
 if(remoteResults){let sub=document.createElement('div');sub.className='subpath';sub.textContent=parentOf(item.path);nameWrap.append(sub)}
 box.append(icon,nameWrap);n.append(box);let size=document.createElement('td');size.className='detail size';size.dataset.path=item.path;size.title=item.dir?'Размер вложенных доступных файлов':'';setSize(size,item);let date=document.createElement('td');date.className='detail';date.textContent=item.modified?new Date(item.modified).toLocaleDateString():'—';let a=document.createElement('td');a.className='rowactions';const button=(label,fn)=>{let b=document.createElement('button');b.className='iconbtn';b.textContent=label;b.onclick=fn;a.append(b)};if(!item.dir){if(kind(item.name))button('Просмотр',()=>openPreview(item));button('Скачать',()=>download(item));}else button('ZIP',()=>downloadFolderZip(item));button('Имя',()=>rename(item));button('Удалить',()=>removeItem(item));tr.append(checkcell,n,size,date,a);rows.append(tr)}updateSelection()}
@@ -58,7 +157,7 @@ async function calculateSizes(token){if(scanning)return;scanning=true;el('sizes'
 function renderPath(path){let box=el('path');box.classList.add('crumbs');box.replaceChildren();
 const root=document.createElement('button');root.type='button';root.textContent='Телефон';root.title='Корень хранилища';root.onclick=()=>show('/');box.append(root);
 let acc='';for(const seg of path.split('/').filter(Boolean)){acc+='/'+seg;const sep=document.createElement('span');sep.textContent='/';const b=document.createElement('button');b.type='button';b.textContent=seg;const target=acc;b.onclick=()=>show(target);box.append(sep,b)}}
-async function show(path,preloaded=null){const token=++generation;try{msg('Открываем папку…',false);let data=preloaded||await(await api('list',{path})).json();if(token!==generation)return;current=data.path;items=data.items;selected.clear();sizes.clear();remoteResults=null;el('search').value='';renderPath(current);el('up').disabled=current==='/';render();msg('',false)}catch(e){if(token===generation)msg(e.message)}}
+async function show(path,preloaded=null){const token=++generation;try{msg('Открываем папку…',false);let data=preloaded||await(await api('list',{path})).json();if(token!==generation)return;await ensureSession().catch(()=>{});current=data.path;items=data.items;selected.clear();sizes.clear();remoteResults=null;el('search').value='';renderPath(current);el('up').disabled=current==='/';render();msg('',false)}catch(e){if(token===generation)msg(e.message)}}
 function saveBlob(blob,name){let url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000)}
 
 let remoteResults=null,searchTimer=null;
@@ -92,7 +191,7 @@ el('dialogCancel').onclick=()=>finishDialog(null);el('actionDialog').onclick=e=>
 async function rename(item){let name=await actionDialog({title:'Переименовать',message:'Введите новое имя файла или папки.',accept:'Сохранить',input:item.name});if(name===null||name===item.name)return;try{await api('rename',{path:item.path,name},{method:'POST'});await refreshListing()}catch(e){msg(e.message)}}
 async function removeItem(item){if(!await actionDialog({title:'Удалить '+(item.dir?'папку?':'файл?'),message:'«'+item.name+'»'+(item.dir?' и всё её содержимое будут удалены.':' будет удалён.')+' Отменить это действие нельзя.',accept:'Удалить',danger:true}))return;try{msg('Удаление…',false);await api('delete',{path:item.path},{method:'POST'});await refreshListing()}catch(e){await refreshListing();msg(e.message)}}
 el('loginForm').onsubmit=async e=>{e.preventDefault();key=el('code').value.trim();try{let data=await(await api('list',{path:'/'})).json();el('login').classList.add('hidden');el('app').classList.remove('hidden');await show('/',data)}catch(e){el('loginError').textContent=e.message}};
-el('up').onclick=()=>show(current.substring(0,current.lastIndexOf('/'))||'/');el('refresh').onclick=()=>show(current);el('logout').onclick=()=>{closePreview();generation++;key='';items=[];selected.clear();el('code').value='';el('loginError').textContent='';el('app').classList.add('hidden');el('login').classList.remove('hidden')};function scheduleRemote(){clearTimeout(searchTimer);const q=el('search').value.trim();if(el('scope').value!=='global'||q.length<2){remoteResults=null;render();return}searchTimer=setTimeout(runRemoteSearch,300)}
+el('up').onclick=()=>show(current.substring(0,current.lastIndexOf('/'))||'/');el('refresh').onclick=()=>show(current);el('logout').onclick=()=>{closePreview();generation++;key='';items=[];selected.clear();sessionToken=null;el('code').value='';el('loginError').textContent='';el('app').classList.add('hidden');el('login').classList.remove('hidden')};function scheduleRemote(){clearTimeout(searchTimer);const q=el('search').value.trim();if(el('scope').value!=='global'||q.length<2){remoteResults=null;render();return}searchTimer=setTimeout(runRemoteSearch,300)}
 async function runRemoteSearch(){const q=el('search').value.trim();if(q.length<2){remoteResults=null;render();return}
 try{msg('Ищем во всех папках…',false);const data=await(await api('search',{path:current,q})).json();if(el('search').value.trim()!==q)return;remoteResults=data.items;selected.clear();sizes.clear();render();msg(data.truncated?'Показаны первые результаты — уточните запрос':'Найдено: '+data.items.length,false)}catch(e){msg(e.message)}}
 async function refreshListing(){if(remoteResults!==null)await runRemoteSearch();else await show(current)}
@@ -128,6 +227,28 @@ if(err.status===409){hideProgress();const choice=await conflictDialog(name);show
 errors.push(f.name+': '+err.message);break}}}}
 finally{hideProgress();busy=false;await refreshListing();msg(errors.length?errors.slice(0,3).join('; ')+(errors.length>3?' и ещё '+(errors.length-3):''):'Файлы загружены',errors.length>0)}}
 el('upload').onclick=()=>el('fileInput').click();el('fileInput').onchange=async e=>{if(busy)return;busy=true;const files=[...e.target.files];e.target.value='';if(files.length)await uploadFiles(files);else busy=false};
+/* вид: плитка / список */
+function setView(v){viewMode=v;localStorage.setItem('pb-view',v);el('view').textContent=v==='grid'?'☰ Список':'▦ Плитка';render()}
+el('view').onclick=()=>setView(viewMode==='grid'?'list':'grid');
+if(viewMode==='grid')el('view').textContent='☰ Список';
+/* тема */
+function applyTheme(t){document.documentElement.dataset.theme=t;localStorage.setItem('pb-theme',t);el('theme').textContent=t==='light'?'☾':'☀'}
+(function(){const saved=localStorage.getItem('pb-theme');const preferred=saved||(window.matchMedia&&matchMedia('(prefers-color-scheme: light)').matches?'light':'dark');applyTheme(preferred)})();
+el('theme').onclick=()=>applyTheme(document.documentElement.dataset.theme==='light'?'dark':'light');
+/* загрузка папки с сохранением структуры */
+function joinPath(base,rel){const b=base==='/'?'':base;return (b+'/'+rel).replace(/\/+/g,'/')}
+async function uploadFolder(files){const errors=[];showProgress('Подготовка папки…');const dirs=new Set();
+try{for(let i=0;i<files.length;i++){const f=files[i];const rel=(f.webkitRelativePath||f.name).replace(/\\/g,'/');const parts=rel.split('/');const name=parts.pop();const dir=parts.length?joinPath(current,parts.join('/')):current;
+if(dir!==current&&!dirs.has(dir)){await api('mkdirs',{path:dir},{method:'POST'});dirs.add(dir)}
+let target=name,overwrite=false,skip=false;
+while(!skip){try{setProgress('Загрузка '+(i+1)+'/'+files.length+': '+rel+' · 0%',0);
+await uploadOne(f,{path:dir,name:target,overwrite:overwrite?'1':'0'},(loaded,total,speed)=>{const pct=Math.round(loaded/total*100);setProgress('Загрузка '+(i+1)+'/'+files.length+': '+rel+' · '+pct+'%'+(speed?' · '+humanSpeed(speed):''),pct)});
+break}catch(err){if(err.aborted){errors.push(rel+': отменено');skip=true;break}
+if(err.status===409){hideProgress();const choice=await conflictDialog(target);showProgress('Подготовка…');if(choice===null){errors.push(rel+': пропущен');skip=true;break}if(choice==='overwrite'){overwrite=true;continue}target=String(choice);overwrite=false;continue}
+errors.push(rel+': '+err.message);break}}}}
+finally{hideProgress();busy=false;await refreshListing();msg(errors.length?errors.slice(0,3).join('; ')+(errors.length>3?' и ещё '+(errors.length-3):''):'Папка загружена: '+files.length+' файлов',errors.length>0)}}
+el('uploadDir').onclick=()=>el('dirInput').click();
+el('dirInput').onchange=async e=>{const files=[...e.target.files];e.target.value='';if(!files.length)return;if(busy){msg('Дождитесь окончания текущей загрузки');return}busy=true;await uploadFolder(files)};
 /* перетаскивание файлов в окно */
 (function(){const zone=el('app');if(!zone)return;
 zone.addEventListener('dragover',e=>{e.preventDefault();zone.classList.add('dropzone')});
