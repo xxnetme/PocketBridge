@@ -3,388 +3,188 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PocketBridge v3.0 — демо: веб + мобайл</title>
+<title>PocketBridge v3.0 — демо</title>
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background: #f5f5f7; color: #1d1d1f; line-height: 1.5; }
-  .container { max-width: 1000px; margin: 0 auto; padding: 20px; }
-  header { background: linear-gradient(135deg, #0a84ff 0%, #0066cc 100%); color: #fff; padding: 32px 20px; border-radius: 16px; margin-bottom: 24px; box-shadow: 0 8px 24px rgba(10,132,255,0.25); }
-  header h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; letter-spacing: -0.5px; }
-  header p { font-size: 16px; opacity: 0.95; }
-  .badge { display: inline-block; background: rgba(255,255,255,0.2); padding: 4px 12px; border-radius: 20px; font-size: 13px; margin-top: 10px; border: 1px solid rgba(255,255,255,0.3); }
-
-  /* Layout: веб + мобайл */
-  .demo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 32px; }
-  @media (max-width: 768px) { .demo-grid { grid-template-columns: 1fr; } }
-
-  .card { background: #fff; border-radius: 16px; padding: 24px; box-shadow: 0 4px 16px rgba(0,0,0,0.06); border: 1px solid #e5e5ea; }
-  .card h2 { font-size: 18px; font-weight: 600; margin-bottom: 16px; color: #1d1d1f; display: flex; align-items: center; gap: 8px; }
-  .card h2 .tag { font-size: 11px; padding: 2px 8px; border-radius: 6px; background: #e5edff; color: #0a84ff; font-weight: 600; margin-left: auto; }
-
-  /* Веб-панель */
-  .web-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
-  .status-row { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
-  .pill { padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 500; border: 1px solid #e5e5ea; background: #f9f9fb; }
-  .pill.ok { background: #e9f7ef; border-color: #34c759; color: #1e7e34; }
-  .pill.warn { background: #fdf3e5; border-color: #ff9500; color: #c45300; }
-  .pill.info { background: #e5f3ff; border-color: #0a84ff; color: #0066cc; }
-
-  .toolbar { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
-  button { padding: 10px 16px; border-radius: 10px; border: 1px solid #d1d1d6; background: #fff; color: #1d1d1f; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.2s; }
-  button:hover { background: #f2f2f7; border-color: #0a84ff; }
-  button.primary { background: #0a84ff; color: #fff; border-color: #0a84ff; }
-  button.primary:hover { background: #0066cc; }
-  button:disabled { opacity: 0.5; cursor: not-allowed; }
-
-  .file-list { border: 1px solid #e5e5ea; border-radius: 12px; overflow: hidden; background: #fff; }
-  .file-item { display: flex; align-items: center; padding: 12px 16px; border-bottom: 1px solid #f2f2f7; cursor: pointer; transition: background 0.2s; }
-  .file-item:last-child { border-bottom: none; }
-  .file-item:hover { background: #f9f9fb; }
-  .file-item.selected { background: #e5f3ff; border-left: 4px solid #0a84ff; }
-  .file-icon { width: 36px; height: 36px; border-radius: 8px; background: #f2f2f7; display: flex; align-items: center; justify-content: center; margin-right: 12px; font-size: 18px; }
-  .file-info { flex: 1; min-width: 0; }
-  .file-name { font-size: 14px; font-weight: 500; color: #1d1d1f; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .file-meta { font-size: 12px; color: #86868b; margin-top: 2px; }
-  .file-type { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 6px; background: #f2f2f7; color: #86868b; margin-left: 12px; white-space: nowrap; }
-
-  /* Превью */
-  .preview-area { margin-top: 20px; padding-top: 20px; border-top: 1px solid #e5e5ea; }
-  .preview-placeholder { height: 240px; border: 2px dashed #d1d1d6; border-radius: 12px; display: flex; align-items: center; justify-content: center; color: #86868b; background: #fafafa; margin-bottom: 12px; }
-  .preview-image { max-width: 100%; max-height: 240px; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.1); display: none; }
-  .preview-meta { font-size: 13px; color: #86868b; margin-top: 8px; }
-
-  /* Мобайл симулятор */
-  .phone { background: #000; border-radius: 36px; padding: 46px 24px 28px; box-shadow: 0 20px 60px rgba(0,0,0,0.4); position: relative; overflow: hidden; }
-  .phone::before { content: ''; position: absolute; top: 16px; left: 50%; transform: translateX(-50%); width: 120px; height: 28px; border-radius: 14px; background: #ccc; z-index: 10; }
-  .phone-screen { background: #fff; border-radius: 30px 30px 26px; height: 680px; overflow: hidden; position: relative; }
-  .phone-status { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; font-size: 13px; color: #000; background: #fff; }
-  .wifi-dot { width: 8px; height: 8px; border-radius: 50%; background: #34c759; box-shadow: 0 0 8px rgba(52,199,89,0.6); }
-  .phone-header { background: #fff; padding: 16px 20px; border-bottom: 1px solid #e5e5ea; }
-  .phone-header h3 { font-size: 17px; font-weight: 600; color: #000; }
-  .phone-header p { font-size: 12px; color: #8e8e93; margin-top: 2px; }
-  .phone-content { padding: 0 20px; }
-  .phone-btn-row { display: flex; gap: 8px; margin: 16px 0; }
-  .phone-btn { flex: 1; padding: 10px; border-radius: 10px; border: 1px solid #d1d1d6; background: #f2f2f7; color: #000; font-size: 12px; font-weight: 600; cursor: pointer; }
-  .phone-btn.active { background: #0a84ff; color: #fff; border-color: #0a84ff; }
-  .phone-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 16px; }
-  .phone-tile { aspect-ratio: 1; border-radius: 10px; background: #f2f2f7; display: flex; align-items: center; justify-content: center; font-size: 24px; position: relative; overflow: hidden; }
-  .phone-tile.raw { background: linear-gradient(135deg, #ff9500, #ff3b30); color: #fff; font-size: 30px; }
-  .phone-tile.heic { background: linear-gradient(135deg, #af52de, #bf5af2); color: #fff; font-size: 28px; }
-  .phone-tile .label { position: absolute; bottom: 6px; left: 6px; font-size: 10px; font-weight: 600; background: rgba(0,0,0,0.5); padding: 2px 6px; border-radius: 4px; }
-  .phone-footer { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); width: calc(100% - 40px); background: rgba(255,255,255,0.95); backdrop-filter: blur(8px); border-radius: 16px; padding: 10px 16px; border: 1px solid rgba(255,255,255,0.5); display: flex; gap: 12px; align-items: center; font-size: 12px; color: #000; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
-
-  .section-title { font-size: 20px; font-weight: 700; margin: 32px 0 16px; color: #1d1d1f; }
-  .feature-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 16px; }
-  @media (max-width: 768px) { .feature-grid { grid-template-columns: 1fr; } }
-  .feature { background: #fff; border-radius: 12px; padding: 16px; border: 1px solid #e5e5ea; }
-  .feature .icon { font-size: 24px; margin-bottom: 10px; }
-  .feature h4 { font-size: 15px; font-weight: 600; margin-bottom: 6px; color: #1d1d1f; }
-  .feature p { font-size: 13px; color: #86868b; line-height: 1.4; }
-
-  .footer-note { margin-top: 32px; padding: 20px; background: #f2f2f7; border-radius: 12px; font-size: 13px; color: #86868b; border: 1px solid #e5e5ea; }
+  :root{
+    --bg:#0b0b0e;--surf:#141419;--surf2:#1c1c24;--bor:#2a2a33;--txt:#f2f2f7;--muted:#9494a3;
+    --ac:#0a84ff;--ok:#34c759;--warn:#ff9500;--heic:#af52de;--raw:#ff9500;--r:16px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--txt);min-height:100vh}
+  .bg-grid{position:fixed;inset:0;background-image:linear-gradient(rgba(255,255,255,.03)1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.03)1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:-1}
+  .container{max-width:1000px;margin:0 auto;padding:24px 16px}
+  header{display:flex;align-items:center;justify-content:space-between;padding:24px;border-radius:20px;background:linear-gradient(135deg,rgba(10,132,255,.12),rgba(175,82,222,.08));border:1px solid var(--bor);margin-bottom:24px}
+  .brand{display:flex;align-items:gap:12px}
+  .ic{width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,var(--ac),var(--heic));display:flex;align-items:center;justify-content:center;font-size:20px}
+  h1{font-size:22px;font-weight:700;background:linear-gradient(135deg,#fff,var(--ac));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:4px}
+  p.sub{font-size:13px;color:var(--muted)}
+  .vb{padding:6px 14px;border-radius:16px;background:rgba(10,132,255,.15);border:1px solid rgba(10,132,255,.3);color:var(--ac);font-size:11px;font-weight:700}
+  .demo-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px}
+  @media(max-width:768px){.demo-grid{grid-template-columns:1fr}}
+  .card{background:var(--surf);border:1px solid var(--bor);border-radius:18px;padding:20px}
+  h2{font-size:16px;font-weight:600;margin-bottom:14px;color:var(--txt);display:flex;align-items:center;gap:8px}
+  .tag{font-size:10px;padding:2px 8px;border-radius:8px;background:rgba(10,132,255,.15);color:var(--ac);border:1px solid rgba(10,132,255,.2);font-weight:700}
+  .status{display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap}
+  .pill{padding:7px 14px;border-radius:20px;font-size:12px;font-weight:600;border:1px solid var(--bor);background:var(--surf2);color:var(--muted);display:flex;align-items:center;gap:7px}
+  .pill .d{width:6px;height:6px;border-radius:50%}
+  .pill.ok{background:rgba(52,199,89,.15);border-color:rgba(52,199,89,.35);color:var(--ok)}
+  .pill.ok .d{background:var(--ok)}
+  .pill.info{background:rgba(10,132,255,.15);border-color:rgba(10,132,255,.35);color:var(--ac)}
+  .pill.info .d{background:var(--ac)}
+  .pill.warn{background:rgba(255,149,0,.15);border-color:rgba(255,149,0,.35);color:var(--warn)}
+  .pill.warn .d{background:var(--warn)}
+  .tb{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+  button{padding:9px 16px;border-radius:12px;border:1px solid var(--bor);background:var(--surf2);color:var(--txt);font-size:13px;font-weight:600;cursor:pointer;transition:.2s;display:flex;align-items:center;gap:7px}
+  button:hover{background:var(--surf);border-color:var(--ac);color:var(--ac)}
+  button.pri{background:linear-gradient(135deg,var(--ac),#0066cc);border:none;color:#fff;box-shadow:0 8px 20px rgba(10,132,255,.3)}
+  button.pri:hover{background:linear-gradient(135deg,#2b9bff,#0052a3)}
+  .fl{border:1px solid var(--bor);border-radius:14px;overflow:hidden;background:var(--surf)}
+  .fi{display:flex;align-items:center;padding:12px 16px;border-bottom:1px solid rgba(255,255,255,.04);cursor:pointer;transition:.2s}
+  .fi:last-child{border-bottom:none}
+  .fi:hover{background:var(--surf2)}
+  .fi.sel{background:rgba(10,132,255,.1);border-left:3px solid var(--ac)}
+  .fic{width:36px;height:36px;border-radius:10px;background:var(--surf2);display:flex;align-items:center;justify-content:center;margin-right:12px;font-size:18px;border:1px solid rgba(255,255,255,.06)}
+  .fin{flex:1;min-width:0}
+  .fn{font-size:14px;font-weight:600;color:var(--txt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .fm{font-size:11.5px;color:var(--muted);margin-top:3px}
+  .ftp{font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:7px;background:rgba(255,255,255,.05);color:var(--muted);margin-left:10px;white-space:nowrap}
+  .ftp.raw{background:rgba(255,149,0,.15);color:var(--raw);border:1px solid rgba(255,149,0,.25)}
+  .ftp.heic{background:rgba(175,82,222,.15);color:var(--heic);border:1px solid rgba(175,82,222,.25)}
+  .pv{margin-top:16px;padding-top:16px;border-top:1px solid var(--bor)}
+  .pvh{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+  .pb{font-size:10.5px;padding:3px 9px;border-radius:10px;background:rgba(10,132,255,.15);color:var(--ac);border:1px solid rgba(10,132,255,.2);font-weight:700}
+  .ph{height:180px;border:2px dashed var(--bor);border-radius:14px;display:flex;align-items:center;justify-content:center;color:var(--muted);background:rgba(255,255,255,.02);margin-bottom:10px}
+  .pi{max-width:100%;max-height:180px;border-radius:14px;box-shadow:0 16px 48px rgba(0,0,0,.4);display:none;border:1px solid var(--bor)}
+  .pm{font-size:12px;color:var(--muted);margin-top:6px}
+  .phone{background:#000;border-radius:40px;padding:42px 24px 26px;box-shadow:0 30px 80px rgba(0,0,0,.7);position:relative;overflow:hidden;border:1px solid rgba(255,255,255,.08)}
+  .phone::before{content:'';position:absolute;top:16px;left:50%;transform:translateX(-50%);width:120px;height:28px;border-radius:14px;background:#2c2c2e;z-index:10}
+  .ps{background:#1c1c1e;border-radius:30px;height:640px;overflow:hidden;position:relative;border:1px solid rgba(255,255,255,.1)}
+  .pstatus{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;font-size:12px;color:#fff}
+  .wd{width:7px;height:7px;border-radius:50%;background:var(--ok);box-shadow:0 0 8px rgba(52,199,89,.6)}
+  .phe{padding:14px 20px;border-bottom:1px solid rgba(255,255,255,.08)}
+  .phe h3{font-size:16px;font-weight:600;color:#fff}
+  .phe p{font-size:11px;color:#8e8e90;margin-top:2px}
+  .pc{padding:0 20px}
+  .tb2{display:flex;gap:8px;margin:14px 0}
+  .tb2 b{flex:1;padding:9px;border-radius:11px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06);color:#fff;font-size:11px;font-weight:600;cursor:pointer}
+  .tb2 b.ac{background:var(--ac);border-color:var(--ac);box-shadow:0 4px 12px rgba(10,132,255,.35)}
+  .pg{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-top:14px}
+  .pt{aspect-ratio:1;border-radius:12px;background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;font-size:24px;position:relative;overflow:hidden;border:1px solid rgba(255,255,255,.08);cursor:pointer}
+  .pt.raw{background:linear-gradient(135deg,rgba(255,149,0,.2),rgba(255,59,48,.2));color:var(--raw);font-size:30px;border-color:rgba(255,149,0,.35)}
+  .pt.heic{background:linear-gradient(135deg,rgba(175,82,222,.2),rgba(191,90,242,.2));color:var(--heic);font-size:28px;border-color:rgba(175,82,222,.35)}
+  .pt .lb{position:absolute;bottom:6px;left:6px;font-size:9px;font-weight:700;background:rgba(0,0,0,.55);padding:2px 6px;border-radius:5px}
+  .pf{position:absolute;bottom:18px;left:50%;transform:translateX(-50%);width:calc(100%-36px);background:rgba(28,28,30,.92);backdrop-filter:blur(10px);border-radius:18px;padding:10px 16px;border:1px solid rgba(255,255,255,.1);display:flex;gap:12px;align-items:center;font-size:11px;color:#fff}
+  .sec{font-size:18px;font-weight:700;margin:28px 0 14px;color:var(--txt)}
+  .fg{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:14px}
+  @media(max-width:768px){.fg{grid-template-columns:1fr}}
+  .ft{background:var(--surf);border-radius:14px;padding:16px;border:1px solid var(--bor)}
+  .ft .icn{font-size:24px;margin-bottom:10px;display:block}
+  .ft h4{font-size:14px;font-weight:600;margin-bottom:6px;color:var(--txt)}
+  .ft p{font-size:12.5px;color:var(--muted);line-height:1.5}
+  .fn2{margin-top:24px;padding:16px;background:var(--surf);border-radius:14px;font-size:12.5px;color:var(--muted);border:1px solid var(--bor);line-height:1.6}
+  .fn2 code{background:rgba(255,255,255,.06);padding:2px 8px;border-radius:6px;color:var(--ac);font-size:11px;font-family:monospace}
 </style>
 </head>
 <body>
 
+<div class="bg-grid"></div>
+
 <div class="container">
   <header>
-    <h1>PocketBridge v3.0 «Просмотр и стабильность»</h1>
-    <p>Локальный файловый сервер с HEIC/RAW-превью, WifiLock и чисткой кеша миниатюр</p>
-    <span class="badge">v3.0 · versionCode 14 · APK: 77 КБ (release)</span>
+    <div class="brand">
+      <div class="ic">🌉</div>
+      <div>
+        <h1>PocketBridge v3.0</h1>
+        <p class="sub">Локальный файловый сервер · веб + мобайл</p>
+      </div>
+    </div>
+    <span class="vb">v3.0 · 135/135 тестов</span>
   </header>
 
   <div class="demo-grid">
-    <!-- ===== ВЕБ ===== -->
     <div class="card">
-      <h2>Веб-интерфейс <span class="tag">браузер</span></h2>
-      <div class="web-header">
-        <div style="font-size:13px;color:#86868b;">http://192.168.1.42:8765</div>
-        <div style="font-size:11px;color:#86868b;">v3.0</div>
+      <h2>Веб <span class="tag">браузер</span></h2>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:8px;">http://192.168.1.42:8765</div>
+      <div class="status">
+        <span class="pill ok"><span class="d"></span>WiFi Lock активен</span>
+        <span class="pill ok"><span class="d"></span>Кеш 42/200 МБ</span>
+        <span class="pill info"><span class="d"></span>Файлов 50</span>
+        <span class="pill warn"><span class="d"></span>RAW 5 → JPEG</span>
       </div>
-
-      <div class="status-row">
-        <span class="pill ok">● WiFi Lock активен</span>
-        <span class="pill ok">● Кеш: 42 / 200 МБ</span>
-        <span class="pill info">● Файлов: 50</span>
-        <span class="pill warn">● RAW: 5 (превью JPEG)</span>
+      <div class="tb">
+        <button class="pri" onclick="rf()">⟳ Обновить</button>
+        <button onclick="cc()">Очистить кеш</button>
+        <button onclick="tw()">WiFi Lock: ВКЛ</button>
       </div>
-
-      <div class="toolbar">
-        <button class="primary" onclick="refreshFiles()">Обновить</button>
-        <button onclick="selectAll()">Выделить всё</button>
-        <button onclick="clearCache()">Очистить кеш</button>
-        <button onclick="toggleWifiLock()">WiFi Lock: ВКЛ</button>
-      </div>
-
-      <div class="file-list" id="fileList">
-        <div class="file-item selected" onclick="selectFile(this,'photo.dng','image/x-adobe-dng','RAW 24 МБ')">
-          <div class="file-icon">📷</div>
-          <div class="file-info">
-            <div class="file-name">photo.dng</div>
-            <div class="file-meta">Adobe RAW · 24,3 МБ · изменён 14:32</div>
-          </div>
-          <div class="file-type">RAW</div>
-        </div>
-        <div class="file-item" onclick="selectFile(this,'vacation.heic','image/heic','HEIC 8 МБ')">
-          <div class="file-icon">📱</div>
-          <div class="file-info">
-            <div class="file-name">vacation.heic</div>
-            <div class="file-meta">HEIC · 8,2 МБ · изменён вчера</div>
-          </div>
-          <div class="file-type">HEIC</div>
-        </div>
-        <div class="file-item" onclick="selectFile(this,'portrait.cr2','image/x-canon-cr2','RAW 28 МБ')">
-          <div class="file-icon">📷</div>
-          <div class="file-info">
-            <div class="file-name">portrait.cr2</div>
-            <div class="file-meta">Canon RAW · 28,1 МБ · 2 дня назад</div>
-          </div>
-          <div class="file-type">RAW</div>
-        </div>
-        <div class="file-item" onclick="selectFile(this,'landscape.nef','image/x-nikon-nef','RAW 31 МБ')">
-          <div class="file-icon">📷</div>
-          <div class="file-info">
-            <div class="file-name">landscape.nef</div>
-            <div class="file-meta">Nikon RAW · 31,4 МБ · 3 дня назад</div>
-          </div>
-          <div class="file-type">RAW</div>
-        </div>
-        <div class="file-item" onclick="selectFile(this,'macro.arw','image/x-sony-arw','RAW 22 МБ')">
-          <div class="file-icon">📷</div>
-          <div class="file-info">
-            <div class="file-name">macro.arw</div>
-            <div class="file-meta">Sony RAW · 22,7 МБ · 5 дней назад</div>
-          </div>
-          <div class="file-type">RAW</div>
-        </div>
-        <div class="file-item" onclick="selectFile(this,'studio.raf','image/x-fuji-raf','RAW 35 МБ')">
-          <div class="file-icon">📷</div>
-          <div class="file-info">
-            <div class="file-name">studio.raf</div>
-            <div class="file-meta">Fujifilm RAW · 35,2 МБ · неделя назад</div>
-          </div>
-          <div class="file-type">RAW</div>
-        </div>
-        <div class="file-item" onclick="selectFile(this,'document.pdf','application/pdf','PDF 2 МБ')">
-          <div class="file-icon">📄</div>
-          <div class="file-info">
-            <div class="file-name">document.pdf</div>
-            <div class="file-meta">PDF · 2,1 МБ · изменён вчера</div>
-          </div>
-          <div class="file-type">DOC</div>
-        </div>
-      </div>
-
-      <div class="preview-area">
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
-          <strong style="font-size:14px;">Превью</strong>
-          <span id="previewType" style="font-size:11px;padding:2px 8px;border-radius:6px;background:#e5f3ff;color:#0066cc;">RAW → JPEG</span>
-        </div>
-        <div class="preview-placeholder" id="previewPlaceholder">Выберите файл для просмотра</div>
-        <img class="preview-image" id="previewImage" src="" alt="Превью">
-        <div class="preview-meta" id="previewMeta">Откройте RAW- или HEIC-файл — сервер перекодирует его в JPEG для браузера</div>
+      <div class="fl" id="fl"></div>
+      <div class="pv">
+        <div class="pvh"><strong>Превью</strong><span class="pb" id="pb">RAW → JPEG</span></div>
+        <div class="ph" id="ph">Выберите файл для просмотра</div>
+        <img class="pi" id="pi" src="" alt="Превью">
+        <div class="pm" id="pm">Откройте RAW/HEIC — сервер перекодирует в JPEG</div>
       </div>
     </div>
 
-    <!-- ===== МОБАЙЛ ===== -->
     <div class="card">
-      <h2>Мобильное приложение <span class="tag">Android</span></h2>
+      <h2>Мобайл <span class="tag">Android</span></h2>
       <div class="phone">
-        <div class="phone-screen">
-          <div class="phone-status">
-            <div style="display:flex;align-items:center;gap:6px;">
-              <div class="wifi-dot"></div>
-              <span id="wifiStatus">WiFi Lock: ВКЛ</span>
-            </div>
-            <div>14:32</div>
+        <div class="ps">
+          <div class="pstatus"><div style="display:flex;align-items:center;gap:6px"><div class="wd"></div><span id="mw">WiFi Lock: ВКЛ</span></div><span>14:32</span></div>
+          <div class="phe"><h3>Файлы</h3><p>PocketBridge · локальный сервер</p></div>
+          <div class="pc">
+            <div class="tb2"><b class="ac" onclick="st('all')">Все</b><b onclick="st('img')">Изображения</b><b onclick="st('raw')">RAW</b></div>
+            <div class="pg" id="pg"></div>
           </div>
-          <div class="phone-header">
-            <h3>Файлы</h3>
-            <p>PocketBridge · локальный сервер</p>
-          </div>
-          <div class="phone-content">
-            <div class="phone-btn-row">
-              <button class="phone-btn active" onclick="setTab('all')">Все</button>
-              <button class="phone-btn" onclick="setTab('images')">Изображения</button>
-              <button class="phone-btn" onclick="setTab('raw')">RAW</button>
-            </div>
-            <div class="phone-grid" id="phoneGrid">
-              <!-- заполняется JS -->
-            </div>
-          </div>
-          <div class="phone-footer">
-            <div style="display:flex;align-items:center;gap:8px;">
-              <div style="width:6px;height:6px;border-radius:50%;background:#34c759;box-shadow:0 0 6px rgba(52,199,89,0.6);"></div>
-              <div style="font-weight:600;">Сервер работает</div>
-            </div>
-            <div style="font-size:11px;color:#8e8e93;">Кеш: 42 МБ / 200 МБ</div>
+          <div class="pf">
+            <div style="display:flex;align-items:center;gap:6px"><div style="width:5px;height:5px;border-radius:50%;background:var(--ok);box-shadow:0 0 6px var(--ok)"></div><div style="font-weight:600">Сервер работает</div></div>
+            <div style="font-size:10px;color:#8e8e90">Кеш 42 МБ / 200 МБ</div>
           </div>
         </div>
       </div>
-      <div style="margin-top:12px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
-        <button class="phone-btn" onclick="openPreview('photo.dng')">Открыть photo.dng</button>
-        <button class="phone-btn" onclick="openPreview('vacation.heic')">Открыть vacation.heic</button>
-        <button class="phone-btn" onclick="simulateScreenLock()">Блокировка экрана</button>
+      <div style="margin-top:12px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+        <button class="pri" style="padding:7px 14px;font-size:12px" onclick="op('photo.dng')">photo.dng</button>
+        <button style="padding:7px 14px;font-size:12px" onclick="op('vacation.heic')">vacation.heic</button>
+        <button style="padding:7px 14px;font-size:12px" onclick="sl()">Блокировка экрана</button>
       </div>
     </div>
   </div>
 
-  <div class="section-title">Возможности v3.0</div>
-  <div class="feature-grid">
-    <div class="feature">
-      <div class="icon">🖼️</div>
-      <h4>HEIC/RAW превью</h4>
-      <p>.heic/.heif/.dng/.cr2/.nef/.arw/.raf перекодируются в JPEG на сервере для просмотра в браузере и приложении.</p>
-    </div>
-    <div class="feature">
-      <div class="icon">🧹</div>
-      <h4>Чистка кеша 200 МБ</h4>
-      <p>Миниатюры старше лимита удаляются автоматически (FIFO) при кэшировании и остановке сервера.</p>
-    </div>
-    <div class="feature">
-      <div class="icon">📶</div>
-      <h4>WifiLock</h4>
-      <p>WiFi удерживается в режиме HIGH_PERF во время передачи — нет обрывов при блокировке экрана.</p>
-    </div>
+  <div class="sec">Возможности v3.0</div>
+  <div class="fg">
+    <div class="ft"><span class="icn">🖼️</span><h4>HEIC/RAW превью</h4><p>.heic/.heif/.dng/.cr2/.nef/.arw/.raf → JPEG на сервере для браузера и приложения.</p></div>
+    <div class="ft"><span class="icn">🧹</span><h4>Чистка кеша 200 МБ</h4><p>Старейшие миниатюры удаляются автоматически (FIFO) при кэшировании и остановке.</p></div>
+    <div class="ft"><span class="icn">📶</span><h4>WifiLock</h4><p>Wi-Fi удерживается в режиме HIGH_PERF при передаче — нет обрывов при блокировке экрана.</p></div>
   </div>
 
-  <div class="footer-note">
-    <strong>Чек-лист WebDAV (требует ручной проверки):</strong><br>
-    • Windows File Explorer → «Добавить сетевое расположение» → <code>https://&lt;IP&gt;:8765/dav</code><br>
+  <div class="fn2">
+    <strong>WebDAV (ручная проверка):</strong><br>
+    • Windows Explorer → «Добавить сетевое расположение» → <code>https://&lt;IP&gt;:8765/dav</code><br>
     • macOS Finder → ⌘+K → <code>https://&lt;IP&gt;:8765/dav</code><br>
-    Самоподписанный сертификат: в браузере подтвердите исключение один раз; в Explorer/Finder может потребоваться импорт сертификата в доверенные корневые центры.
+    Самоподписанный сертификат — подтвердите исключение один раз.
   </div>
 </div>
 
 <script>
-  const files = [
-    {name:'photo.dng', type:'image/x-adobe-dng', size:'24,3 МБ', icon:'📷', raw:true},
-    {name:'vacation.heic', type:'image/heic', size:'8,2 МБ', icon:'📱', heic:true},
-    {name:'portrait.cr2', type:'image/x-canon-cr2', size:'28,1 МБ', icon:'📷', raw:true},
-    {name:'landscape.nef', type:'image/x-nikon-nef', size:'31,4 МБ', icon:'📷', raw:true},
-    {name:'macro.arw', type:'image/x-sony-arw', size:'22,7 МБ', icon:'📷', raw:true},
-    {name:'studio.raf', type:'image/x-fuji-raf', size:'35,2 МБ', icon:'📷', raw:true},
-    {name:'document.pdf', type:'application/pdf', size:'2,1 МБ', icon:'📄', raw:false}
-  ];
-
-  let selectedFile = files[0];
-
-  function refreshFiles() {
-    const btn = event.target;
-    btn.textContent = 'Обновление...';
-    btn.disabled = true;
-    setTimeout(() => {
-      btn.textContent = 'Обновить';
-      btn.disabled = false;
-      renderFileList();
-      renderPhoneGrid();
-    }, 600);
-  }
-
-  function renderFileList() {
-    const list = document.getElementById('fileList');
-    list.innerHTML = files.map(f => `
-      <div class="file-item ${selectedFile.name===f.name?'selected':''}" onclick="selectFile(this,'${f.name}','${f.type}','${f.size}')">
-        <div class="file-icon">${f.icon}</div>
-        <div class="file-info">
-          <div class="file-name">${f.name}</div>
-          <div class="file-meta">${f.type === 'application/pdf' ? 'PDF' : f.raw ? 'RAW' : 'HEIC'} · ${f.size} · изменён сегодня</div>
-        </div>
-        <div class="file-type">${f.raw ? 'RAW' : f.type==='image/heic'?'HEIC':'PDF'}</div>
-      </div>
-    `).join('');
-  }
-
-  function selectFile(el, name, mime, size) {
-    selectedFile = files.find(f=>f.name===name);
-    document.querySelectorAll('.file-item').forEach(item=>item.classList.remove('selected'));
-    el.classList.add('selected');
-    const ph = document.getElementById('previewPlaceholder');
-    const img = document.getElementById('previewImage');
-    const meta = document.getElementById('previewMeta');
-    const typeBadge = document.getElementById('previewType');
-    ph.style.display = 'none';
-    img.style.display = 'block';
-    img.src = 'data:image/svg+xml;utf8,' + encodeURIComponent(`
-      <svg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300">
-        <rect width="400" height="300" fill="#${name.endsWith('.heic')?'e1bee7':'dbe9ff'}"/>
-        <text x="50%" y="45%" font-family="sans-serif" font-size="24" fill="#000" text-anchor="middle">${name}</text>
-        <text x="50%" y="55%" font-family="sans-serif" font-size="16" fill="#333" text-anchor="middle">${mime}</text>
-        <text x="50%" y="65%" font-family="sans-serif" font-size="14" fill="#666" text-anchor="middle">Превью перекодировано в JPEG на сервере</text>
-      </svg>
-    `);
-    typeBadge.textContent = (selectedFile.raw || selectedFile.heic ? 'RAW/HEIC → JPEG' : 'Изображение');
-    typeBadge.className = selectedFile.raw || selectedFile.heic ? '' : 'ok';
-    meta.textContent = `Размер: ${size} · Формат: ${mime} · Превью: JPEG (перекодировано сервером)`;
-  }
-
-  function renderPhoneGrid() {
-    const grid = document.getElementById('phoneGrid');
-    grid.innerHTML = files.map(f => `
-      <div class="phone-tile ${f.raw?'raw':f.type==='image/heic'?'heic':''}" onclick="openPreview('${f.name}')">
-        ${f.icon}
-        <div class="label">${f.name}</div>
-      </div>
-    `).join('');
-  }
-
-  function setTab(tab) {
-    document.querySelectorAll('.phone-btn').forEach(b=>b.classList.remove('active'));
-    event.target.classList.add('active');
-    const grid = document.getElementById('phoneGrid');
-    const filtered = tab==='all' ? files : tab==='images' ? files.filter(f=>f.type.startsWith('image')) : files.filter(f=>f.raw||f.type==='image/heic');
-    grid.innerHTML = filtered.map(f => `
-      <div class="phone-tile ${f.raw?'raw':f.type==='image/heic'?'heic':''}" onclick="openPreview('${f.name}')">
-        ${f.icon}<div class="label">${f.name}</div>
-      </div>
-    `).join('');
-  }
-
-  function openPreview(name) {
-    const f = files.find(x=>x.name===name);
-    selectFile(null, f.name, f.type, f.size);
-    // emulate mobile opening preview
-    const el = document.querySelector('.phone-tile');
-    alert('Открыто превью: ' + f.name + '\n(перекодировано в JPEG на сервере)');
-  }
-
-  function clearCache() {
-    const btn = event.target;
-    const orig = btn.textContent;
-    btn.textContent = 'Очистка...';
-    btn.disabled = true;
-    setTimeout(() => {
-      btn.textContent = orig;
-      btn.disabled = false;
-      alert('Кеш миниатюр очищен. Освобождено ~42 МБ.');
-    }, 800);
-  }
-
-  let wifiLockOn = true;
-  function toggleWifiLock() {
-    wifiLockOn = !wifiLockOn;
-    const pill = document.querySelector('.pill.ok');
-    const btn = document.querySelector('button[onclick="toggleWifiLock()"]');
-    const status = document.getElementById('wifiStatus');
-    if (wifiLockOn) {
-      pill.textContent = '● WiFi Lock активен';
-      btn.textContent = 'WiFi Lock: ВКЛ';
-      status.textContent = 'WiFi Lock: ВКЛ';
-    } else {
-      pill.textContent = '● WiFi Lock выключен';
-      pill.className = 'pill warn';
-      btn.textContent = 'WiFi Lock: ВЫКЛ';
-      status.textContent = 'WiFi Lock: ВЫКЛ';
-    }
-  }
-
-  function simulateScreenLock() {
-    alert('Экран заблокирован.\nWifiLock удерживает WiFi в режиме HIGH_PERF —\nзагрузка файлов не прерывается.');
-  }
-
-  // init
-  renderFileList();
-  renderPhoneGrid();
+const F=[
+ {n:'photo.dng',t:'image/x-adobe-dng',s:'24,3 МБ',i:'📷',r:1},
+ {n:'vacation.heic',t:'image/heic',s:'8,2 МБ',i:'📱',h:1},
+ {n:'portrait.cr2',t:'image/x-canon-cr2',s:'28,1 МБ',i:'📷',r:1},
+ {n:'landscape.nef',t:'image/x-nikon-nef',s:'31,4 МБ',i:'📷',r:1},
+ {n:'macro.arw',t:'image/x-sony-arw',s:'22,7 МБ',i:'📷',r:1},
+ {n:'studio.raf',t:'image/x-fuji-raf',s:'35,2 МБ',i:'📷',r:1},
+ {n:'document.pdf',t:'application/pdf',s:'2,1 МБ',i:'📄'}
+];
+let sel=F[0];
+function rf(){const b=event.target;b.textContent='⟳ Обновление...';b.disabled=!0;setTimeout(()=>{b.textContent='⟳ Обновить';b.disabled=!1;rl();pg()},600)}
+function rl(){document.getElementById('fl').innerHTML=F.map(f=>`<div class="fi ${sel.n===f.n?'sel':''}" onclick="sf(this,'${f.n}','${f.t}','${f.s}')"><div class="fic">${f.i}</div><div class="fin"><div class="fn">${f.n}</div><div class="fm">${f.t==='application/pdf'?'PDF':f.r?'RAW':'HEIC'} · ${f.s} · сегодня</div></div><div class="ftp ${f.r?'raw':f.t==='image/heic'?'heic':''}">${f.r?'RAW':f.t==='image/heic'?'HEIC':'PDF'}</div></div>`).join('')}
+function sf(el,n,t,s){sel=F.find(f=>f.n===n);document.querySelectorAll('.fi').forEach(x=>x.classList.remove('sel'));el.classList.add('sel');const ph=document.getElementById('ph'),pi=document.getElementById('pi'),pm=document.getElementById('pm'),pb=document.getElementById('pb');ph.style.display='none';pi.style.display='block';pi.src='data:image/svg+xml;utf8,'+encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="500" height="340" viewBox="0 0 500 340"><rect width="500" height="340" fill="#${n.endsWith('.heic')?'1a101e':'0f1724'}" rx="14"/><text x="50%" y="42%" font-family="system-ui,sans-serif" font-size="24" fill="#fff" text-anchor="middle" font-weight="600">${n}</text><text x="50%" y="54%" font-family="system-ui,sans-serif" font-size="15" fill="#94a3b8" text-anchor="middle">${t}</text><text x="50%" y="66%" font-family="system-ui,sans-serif" font-size="13" fill="#64748b" text-anchor="middle">Превью перекодировано в JPEG на сервере</text><text x="50%" y="86%" font-family="system-ui,sans-serif" font-size="12" fill="#475569" text-anchor="middle">${s} · PocketBridge v3.0</text></svg>`);pb.textContent=sel.r||sel.h?'RAW/HEIC → JPEG':'Изображение';pm.textContent=`${s} · ${t} · превью JPEG (сервер)`}
+function pg(){document.getElementById('pg').innerHTML=F.map(f=>`<div class="pt ${f.r?'raw':f.t==='image/heic'?'heic':''}" onclick="op('${f.n}')">${f.i}<div class="lb">${f.n}</div></div>`).join('')}
+function st(tab){document.querySelectorAll('.tb2 b').forEach(b=>b.classList.remove('ac'));event.target.classList.add('ac');const g=document.getElementById('pg');const flt=tab==='all'?F:tab==='img'?F.filter(f=>f.t.startsWith('image')):F.filter(f=>f.r||f.t==='image/heic');g.innerHTML=flt.map(f=>`<div class="pt ${f.r?'raw':f.t==='image/heic'?'heic':''}" onclick="op('${f.n}')">${f.i}<div class="lb">${f.n}</div></div>`).join('')}
+function op(n){const f=F.find(x=>x.n===n);sf(null,f.n,f.t,f.s);document.querySelectorAll('.fl .fi').forEach(it=>{it.classList.toggle('sel',it.textContent.includes(f.n))});alert('Превью: '+f.n+'\n(перекодировано в JPEG на сервере)')}
+function cc(){const b=event.target;const o=b.textContent;b.textContent='Очистка...';b.disabled=!0;setTimeout(()=>{b.textContent=o;b.disabled=!1;alert('Кеш очищен. Освобождено ~42 МБ.')},800)}
+let wl=!0;function tw(){wl=!wl;const b=document.querySelector('button[onclick="tw()"]'),s=document.getElementById('mw');b.textContent='WiFi Lock: '+(wl?'ВКЛ':'ВЫКЛ');s.textContent='WiFi Lock: '+(wl?'ВКЛ':'ВЫКЛ')}
+function sl(){alert('Экран заблокирован.\nWifiLock удерживает Wi-Fi в режиме HIGH_PERF —\nпередача не прерывается.')}
+rl();pg();
 </script>
 
 </body>
