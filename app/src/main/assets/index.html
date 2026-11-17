@@ -181,7 +181,7 @@ function saveBlob(blob,name){let url=URL.createObjectURL(blob),a=document.create
 
 let remoteResults=null,searchTimer=null;
 let previewSerial=0,previewItem=null;
-function kind(name){const ext=(name.split('.').pop()||'').toLowerCase();if(['jpg','jpeg','png','gif','webp','bmp','avif'].includes(ext))return'image';if(['mp4','m4v','webm','ogv','mov'].includes(ext))return'video';if(['mp3','m4a','wav','ogg','opus','flac'].includes(ext))return'audio';if(ext==='pdf')return'pdf';if(['html','htm'].includes(ext))return'html';if(ext==='docx')return'docx';if(['txt','md','csv','log','json','xml','css','js'].includes(ext))return'text';return''}
+function kind(name){const ext=(name.split('.').pop()||'').toLowerCase();if(['jpg','jpeg','png','gif','webp','bmp','avif','heic','heif'].includes(ext))return'image';if(['mp4','m4v','webm','ogv','mov'].includes(ext))return'video';if(['mp3','m4a','wav','ogg','opus','flac'].includes(ext))return'audio';if(ext==='pdf')return'pdf';if(['html','htm'].includes(ext))return'html';if(ext==='docx')return'docx';if(['txt','md','csv','log','json','xml','css','js'].includes(ext))return'text';return''}
 function stopPlayback(){for(const media of el('previewBody').querySelectorAll('audio,video')){media.pause();media.removeAttribute('src');media.load()}}
 function closePreview(){previewSerial++;stopPlayback();el('preview').classList.add('hidden');el('previewBody').replaceChildren();previewItem=null}
 function playlist(){if(!previewItem)return [];let category=kind(previewItem.name);if(category!=='audio'&&category!=='video')return [];return visible().filter(x=>!x.dir&&kind(x.name)===category)}
@@ -225,11 +225,15 @@ el('sizes').onclick=()=>calculateSizes(generation);el('mkdir').onclick=async()=>
 let uploadBusy=false;
 const queueEl=document.createElement('div');queueEl.id='uploadQueue';queueEl.className='panel hidden';queueEl.style.padding='14px';
 queueEl.style.position='fixed';queueEl.style.bottom='16px';queueEl.style.right='16px';queueEl.style.width='min(420px,90vw)';queueEl.style.zIndex='100';
-queueEl.innerHTML='<h2 style="margin:0 0 10px 0;font-size:15px">Загрузка</h2><div id="queueList"></div><div id="queueEmpty" style="color:var(--muted);font-size:12px">Очередь пуста</div>';
+queueEl.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><h2 style="margin:0;font-size:15px">Загрузка</h2><div style="display:flex;gap:4px"><button id="queuePauseAll" class="qbtn" style="font-size:10px;padding:2px 6px">Пауза все</button><button id="queueResumeAll" class="qbtn" style="font-size:10px;padding:2px 6px">Продолжить</button><button id="queueClear" class="qbtn" style="font-size:10px;padding:2px 6px">Очистить</button></div></div><div id="queueList"></div><div id="queueEmpty" style="color:var(--muted);font-size:12px">Очередь пуста</div>';
 document.getElementById('app').appendChild(queueEl);
 function queueShow(){if(!uploadBusy){uploadBusy=true;queueEl.classList.remove('hidden');el('progress').classList.remove('hidden')}}
 function queueHide(){uploadBusy=false;queueEl.classList.add('hidden');el('progress').classList.add('hidden')}
 const QMAX=3;
+let globalPaused=false;
+el('queuePauseAll').onclick=()=>{globalPaused=true;queue.forEach(i=>{if(i.status==='uploading')i.paused=true;});renderQueue();};
+el('queueResumeAll').onclick=()=>{globalPaused=false;queue.forEach(i=>{if(i.status==='paused'){i.paused=false;i.status='waiting';}});renderQueue();drain();};
+el('queueClear').onclick=()=>{queue=queue.filter(i=>i.status!=='done');renderQueue();if(queue.length===0&&running===0)queueHide();};
 let queue=[],running=0;
 function qItem(file,parent,name,overwrite=false,unique=false){
   return {id:'u'+Math.random().toString(36).slice(2),file,parent,name,overwrite,unique,status:'waiting',loaded:0,total:file.size,error:null,retries:0,paused:false,aborted:false,start:null,lastBytes:0,lastTime:0};
@@ -246,15 +250,16 @@ function renderQueue(){
   for(const item of queue){const row=document.createElement('div');row.className='qrow';
     const head=document.createElement('div');head.className='qhead';
     const name=document.createElement('div');name.className='qname';name.textContent=item.name+ (item.unique?'  (с сохранением имени)' : '');
-    const state=document.createElement('span');state.className='qstate';state.textContent=item.status==='waiting'?'в очереди':item.status==='paused'?'пауза':item.status==='uploading'?'загрузка':'ошибка';
+    const state=document.createElement('span');state.className='qstate';state.textContent=item.status==='waiting'?'в очереди':item.status==='paused'?'пауза':(item.status==='uploading'&&globalPaused?'пауза':item.status==='uploading'?'загрузка':'ошибка');
     head.append(name,state);
     const bar=document.createElement('div');bar.className='qbar';const fill=document.createElement('div');fill.className='qfill';bar.append(fill);
     const info=document.createElement('div');info.className='qinfo';info.textContent=bytes(item.loaded)+' / '+bytes(item.total);
     const actions=document.createElement('div');actions.className='qactions';
     const btn=(label,cls,fn)=>{const b=document.createElement('button');b.textContent=label;b.className='qbtn '+cls;b.onclick=fn;actions.append(b)};
+    const isPaused = item.status==='paused' || (item.status==='uploading' && globalPaused);
     if(item.status==='waiting') btn('Старт','qstart',()=>{item.paused=false;item.aborted=false;renderQueue();drain()});
-    else if(item.status==='uploading'){btn('Пауза','qpause',()=>{item.paused=true;renderQueue();}); btn('Отмена','qcancel',()=>{item.aborted=true;renderQueue();})}
-    else if(item.status==='paused'){btn('Возобновить','qstart',()=>{item.paused=false;renderQueue();drain()}); btn('Отмена','qcancel',()=>{item.aborted=true;renderQueue();})}
+    else if(item.status==='uploading'){btn(globalPaused?'Возобновить':'Пауза','qpause',()=>{if(globalPaused){globalPaused=false;item.paused=false;item.status='waiting';drain();}else{item.paused=true;renderQueue();}}); btn('Отмена','qcancel',()=>{item.aborted=true;renderQueue();})}
+    else if(isPaused){btn('Возобновить','qstart',()=>{item.paused=false;renderQueue();drain()}); btn('Отмена','qcancel',()=>{item.aborted=true;renderQueue();})}
     else if(item.status==='error'){btn('Повтор','qstart',()=>{item.error=null;item.retries=0;item.loaded=0;item.status='waiting';renderQueue();drain()}); btn('Удалить','qcancel',()=>{const i=queue.indexOf(item);if(i>=0)queue.splice(i,1);renderQueue();})}
     row.append(head,bar,info,actions);list.append(row);
     fill.style.width=Math.round((item.loaded/item.total||0)*100)+'%';
@@ -262,6 +267,7 @@ function renderQueue(){
   }
 }
 function drain(){
+  if(globalPaused)return;
   if(running>=QMAX)return;
   while(running<QMAX && queue.length>0){
     const item=queue.find(x=>x.status==='waiting');
@@ -278,7 +284,7 @@ async function runChunk(item){
     const d=await init.json();const uploadId=d.uploadId;
     const chunk=Number(d.chunk||4*1024*1024);let offset=0;
     const start=performance.now();
-    while(offset<item.file.size && !item.aborted && !item.paused){
+    while(offset<item.file.size && !item.aborted && !item.paused && !globalPaused){
       const piece=item.file.slice(offset,Math.min(offset+chunk,item.file.size));
       const res=await api('upload-chunk',{id:uploadId,offset:offset},{method:'POST',headers:{'Content-Length':String(piece.size)},body:piece});
       const rd=await res.json();offset=Number(rd.received||offset);item.loaded=offset;item.total=Number(rd.size||item.total);

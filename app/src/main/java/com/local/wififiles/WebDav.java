@@ -41,7 +41,7 @@ final class WebDav {
 
         switch (method) {
             case "OPTIONS": return options(out);
-            case "PROPFIND": return propfind(out, target, raw, headers);
+            case "PROPFIND": return propfind(out, target, raw, headers, in);
             case "GET": case "HEAD": return get(out, target, raw, method.equals("HEAD"));
             case "PUT": return put(out, resolveParent(raw), nameOf(raw), in, headers);
             case "MKCOL": return mkcol(out, target);
@@ -66,19 +66,38 @@ final class WebDav {
         return true;
     }
 
-    private boolean propfind(OutputStream out, File target, String raw, Map<String, String> headers) throws Exception {
+    private boolean propfind(OutputStream out, File target, String raw, Map<String, String> headers, InputStream in) throws Exception {
         String depth = headers.getOrDefault("depth", "1");
-        int level = depth.equals("0") ? 0 : 1;
+        int level = depth.equals("0") ? 0 : (depth.equalsIgnoreCase("infinity") ? 999 : 1);
+        String propfindBody = "";
+        try {
+            String cl = headers.get("content-length");
+            if (cl != null) {
+                int len = Integer.parseInt(cl);
+                if (len > 0 && len < 100000) {
+                    byte[] buf = new byte[len];
+                    int total = 0;
+                    while (total < len) {
+                        int n = in.read(buf, total, len - total);
+                        if (n < 0) break;
+                        total += n;
+                    }
+                    propfindBody = new String(buf, 0, total, StandardCharsets.UTF_8);
+                }
+            }
+        } catch (Exception ignored) {}
+        boolean propnameOnly = propfindBody.contains("propname");
+        boolean allprop = propfindBody.contains("allprop");
         StringBuilder body = new StringBuilder();
         body.append("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<D:multistatus xmlns:D=\"DAV:\">");
-        appendEntry(body, target, raw);
+        appendEntry(body, target, raw, propnameOnly, allprop);
         if (level == 1 && target.isDirectory() && !Files.isSymbolicLink(target.toPath())) {
             File[] children = target.listFiles();
             if (children != null) {
                 Arrays.sort(children, Comparator.comparing(File::getName));
                 for (File child : children) {
-                    if (child.getName().startsWith(".wifi-upload-") && child.getName().endsWith(".part")) continue;
-                    appendEntry(body, child, joinRaw(raw, child.getName()));
+                if (child.getName().startsWith(".wifi-upload-") && child.getName().endsWith(".part")) continue;
+                appendEntry(body, child, joinRaw(raw, child.getName()), propnameOnly, allprop);
                 }
             }
         }
@@ -88,20 +107,29 @@ final class WebDav {
         return true;
     }
 
-    private void appendEntry(StringBuilder body, File file, String raw) throws Exception {
+    private void appendEntry(StringBuilder body, File file, String raw, boolean propnameOnly, boolean allprop) throws Exception {
         boolean dir = file.isDirectory();
         body.append("<D:response><D:href>").append(escape(hrefOf(raw, dir))).append("</D:href><D:propstat><D:prop>");
-        body.append("<D:displayname>").append(escape(file.getName().isEmpty() ? "PocketBridge" : file.getName())).append("</D:displayname>");
-        if (dir) {
-            body.append("<D:resourcetype><D:collection/></D:resourcetype>");
-        } else {
+        if (propnameOnly) {
+            body.append("<D:displayname/>");
             body.append("<D:resourcetype/>");
-            body.append("<D:getcontentlength>").append(file.length()).append("</D:getcontentlength>");
-            String mime = mimeOf(file);
-            if (mime != null) body.append("<D:getcontenttype>").append(mime).append("</D:getcontenttype>");
+            body.append("<D:getcontentlength/>");
+            body.append("<D:getcontenttype/>");
+            body.append("<D:getlastmodified/>");
+            body.append("<D:creationdate/>");
+        } else {
+            body.append("<D:displayname>").append(escape(file.getName().isEmpty() ? "PocketBridge" : file.getName())).append("</D:displayname>");
+            if (dir) {
+                body.append("<D:resourcetype><D:collection/></D:resourcetype>");
+            } else {
+                body.append("<D:resourcetype/>");
+                body.append("<D:getcontentlength>").append(file.length()).append("</D:getcontentlength>");
+                String mime = mimeOf(file);
+                if (mime != null) body.append("<D:getcontenttype>").append(mime).append("</D:getcontenttype>");
+            }
+            body.append("<D:getlastmodified>").append(rfc1123(file.lastModified())).append("</D:getlastmodified>");
+            body.append("<D:creationdate>").append(iso8601(file.lastModified())).append("</D:creationdate>");
         }
-        body.append("<D:getlastmodified>").append(rfc1123(file.lastModified())).append("</D:getlastmodified>");
-        body.append("<D:creationdate>").append(iso8601(file.lastModified())).append("</D:creationdate>");
         body.append("</D:prop><D:status>HTTP/1.1 200 OK</D:status></D:propstat></D:response>");
     }
 
