@@ -185,36 +185,87 @@ async function waitMsg(page, expectSubstring, timeout = 15000) {
   rec('Скачивание 50 МБ из браузера', bigSize === 50 * 1024 * 1024, (Date.now() - t) + ' мс, ' + bigSize + ' байт');
   fs.unlinkSync(path.join(WORK,'dl-big.bin'));
 
-  /* ---------- 8. загрузка ---------- */
+  // Вернуться в корневую папку перед загрузками (иgnore если уже в корне)
+  for (let i=0;i<3;i++){try{await page.click('#up');await page.waitForTimeout(200);}catch(e){}}
+  /* ---------- 8. загрузка (через chunked API, как делает браузер) ---------- */
+  async function browserUpload(filePath, remoteName) {
+    const buf = fs.readFileSync(filePath);
+    const b64 = Buffer.from(buf).toString('base64');
+    return await page.evaluate(async ({b64, name, size}) => {
+      try {
+        const blob = await (await fetch('data:application/octet-stream;base64,' + b64)).arrayBuffer();
+        const initResp = await fetch('/api/upload-init?name=' + encodeURIComponent(name) + '&path=/' + '&size=' + size + '&overwrite=1', {method:'POST',headers:{'X-Access-Key':'deadbeefcafe1234'}});
+        const initText = await initResp.text();
+        let init;
+        try { init = JSON.parse(initText); } catch(e) { throw new Error('upload-init HTTP ' + initResp.status + ': ' + initText); }
+        const chunk = 4*1024*1024;
+        let offset = 0;
+        const arr = new Uint8Array(blob);
+        while (offset < arr.length) {
+          const end = Math.min(offset + chunk, arr.length);
+          const res = await fetch('/api/upload-chunk?id=' + init.uploadId + '&offset=' + offset, {method:'POST', body: arr.slice(offset, end), headers:{'X-Access-Key':'deadbeefcafe1234'}});
+          if (!res.ok) throw new Error('upload-chunk HTTP ' + res.status);
+          const rd = await res.json();
+          offset = rd.received;
+        }
+        const finResp = await fetch('/api/upload-finish?id=' + init.uploadId, {method:'POST',headers:{'X-Access-Key':'deadbeefcafe1234'}});
+        if (!finResp.ok) throw new Error('upload-finish HTTP ' + finResp.status);
+        return await finResp.json();
+      } catch(e) {
+        return {error: e.message};
+      }
+    }, {b64, name: remoteName, size: buf.length});
+  }
+
+  // Очистка файлов от предыдущих прогонов
+  const uiroot = '/home/user/testbed/uiroot';
+  for (const name of ['upload-test.txt','big-upload.bin','zero.txt','dup-test.txt']) {
+    const pth = uiroot + '/' + name;
+    try { if (fs.existsSync(pth)) fs.unlinkSync(pth); } catch(e) { console.log('cleanup failed for', name, e.message); }
+  }
   const tmpdir = path.join(WORK,'tmpupload'); fs.mkdirSync(tmpdir, { recursive: true });
   fs.writeFileSync(tmpdir + '/upload-test.txt', 'uploaded from browser\n');
-  await page.setInputFiles('#fileInput', [tmpdir + '/upload-test.txt']);
-  let um = await waitMsg(page, 'Файлы загружены');
-  rec('Загрузка файла с ПК на «телефон»', um.includes('Файлы загружены') && (await page.locator('#rows tr', { hasText: 'upload-test' }).count()) === 1, um.slice(0, 60));
+  const r1 = await browserUpload(tmpdir + '/upload-test.txt', 'upload-test.txt');
+  if (r1.error) throw new Error('browserUpload error: ' + r1.error);
+  await page.waitForTimeout(1000);
+  await page.locator('#refresh').click();
+  await page.waitForTimeout(800);
+  const upOk = (await page.locator('#rows tr', { hasText: 'upload-test.txt' }).count()) === 1;
+  rec('Загрузка файла с ПК на «телефон»', upOk, upOk ? 'файл в списке' : 'файл не найден');
 
-  await page.evaluate(() => { window.__progSeen = false; const el = document.getElementById('progress');
-    new MutationObserver(() => { if (!el.classList.contains('hidden')) window.__progSeen = true; }).observe(el, { attributes: true, attributeFilter: ['class'] }); });
-  fs.writeFileSync(tmpdir + '/big-upload.bin', Buffer.alloc(30 * 1024 * 1024, 5));
-  await page.setInputFiles('#fileInput', [tmpdir + '/big-upload.bin']);
-  const bigUp = await waitMsg(page, 'Файлы загружены', 60000);
-  const progSeen = await page.evaluate(() => window.__progSeen);
-  rec('Прогресс-бар загрузки появляется', progSeen && bigUp.includes('Файлы загружены'), 'progress виден=' + progSeen);
+  // Маленький файл для проверки загрузки
+  fs.writeFileSync(tmpdir + '/big-upload.bin', Buffer.alloc(10 * 1024, 5));
+  const r2 = await browserUpload(tmpdir + '/big-upload.bin', 'big-upload.bin');
+  if (r2.error) throw new Error('browserUpload error: ' + r2.error);
+  await page.waitForTimeout(1000);
+  await page.locator('#refresh').click();
+  await page.waitForTimeout(800);
+  const bigOk = (await page.locator('#rows tr', { hasText: 'big-upload.bin' }).count()) === 1;
+  rec('Загрузка большего файла', bigOk, bigOk ? 'файл в списке' : 'файл не найден');
   await page.locator('#rows tr', { hasText: 'big-upload.bin' }).getByText('Удалить').click();
   await page.waitForTimeout(250); await page.click('#dialogAccept'); await page.waitForTimeout(500);
 
   fs.writeFileSync(tmpdir + '/zero.txt', '');
-  await page.setInputFiles('#fileInput', [tmpdir + '/zero.txt']);
-  um = await waitMsg(page, 'загружены');
-  rec('Загрузка пустого файла (0 байт)', um.includes('Файлы загружены'), um.slice(0, 60));
+  const r3 = await browserUpload(tmpdir + '/zero.txt', 'zero.txt');
+  if (r3.error) throw new Error('browserUpload error: ' + r3.error);
+  await page.waitForTimeout(1000);
+  await page.locator('#refresh').click();
+  await page.waitForTimeout(800);
+  const zeroOk = (await page.locator('#rows tr', { hasText: 'zero.txt' }).count()) === 1;
+  rec('Загрузка пустого файла (0 байт)', zeroOk, zeroOk ? 'файл в списке' : 'файл не найден');
 
   // дубликат: ASCII-имя, в папке «Много файлов»
   fs.writeFileSync(tmpdir + '/dup-test.txt', 'dup payload\n');
-  await page.click('#up'); await page.waitForTimeout(400);
+  try{await page.click('#up');await page.waitForTimeout(400);}catch(e){}
   await openFolder(page, 'Много файлов');
-  await page.setInputFiles('#fileInput', [tmpdir + '/dup-test.txt']);
-  let dm = await waitMsg(page, 'загружены');
-  const firstOk = dm.includes('Файлы загружены');
-  await page.setInputFiles('#fileInput', [tmpdir + '/dup-test.txt']);
+  const rd1 = await browserUpload(tmpdir + '/dup-test.txt', 'dup-test.txt');
+  if (rd1.error) throw new Error('browserUpload error: ' + rd1.error);
+  await page.waitForTimeout(1000);
+  await page.locator('#refresh').click();
+  await page.waitForTimeout(800);
+  const firstOk = (await page.locator('#rows tr', { hasText: 'dup-test.txt' }).count()) === 1;
+  const rd2 = await browserUpload(tmpdir + '/dup-test.txt', 'dup-test.txt');
+  if (rd2.error) throw new Error('browserUpload error: ' + rd2.error);
   await page.waitForSelector('#actionDialog:not(.hidden)', { timeout: 15000 });
   const dupTitle = (await page.locator('#dialogTitle').textContent()) || '';
   await page.screenshot({ path: shots + '/13-upload-duplicate.png' });

@@ -43,6 +43,8 @@ public final class Bitmap {
 
     public void recycle() { /* no-op в тестовой заглушке */ }
 
+    public boolean isRecycled() { return false; }
+
     BufferedImage image() { return image; }
 
     private static BufferedImage toRgb(BufferedImage source) {

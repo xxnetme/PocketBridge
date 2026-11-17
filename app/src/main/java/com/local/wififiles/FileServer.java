@@ -34,12 +34,26 @@ final class FileServer {
     private static final long SESSION_TTL = 2L * 60 * 60 * 1000;
     private static final int SESSION_LIMIT = 16;
     private static final int THUMB_WIDTH = 320;
+    private static final int CHUNK_MIN = 256 * 1024;
+    private static final int CHUNK_MAX = 32 * 1024 * 1024;
+    private static final long UPLOAD_TTL = 6L * 60 * 60 * 1000;
 
     private final Context context; private final File root; private final String key; private final SSLContext ssl; private final File cacheDir; private final int portStart;
     private ServerSocket listener; private ThreadPoolExecutor workers;
     private final Set<Socket> connections = ConcurrentHashMap.newKeySet();
     private final Map<String,Ticket> tickets = new ConcurrentHashMap<>();
     private final Map<String,Long> sessions = new ConcurrentHashMap<>();
+    private final Map<String,Upload> uploads = new ConcurrentHashMap<>();
+    private final WebDav dav;
+
+    /** Докачиваемая загрузка: файл пишется по частям в .part и переименовывается в конце. */
+    private static final class Upload {
+        final String id, name; final File parent, tmp; final long size; final boolean overwrite; final long created;
+        long received;
+        Upload(String id,String name,File parent,File tmp,long size,boolean overwrite) {
+            this.id=id; this.name=name; this.parent=parent; this.tmp=tmp; this.size=size; this.overwrite=overwrite; this.created=System.currentTimeMillis();
+        }
+    }
     private volatile long lastActivity = System.currentTimeMillis();
 
     private static final class ZipItem { final File file; final String name; ZipItem(File file,String name) { this.file=file; this.name=name; } }
@@ -61,6 +75,7 @@ final class FileServer {
     FileServer(Context c, File root, String key, SSLContext ssl, File cacheDir, int portStart) throws IOException {
         this.context=c.getApplicationContext(); this.root=root.getCanonicalFile(); this.key=key; this.ssl=ssl;
         this.cacheDir=cacheDir; this.portStart=Math.max(1024, Math.min(65000, portStart));
+        this.dav=new WebDav(this.root, key);
     }
 
     String key() { return key; }
@@ -114,6 +129,8 @@ final class FileServer {
         for(Socket s:connections) try { s.close(); } catch(IOException ignored) {}
         if(workers!=null) workers.shutdownNow();
         tickets.clear(); sessions.clear();
+        for(Upload upload:uploads.values()) try { upload.tmp.delete(); } catch(Exception ignored) {}
+        uploads.clear();
     }
 
     private static String line(InputStream in, int max) throws IOException {
@@ -128,13 +145,14 @@ final class FileServer {
             String[] parts=request.split(" "); if(parts.length!=3) { sendText(out,400,"Bad Request"); return; }
             Map<String,String> headers=new HashMap<>(); String h; int count=0; while((h=line(in,8192))!=null && !h.isEmpty()) { if(++count>60) throw new IOException("Too many headers"); int n=h.indexOf(':'); if(n>0) headers.put(h.substring(0,n).trim().toLowerCase(Locale.US),h.substring(n+1).trim()); }
             URI uri=new URI(parts[1]); String endpoint=uri.getPath(); Map<String,String> q=parseQuery(uri.getRawQuery());
-            boolean body = "/api/upload".equals(endpoint) || "/api/download-zip".equals(endpoint) || "/api/zip-ticket".equals(endpoint);
+            boolean body = "/api/upload".equals(endpoint) || "/api/download-zip".equals(endpoint) || "/api/zip-ticket".equals(endpoint) || "/api/upload-chunk".equals(endpoint);
             s.setSoTimeout(body ? BODY_TIMEOUT_MS : REQUEST_TIMEOUT_MS);
 
             if ("GET".equals(parts[0]) && "/".equals(endpoint)) { byte[] html; try(InputStream a=context.getAssets().open("index.html")) { ByteArrayOutputStream b=new ByteArrayOutputStream(); byte[] buf=new byte[8192]; int n; while((n=a.read(buf))!=-1) b.write(buf,0,n); html=b.toByteArray(); } send(out,200,"text/html; charset=utf-8",html,null); return; }
             if("GET".equals(parts[0]) && "/preview".equals(endpoint)) { try { streamTicket(out,q.get("ticket"),true,headers.get("range")); } catch(Exception e) { sendText(out,safeStatus(e),e.getMessage()==null?"Ошибка просмотра":e.getMessage()); } return; }
             if("GET".equals(parts[0]) && "/dl".equals(endpoint)) { try { streamTicket(out,q.get("ticket"),false,headers.get("range")); } catch(Exception e) { sendText(out,safeStatus(e),e.getMessage()==null?"Ошибка скачивания":e.getMessage()); } return; }
             if("GET".equals(parts[0]) && "/thumb".equals(endpoint)) { try { thumbnail(out,q.get("token"),q.get("path"),q.get("w")); } catch(Exception e) { sendText(out,safeStatus(e),e.getMessage()==null?"Ошибка миниатюры":e.getMessage()); } return; }
+            if(WebDav.matches(endpoint)) { try { dav.handle(parts[0],endpoint,headers,in,out); } catch(Exception e) { sendText(out,safeStatus(e),e.getMessage()==null?"Ошибка WebDAV":e.getMessage()); } return; }
             if(!endpoint.startsWith("/api/")) { sendText(out,404,"Not found"); return; }
             String supplied=headers.getOrDefault("x-access-key",""); if(!MessageDigest.isEqual(key.getBytes(StandardCharsets.UTF_8), supplied.getBytes(StandardCharsets.UTF_8))) { sendText(out,403,"Неверный код доступа"); return; }
             try {
@@ -154,6 +172,10 @@ final class FileServer {
                 else if("POST".equals(parts[0]) && "/api/rename".equals(endpoint)) { File from=resolve(q.getOrDefault("path","/")); if(from.equals(root)||!from.exists()) throw new ApiException(400,"Нельзя переименовать этот объект"); File target=safeChild(from.getParentFile(), q.get("name")); if(target.exists()||!from.renameTo(target)) throw new ApiException(409,"Не удалось переименовать (возможно, имя занято)"); ok(out); }
                 else if("POST".equals(parts[0]) && "/api/delete".equals(endpoint)) { File target=resolve(q.getOrDefault("path","/")); if(target.equals(root)||!target.exists()) throw new ApiException(400,"Нельзя удалить этот объект"); deleteTree(target); ok(out); }
                 else if("POST".equals(parts[0]) && "/api/upload".equals(endpoint)) { upload(out,in,headers,q); }
+                else if("POST".equals(parts[0]) && "/api/upload-init".equals(endpoint)) { uploadInit(out,q); }
+                else if("POST".equals(parts[0]) && "/api/upload-chunk".equals(endpoint)) { uploadChunk(out,in,headers,q); }
+                else if("POST".equals(parts[0]) && "/api/upload-finish".equals(endpoint)) { uploadFinish(out,q); }
+                else if("POST".equals(parts[0]) && "/api/upload-abort".equals(endpoint)) { uploadAbort(out,q); }
                 else sendText(out,404,"Not found");
             } catch(ApiException e) { sendText(out,e.status,e.getMessage()); }
             catch(Exception e) { sendText(out,400,e.getMessage()==null ? "Ошибка операции" : e.getMessage()); }
@@ -181,6 +203,12 @@ final class FileServer {
 
     private String relative(File f) throws IOException { String p=f.getCanonicalPath(); String base=root.getCanonicalPath(); if(p.equals(base)) return "/"; if(!p.startsWith(base+"/")) throw new ApiException(400,"Путь вне доступного хранилища"); return p.substring(base.length()); }
 
+    /** NFC-нормализация: macOS отдаёт имена в NFD, поиск должен их находить. */
+    static String normalize(String text) {
+        try { return java.text.Normalizer.normalize(text, java.text.Normalizer.Form.NFC).toLowerCase(Locale.ROOT); }
+        catch(Exception e) { return text.toLowerCase(Locale.ROOT); }
+    }
+
     private static boolean isTempName(String name) { return name.startsWith(".wifi-upload-") && name.endsWith(".part"); }
 
     private void list(OutputStream out,String path) throws Exception {
@@ -196,7 +224,7 @@ final class FileServer {
 
     private void search(OutputStream out,String path,String query) throws Exception {
         File base=resolve(path); if(!base.isDirectory()) throw new ApiException(400,"Папка недоступна");
-        String needle=query==null?"":query.trim().toLowerCase(Locale.ROOT);
+        String needle=query==null?"":normalize(query.trim());
         if(needle.length()<2) throw new ApiException(400,"Введите минимум 2 символа");
         ArrayDeque<File> queue=new ArrayDeque<>(); queue.add(base);
         JSONArray arr=new JSONArray(); long visited=0; boolean truncated=false;
@@ -208,7 +236,7 @@ final class FileServer {
                 if(++visited>=20000) { truncated=true; break; }
                 String name=f.getName();
                 if(isTempName(name)) continue;
-                if(name.toLowerCase(Locale.ROOT).contains(needle)) { arr.put(item(f)); if(arr.length()>=200) { truncated=true; break; } }
+                if(normalize(name).contains(needle)) { arr.put(item(f)); if(arr.length()>=200) { truncated=true; break; } }
                 if(f.isDirectory() && !Files.isSymbolicLink(f.toPath())) queue.add(f);
             }
         }
@@ -226,6 +254,7 @@ final class FileServer {
             case "jpg": case "jpeg": return "image/jpeg"; case "png": return "image/png"; case "gif": return "image/gif"; case "webp": return "image/webp"; case "bmp": return "image/bmp"; case "avif": return "image/avif";
             case "mp4": case "m4v": return "video/mp4"; case "webm": return "video/webm"; case "ogv": return "video/ogg"; case "mov": return "video/quicktime";
             case "mp3": return "audio/mpeg"; case "m4a": return "audio/mp4"; case "wav": return "audio/wav"; case "ogg": case "opus": return "audio/ogg"; case "flac": return "audio/flac";
+            case "heic": case "heif": return "image/heic";
             case "pdf": return "application/pdf"; default: return null;
         }
     }
@@ -273,7 +302,9 @@ final class FileServer {
         requireSession(token);
         File f=readable(path);
         String mime=mediaMime(f);
-        if(mime==null || !mime.startsWith("image/")) throw new ApiException(400,"Миниатюры доступны только для изображений");
+        boolean image=mime!=null && mime.startsWith("image/");
+        boolean video=mime!=null && mime.startsWith("video/");
+        if(!image && !video) throw new ApiException(400,"Миниатюры доступны только для изображений и видео");
         int requested=THUMB_WIDTH; try { if(width!=null && !width.isEmpty()) requested=Integer.parseInt(width); } catch(Exception ignored) {}
         String key=thumbnailKey(f,requested);
         byte[] jpeg=null;
@@ -283,7 +314,7 @@ final class FileServer {
             if(cached.isFile() && cached.length()>0 && cached.lastModified()>=f.lastModified()) {
                 jpeg=Files.readAllBytes(cached.toPath());
             } else {
-                jpeg=Thumbnails.jpeg(f,requested);
+                jpeg = video ? Thumbnails.videoFrame(f,requested) : Thumbnails.jpeg(f,requested);
                 try {
                     if(!cache.isDirectory()) cache.mkdirs();
                     File tmp=File.createTempFile("thumb-",".part",cache);
@@ -292,7 +323,7 @@ final class FileServer {
                 } catch(Exception ignored) { /* кеш не критичен */ }
             }
         } else {
-            jpeg=Thumbnails.jpeg(f,requested);
+            jpeg = video ? Thumbnails.videoFrame(f,requested) : Thumbnails.jpeg(f,requested);
         }
         String extra="X-Thumb-Key: "+key+"\r\n";
         send(out,200,"image/jpeg",jpeg,extra);
@@ -327,6 +358,12 @@ final class FileServer {
         Ticket ticket=token==null?null:tickets.get(token); if(ticket==null || ticket.expires<System.currentTimeMillis()) { sendText(out,403,"Срок действия ссылки истёк. Обновите страницу."); return; }
         if("zip".equals(ticket.type)) { writeZip(out,ticket.items); return; }
         File f=readable(ticket.path); if(ticket.mime!=null && !"application/octet-stream".equals(ticket.mime) && !ticket.mime.equals(mediaMime(f))) throw new ApiException(400,"Файл изменился");
+        if("image/heic".equals(ticket.mime)) {
+            // Браузеры (кроме Safari) не умеют HEIC: отдаём перекодированный JPEG
+            byte[] jpeg=Thumbnails.previewJpeg(f);
+            send(out,200,"image/jpeg",jpeg,null);
+            return;
+        }
         sendFile(out,f,ticket.mime!=null?ticket.mime:"application/octet-stream",!inline,range);
     }
 
@@ -524,6 +561,90 @@ final class FileServer {
         int dot=name.lastIndexOf('.'); String base=dot>0?name.substring(0,dot):name; String ext=dot>0?name.substring(dot):"";
         for(int i=1;i<=9999;i++) { File next=new File(parent,base+" ("+i+")"+ext); if(!next.exists()) return next; }
         throw new ApiException(409,"Не удалось подобрать свободное имя");
+    }
+
+    private void cleanupUploads() {
+        long now=System.currentTimeMillis();
+        for(Map.Entry<String,Upload> e:uploads.entrySet()) {
+            if(now-e.getValue().created>UPLOAD_TTL) { Upload upload=uploads.remove(e.getKey()); if(upload!=null) upload.tmp.delete(); }
+        }
+    }
+
+    private Upload requireUpload(String id) throws ApiException {
+        cleanupUploads();
+        Upload upload=id==null?null:uploads.get(id);
+        if(upload==null) throw new ApiException(404,"Загрузка не найдена или устарела. Начните заново.");
+        return upload;
+    }
+
+    private void uploadInit(OutputStream out,Map<String,String> q) throws Exception {
+        cleanupUploads();
+        File parent=resolve(q.getOrDefault("path","/"));
+        if(!parent.isDirectory()) throw new ApiException(400,"Папка недоступна");
+        String name=q.get("name");
+        File target=safeChild(parent,name);
+        boolean overwrite="1".equals(q.get("overwrite"));
+        boolean unique="1".equals(q.get("unique"));
+        if(unique) target=uniqueTarget(parent,name);
+        else if(target.exists() && !overwrite) throw new ApiException(409,"Файл с таким именем уже существует");
+        long size; try { size=Long.parseLong(q.getOrDefault("size","-1")); } catch(Exception e) { size=-1; }
+        if(size<0 || size>MAX_UPLOAD) throw new ApiException(400,"Некорректный размер файла");
+        if(uploads.size()>=32) throw new ApiException(429,"Слишком много одновременных загрузок");
+        byte[] random=new byte[12]; new SecureRandom().nextBytes(random); StringBuilder id=new StringBuilder(); for(byte b:random) id.append(String.format(Locale.US,"%02x",b & 255));
+        File tmp=File.createTempFile(".wifi-upload-", ".part", parent);
+        Upload upload=new Upload(id.toString(),target.getName(),parent,tmp,size,overwrite);
+        uploads.put(upload.id, upload);
+        JSONObject json=new JSONObject(); json.put("uploadId",upload.id); json.put("name",upload.name); json.put("chunk",4*1024*1024); json.put("received",0);
+        send(out,200,"application/json; charset=utf-8",json.toString().getBytes(StandardCharsets.UTF_8),null);
+    }
+
+    private void uploadChunk(OutputStream out,InputStream in,Map<String,String> headers,Map<String,String> q) throws Exception {
+        Upload upload=requireUpload(q.get("id"));
+        long offset; try { offset=Long.parseLong(q.getOrDefault("offset","-1")); } catch(Exception e) { offset=-1; }
+        if(offset!=upload.received) { JSONObject json=new JSONObject(); json.put("received",upload.received); throw new ApiException(409,"Несовпадение смещения: ожидается "+upload.received); }
+        int length; try { length=Integer.parseInt(headers.getOrDefault("content-length","-1")); } catch(Exception e) { length=-1; }
+        if(length<=0 || length>CHUNK_MAX) throw new ApiException(400,"Некорректный размер части (до 32 МБ)");
+        if(upload.received+length>upload.size) throw new ApiException(400,"Часть выходит за размер файла");
+        byte[] buffer=new byte[Math.min(65536,length)]; long remaining=length;
+        try(OutputStream file=new FileOutputStream(upload.tmp,true)) {
+            while(remaining>0) {
+                int n=in.read(buffer,0,(int)Math.min(buffer.length,remaining));
+                if(n<0) throw new IOException("Передача прервана");
+                file.write(buffer,0,n); remaining-=n;
+            }
+        }
+        upload.received+=length;
+        JSONObject json=new JSONObject(); json.put("received",upload.received); json.put("size",upload.size);
+        send(out,200,"application/json; charset=utf-8",json.toString().getBytes(StandardCharsets.UTF_8),null);
+    }
+
+    private void uploadFinish(OutputStream out,Map<String,String> q) throws Exception {
+        Upload upload=requireUpload(q.get("id"));
+        if(upload.received!=upload.size) throw new ApiException(409,"Загружено "+upload.received+" из "+upload.size+" байт");
+        File target=new File(upload.parent,upload.name);
+        boolean ok=false;
+        try {
+            if(target.exists() && !upload.overwrite) throw new ApiException(409,"Файл с таким именем уже существует");
+            if(upload.overwrite) {
+                try { Files.move(upload.tmp.toPath(),target.toPath(),StandardCopyOption.REPLACE_EXISTING); }
+                catch(Exception moveError) { if(target.exists() && !target.delete()) throw new ApiException(400,"Не удалось заменить файл"); if(!upload.tmp.renameTo(target)) throw new ApiException(400,"Не удалось сохранить файл"); }
+            } else {
+                try { Files.move(upload.tmp.toPath(),target.toPath(),StandardCopyOption.ATOMIC_MOVE); }
+                catch(Exception e) { if(!upload.tmp.renameTo(target)) throw new ApiException(409,"Не удалось сохранить файл: "+e.getMessage()); }
+            }
+            ok=true;
+        } finally {
+            uploads.remove(upload.id);
+            if(!ok) upload.tmp.delete();
+        }
+        JSONObject json=new JSONObject(); json.put("ok",true); json.put("name",upload.name); json.put("size",upload.size);
+        send(out,200,"application/json; charset=utf-8",json.toString().getBytes(StandardCharsets.UTF_8),null);
+    }
+
+    private void uploadAbort(OutputStream out,Map<String,String> q) throws Exception {
+        Upload upload=uploads.remove(q.get("id"));
+        if(upload!=null) upload.tmp.delete();
+        ok(out);
     }
 
     private void ok(OutputStream out) throws IOException { send(out,200,"application/json; charset=utf-8","{\"ok\":true}".getBytes(StandardCharsets.UTF_8),null); }

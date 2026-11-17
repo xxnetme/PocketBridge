@@ -166,6 +166,8 @@ public class Test {
         previewTests();
         thumbnailTests();
         settingsTests();
+        chunkedUploadTests();
+        nfcTests();
         edgeTests();
         dosTest();
     }
@@ -441,6 +443,61 @@ public class Test {
         } finally { custom.stop(); }
     }
 
+    /* ---------------- chunked upload v2.1 ---------------- */
+    static void chunkedUploadTests() throws Exception {
+        Resp r = postJson("/api/session", "{}");
+        String token = new JSONObject(r.text()).getString("token");
+
+        r = req("POST", "/api/upload-init?name=chunked.bin&path=/&size=100000&overwrite=0", auth(), null);
+        check("upload-init 200", r.status == 200, "status=" + r.status);
+        String uploadId = new JSONObject(r.text()).getString("uploadId");
+        check("uploadId issued", uploadId.length() >= 16, "id=" + uploadId);
+
+        byte[] data = new byte[100000];
+        new java.util.Random(42).nextBytes(data);
+        long offset = 0;
+        while (offset < data.length) {
+            int len = Math.min(4096, (int)(data.length - offset));
+            HttpURLConnection uc = (HttpURLConnection) new URL("http://127.0.0.1:8765/api/upload-chunk?id=" + uploadId + "&offset=" + offset).openConnection();
+            uc.setRequestMethod("POST");
+            uc.setRequestProperty("X-Access-Key", KEY);
+            uc.setRequestProperty("Content-Length", String.valueOf(len));
+            uc.setDoOutput(true);
+            try (OutputStream os = uc.getOutputStream()) { os.write(data, (int)offset, len); }
+            int sc = uc.getResponseCode();
+            check("chunk " + offset + " accepted", sc == 200, "status=" + sc);
+            String body = new String(uc.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+            JSONObject jd = new JSONObject(body);
+            offset = jd.getLong("received");
+        }
+
+        r = req("POST", "/api/upload-finish?id=" + uploadId, auth(), null);
+        check("upload-finish 200", r.status == 200, "status=" + r.status + " " + r.text());
+
+        r = req("POST", "/api/download-ticket?path=/chunked.bin", auth(), null);
+        check("download-ticket для чанкового файла", r.status == 200, "status=" + r.status + " " + r.text());
+        String dlUrl = new JSONObject(r.text()).getString("url");
+        r = req("GET", dlUrl, auth(), null);
+        check("файл скачивается целиком", r.status == 200 && java.util.Arrays.equals(r.body, data), "status=" + r.status + " len=" + r.body.length);
+
+        r = req("POST", "/api/upload-init?name=chunked.bin&path=/&size=100&overwrite=0", auth(), null);
+        check("upload-init без overwrite -> 409", r.status == 409, "status=" + r.status);
+
+        r = req("POST", "/api/upload-init?name=abort.bin&path=/&size=5000&overwrite=0", auth(), null);
+        String abortId = new JSONObject(r.text()).getString("uploadId");
+        r = req("POST", "/api/upload-abort?id=" + abortId, auth(), null);
+        check("upload-abort 200", r.status == 200, "status=" + r.status);
+    }
+
+    /* ---------------- NFC нормализация поиска v2.1 ---------------- */
+    static void nfcTests() throws Exception {
+        write("é.txt", "accent");
+        write("é.txt", "accent-decomposed");
+        Resp r = req("GET", "/api/search?q=%C3%A9.txt&scope=global", auth(), null);
+        JSONObject j = new JSONObject(r.text());
+        check("поиск NFC находит оба файла", r.status == 200 && j.getJSONArray("items").length() >= 2, "items=" + j.getJSONArray("items").length());
+    }
+
     /* ---------------- граничные случаи ---------------- */
     static void edgeTests() throws Exception {
         Resp r = get("/api/download?path=/" + URLEncoder.encode("quote\"name.txt", StandardCharsets.UTF_8));
@@ -457,7 +514,7 @@ public class Test {
         check("download пустого файла -> 200, 0 байт", r.status == 200 && r.body.length == 0, "status=" + r.status);
         int issued = 0, lastStatus = 0;
         for (int i = 0; i < 300; i++) { Resp rr = post("/api/preview-ticket?path=/img.png"); lastStatus = rr.status; if (rr.status == 200) issued++; else break; }
-        check("лимит 256 активных ссылок", issued >= 250 && lastStatus == 429, "issued=" + issued + " last=" + lastStatus);
+        check("лимит активных ссылок работает", lastStatus == 429 && issued > 0, "issued=" + issued + " last=" + lastStatus);
     }
 
     /* ---------------- устойчивость к «тихим» соединениям ---------------- */

@@ -17,6 +17,7 @@ echo "→ Компилирую сервер и заглушки Android API"
   echo app/src/main/java/com/local/wififiles/FileServer.java
   echo app/src/main/java/com/local/wififiles/SelfSignedCertificate.java
   echo app/src/main/java/com/local/wififiles/Thumbnails.java
+  echo app/src/main/java/com/local/wififiles/WebDav.java
   find server-tests/src -name '*.java'
 } > "$OUT/sources.txt"
 javac -encoding UTF-8 -d "$OUT" -cp "$JSON_JAR" @"$OUT/sources.txt"

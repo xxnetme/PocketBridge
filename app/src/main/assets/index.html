@@ -113,9 +113,28 @@
 [data-theme=light] .card .pick{background:#ffffffcc}
 [data-theme=light] .card.selected{outline-color:#0f9f7a}
 [data-theme=light] .themeBtn{background:#eef5f2;border-color:#cfe0db;color:#15322b}
+/* ---------- очередь загрузки ---------- */
+#uploadQueue{background:var(--panel2);border:1px solid var(--border);border-radius:10px;box-shadow:0 20px 60px #0005;color:var(--text)}
+#uploadQueue h2{margin:0 0 10px;font-size:15px;color:var(--text)}
+.qrow{border-bottom:1px solid var(--border);padding:8px 0;display:flex;align-items:center;gap:8px}
+.qhead{flex:1;min-width:0}
+.qname{font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.qstate{font-size:11px;color:var(--muted);margin-left:6px}
+.qbar{width:120px;height:8px;background:#1a2a2d;border-radius:4px;overflow:hidden}
+.qfill{height:100%;background:var(--accent,#4ade80);width:0%;transition:width .3s}
+.qinfo{font-size:11px;color:var(--muted);min-width:110px;text-align:right}
+.qactions{display:flex;gap:6px}
+.qbtn{font-size:11px;padding:3px 8px;border:1px solid var(--border);background:transparent;color:var(--text);border-radius:4px;cursor:pointer}
+.qbtn:hover{background:var(--row-hover)}
+.qstart{background:var(--accent,#4ade80);color:#0b3d2b;border-color:var(--accent,#4ade80)}
+.qstart:hover{background:#2dd4bf}
+.qpause,.qcancel{background:transparent}
+.qpause:hover{border-color:#f87171;color:#f87171}
+.qcancel:hover{border-color:#f87171;color:#f87171}
+.dropzone{outline:3px dashed var(--accent,#4ade80);outline-offset:-3px}
 </style></head><body><main class="shell"><div class="top"><div class="brand"><div class="brandicon">▤</div><div>Файлы телефона<small>Wi-Fi проводник</small></div></div><div class="topright"><button id="theme" class="btn themeBtn" title="Светлая/тёмная тема" aria-label="Переключить тему">☀</button><span class="dot"></span> Локальная сеть</div></div>
 <section id="login" class="panel loginbox"><div class="eyebrow">Доступ по коду в локальной сети</div><h1>Ваш телефон рядом.</h1><p class="sub">Работайте с файлами телефона прямо в браузере компьютера.</p><form id="loginForm"><label class="label" for="code">Код с экрана телефона</label><input class="search" id="code" type="text" placeholder="Например, 1a2b3c4d..." autocomplete="off" spellcheck="false" required><button class="btn primary" type="submit">Подключиться →</button></form><div id="loginError" class="message"></div><div class="loginhelp">Оба устройства должны быть в одной сети Wi-Fi. Соединение шифруется самоподписанным сертификатом: при первом открытии браузер попросит подтвердить исключение («Дополнительно» → «Перейти на сайт»). Ссылку с кодом можно скопировать на телефоне — она входит автоматически.</div></section>
-<section id="app" class="hidden"><div class="hero"><div><div class="eyebrow">Ваше устройство · файлы</div><h1>Всё под рукой.</h1><p class="sub">Просматривайте файлы и управляйте ими без проводов.</p></div><div class="badge">● Телефон подключён</div></div><div class="panel"><div class="bar"><button class="btn" id="up" title="На уровень выше">← Назад</button><button class="btn" id="refresh" title="Обновить">↻</button><button class="btn" id="mkdir">＋ Папка</button><button class="btn" id="sizes">◫ Размеры папок</button><button class="btn" id="view" title="Вид: плитка или список">▦ Плитка</button><button class="btn primary" id="upload">↑ Загрузить файлы</button><button class="btn" id="uploadDir">⇪ Загрузить папку</button><input id="fileInput" type="file" multiple hidden><input id="dirInput" type="file" webkitdirectory multiple hidden><span class="spacer"></span><input class="search" type="search" id="search" placeholder="Поиск в этой папке" aria-label="Поиск"><select id="scope" class="sortsel" aria-label="Где искать"><option value="local">искать здесь</option><option value="global">искать везде</option></select><select id="sort" class="sortsel" aria-label="Сортировка"><option value="name">Сортировка: имя</option><option value="size">размер</option><option value="date">дата</option><option value="type">тип</option></select><button class="btn" id="logout">Выйти</button></div><div class="pathbar"><div class="pathline"><div class="caption">Текущая папка</div><div id="path" class="path">/</div></div><div id="itemCount" class="count"></div></div><div id="selection" class="selection hidden"><strong id="selectedCount"></strong><button id="downloadSelected" class="btn primary">↓ Скачать выбранные файлы ZIP</button><button id="deleteSelected" class="btn danger">Удалить выбранное</button><button id="clearSelected" class="btn">Снять выделение</button></div><div id="message" class="message"></div><div id="progress" class="progress hidden"><span class="plabel" id="progressLabel"></span><div class="ptrack"><div class="pfill" id="progressFill"></div></div><button class="btn" id="progressCancel" type="button">Отмена</button></div><div id="grid" class="grid hidden"></div><div class="tablewrap" id="tableWrap"><table><thead><tr><th class="checkcol"><input type="checkbox" id="selectAll" title="Выделить все видимые" aria-label="Выделить все видимые"></th><th>Название</th><th>Размер</th><th>Изменён</th><th></th></tr></thead><tbody id="rows"></tbody></table><div id="empty" class="empty hidden"><span>◌</span>Здесь пока ничего нет</div></div></div><div class="foot">Для подсчёта размеров нажмите «Размеры папок». Подсчёт может быть неполным из-за ограничений Android. Не закрывайте приложение на телефоне во время передачи.</div></section></main><div id="preview" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="previewTitle"><div class="viewer"><div class="viewtop"><div class="viewtitle"><strong id="previewTitle"></strong><small id="previewHint"></small></div><button id="previewPrev" class="btn hidden" title="Предыдущий файл" aria-label="Предыдущий файл">⏮</button><button id="previewNext" class="btn hidden" title="Следующий файл" aria-label="Следующий файл">⏭</button><button id="previewDownload" class="btn">↓ Скачать</button><button id="previewClose" class="btn" aria-label="Закрыть">✕</button></div><div id="previewBody" class="viewbody"></div></div></div><div id="actionDialog" class="dialog-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="dialogTitle" aria-describedby="dialogMessage"><form class="action-dialog" id="dialogForm"><div id="dialogIcon" class="dialog-symbol">✦</div><h2 id="dialogTitle"></h2><p id="dialogMessage" class="dialog-message"></p><input id="dialogInput" class="dialog-input hidden" maxlength="200" autocomplete="off" aria-label="Имя"><div id="dialogError" class="dialog-error hidden"></div><div class="dialog-actions"><button id="dialogExtra" class="btn" type="button" hidden></button><button id="dialogCancel" class="btn" type="button">Отмена</button><button id="dialogAccept" class="btn primary" type="submit">Продолжить</button></div></form></div><script>
+<section id="app" class="hidden"><div class="hero"><div><div class="eyebrow">Ваше устройство · файлы</div><h1>Всё под рукой.</h1><p class="sub">Просматривайте файлы и управляйте ими без проводов.</p></div><div class="badge">● Телефон подключён</div></div><div class="panel"><div class="bar"><button class="btn" id="up" title="На уровень выше">← Назад</button><button class="btn" id="refresh" title="Обновить">↻</button><button class="btn" id="mkdir">＋ Папка</button><button class="btn" id="sizes">◫ Размеры папок</button><button class="btn" id="view" title="Вид: плитка или список">▦ Плитка</button><button class="btn primary" id="upload">↑ Загрузить файлы</button><button class="btn" id="uploadDir">⇪ Загрузить папку</button><input id="fileInput" type="file" multiple><input id="dirInput" type="file" webkitdirectory multiple><span class="spacer"></span><input class="search" type="search" id="search" placeholder="Поиск в этой папке" aria-label="Поиск"><select id="scope" class="sortsel" aria-label="Где искать"><option value="local">искать здесь</option><option value="global">искать везде</option></select><select id="sort" class="sortsel" aria-label="Сортировка"><option value="name">Сортировка: имя</option><option value="size">размер</option><option value="date">дата</option><option value="type">тип</option></select><button class="btn" id="logout">Выйти</button></div><div class="pathbar"><div class="pathline"><div class="caption">Текущая папка</div><div id="path" class="path">/</div></div><div id="itemCount" class="count"></div></div><div id="selection" class="selection hidden"><strong id="selectedCount"></strong><button id="downloadSelected" class="btn primary">↓ Скачать выбранные файлы ZIP</button><button id="deleteSelected" class="btn danger">Удалить выбранное</button><button id="clearSelected" class="btn">Снять выделение</button></div><div id="message" class="message"></div><div id="progress" class="progress hidden"><span class="plabel" id="progressLabel"></span><div class="ptrack"><div class="pfill" id="progressFill"></div></div><button class="btn" id="progressCancel" type="button">Отмена</button></div><div id="grid" class="grid hidden"></div><div class="tablewrap" id="tableWrap"><table><thead><tr><th class="checkcol"><input type="checkbox" id="selectAll" title="Выделить все видимые" aria-label="Выделить все видимые"></th><th>Название</th><th>Размер</th><th>Изменён</th><th></th></tr></thead><tbody id="rows"></tbody></table><div id="empty" class="empty hidden"><span>◌</span>Здесь пока ничего нет</div></div></div><div class="foot">Для подсчёта размеров нажмите «Размеры папок». Подсчёт может быть неполным из-за ограничений Android. Не закрывайте приложение на телефоне во время передачи.</div></section></main><div id="preview" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="previewTitle"><div class="viewer"><div class="viewtop"><div class="viewtitle"><strong id="previewTitle"></strong><small id="previewHint"></small></div><button id="previewPrev" class="btn hidden" title="Предыдущий файл" aria-label="Предыдущий файл">⏮</button><button id="previewNext" class="btn hidden" title="Следующий файл" aria-label="Следующий файл">⏭</button><button id="previewDownload" class="btn">↓ Скачать</button><button id="previewClose" class="btn" aria-label="Закрыть">✕</button></div><div id="previewBody" class="viewbody"></div></div></div><div id="actionDialog" class="dialog-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="dialogTitle" aria-describedby="dialogMessage"><form class="action-dialog" id="dialogForm"><div id="dialogIcon" class="dialog-symbol">✦</div><h2 id="dialogTitle"></h2><p id="dialogMessage" class="dialog-message"></p><input id="dialogInput" class="dialog-input hidden" maxlength="200" autocomplete="off" aria-label="Имя"><div id="dialogError" class="dialog-error hidden"></div><div class="dialog-actions"><button id="dialogExtra" class="btn" type="button" hidden></button><button id="dialogCancel" class="btn" type="button">Отмена</button><button id="dialogAccept" class="btn primary" type="submit">Продолжить</button></div></form></div><script>
 'use strict';const el=id=>document.getElementById(id);let key='',current='/',items=[],selected=new Set(),sizes=new Map(),generation=0,busy=false,scanning=false;
 async function api(route,params={},options={}){const q=new URLSearchParams(params);const r=await fetch('/api/'+route+'?'+q,{...options,headers:{'X-Access-Key':key,...(options.headers||{})},cache:'no-store'});if(!r.ok)throw Error(await r.text());return r}
 function msg(s,error=true){let m=el('message');m.textContent=s;m.style.color=error?'#ffb2a7':'#9be5ca'}
@@ -202,58 +221,151 @@ el('selectAll').onchange=e=>{for(const item of visible()){if(e.target.checked)se
 el('downloadSelected').onclick=async()=>{let chosen=(remoteResults?remoteResults:items).filter(x=>selected.has(x.path));if(!chosen.length){msg('Ничего не выбрано');return}if(chosen.length>500){msg('За один раз можно выбрать не более 500 объектов.');return}try{msg('Готовим ZIP-архив…',false);const base=remoteResults?'/':current;const t=await(await api('zip-ticket',{base},{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({paths:chosen.map(x=>x.path)})})).json();triggerDownload(t.url);msg('Скачивание архива началось',false)}catch(e){msg(e.message)}};
 el('deleteSelected').onclick=async()=>{let chosen=items.filter(x=>selected.has(x.path));if(!chosen.length||!await actionDialog({title:'Удалить выбранное?',message:'Будет удалено элементов: '+chosen.length+'. Папки удалятся со всем содержимым. Отменить это действие нельзя.',accept:'Удалить',danger:true}))return;let errors=[];for(let i=0;i<chosen.length;i++){let x=chosen[i];try{msg('Удаление '+(i+1)+' из '+chosen.length+'…',false);await api('delete',{path:x.path},{method:'POST'})}catch(e){errors.push(x.name+': '+e.message)}}await refreshListing();msg(errors.length?errors.join('; '):'Выбранные элементы удалены',errors.length>0)};
 el('sizes').onclick=()=>calculateSizes(generation);el('mkdir').onclick=async()=>{let name=await actionDialog({title:'Новая папка',message:'Как назвать новую папку?',accept:'Создать',input:''});if(name===null)return;try{await api('mkdir',{path:current,name},{method:'POST'});await show(current)}catch(e){msg(e.message)}};
-let currentUpload=null;
-function showProgress(label){el('progress').classList.remove('hidden');el('progressLabel').textContent=label||'Загрузка…';el('progressFill').style.width='0%'}
-function setProgress(label,pct){el('progressLabel').textContent=label;el('progressFill').style.width=Math.max(0,Math.min(100,pct))+'%'}
-function hideProgress(){el('progress').classList.add('hidden');el('progressFill').style.width='0%';currentUpload=null}
+/* ---------- очередь загрузки с докачкой ---------- */
+let uploadBusy=false;
+const queueEl=document.createElement('div');queueEl.id='uploadQueue';queueEl.className='panel hidden';queueEl.style.padding='14px';
+queueEl.style.position='fixed';queueEl.style.bottom='16px';queueEl.style.right='16px';queueEl.style.width='min(420px,90vw)';queueEl.style.zIndex='100';
+queueEl.innerHTML='<h2 style="margin:0 0 10px 0;font-size:15px">Загрузка</h2><div id="queueList"></div><div id="queueEmpty" style="color:var(--muted);font-size:12px">Очередь пуста</div>';
+document.getElementById('app').appendChild(queueEl);
+function queueShow(){if(!uploadBusy){uploadBusy=true;queueEl.classList.remove('hidden');el('progress').classList.remove('hidden')}}
+function queueHide(){uploadBusy=false;queueEl.classList.add('hidden');el('progress').classList.add('hidden')}
+const QMAX=3;
+let queue=[],running=0;
+function qItem(file,parent,name,overwrite=false,unique=false){
+  return {id:'u'+Math.random().toString(36).slice(2),file,parent,name,overwrite,unique,status:'waiting',loaded:0,total:file.size,error:null,retries:0,paused:false,aborted:false,start:null,lastBytes:0,lastTime:0};
+}
+function enqueue(item){
+  queue.push(item);
+  queueShow();
+  renderQueue();
+  drain();
+}
+function renderQueue(){
+  const list=el('queueList');list.replaceChildren();
+  const empty=el('queueEmpty');empty.style.display=queue.length?'none':'block';
+  for(const item of queue){const row=document.createElement('div');row.className='qrow';
+    const head=document.createElement('div');head.className='qhead';
+    const name=document.createElement('div');name.className='qname';name.textContent=item.name+ (item.unique?'  (с сохранением имени)' : '');
+    const state=document.createElement('span');state.className='qstate';state.textContent=item.status==='waiting'?'в очереди':item.status==='paused'?'пауза':item.status==='uploading'?'загрузка':'ошибка';
+    head.append(name,state);
+    const bar=document.createElement('div');bar.className='qbar';const fill=document.createElement('div');fill.className='qfill';bar.append(fill);
+    const info=document.createElement('div');info.className='qinfo';info.textContent=bytes(item.loaded)+' / '+bytes(item.total);
+    const actions=document.createElement('div');actions.className='qactions';
+    const btn=(label,cls,fn)=>{const b=document.createElement('button');b.textContent=label;b.className='qbtn '+cls;b.onclick=fn;actions.append(b)};
+    if(item.status==='waiting') btn('Старт','qstart',()=>{item.paused=false;item.aborted=false;renderQueue();drain()});
+    else if(item.status==='uploading'){btn('Пауза','qpause',()=>{item.paused=true;renderQueue();}); btn('Отмена','qcancel',()=>{item.aborted=true;renderQueue();})}
+    else if(item.status==='paused'){btn('Возобновить','qstart',()=>{item.paused=false;renderQueue();drain()}); btn('Отмена','qcancel',()=>{item.aborted=true;renderQueue();})}
+    else if(item.status==='error'){btn('Повтор','qstart',()=>{item.error=null;item.retries=0;item.loaded=0;item.status='waiting';renderQueue();drain()}); btn('Удалить','qcancel',()=>{const i=queue.indexOf(item);if(i>=0)queue.splice(i,1);renderQueue();})}
+    row.append(head,bar,info,actions);list.append(row);
+    fill.style.width=Math.round((item.loaded/item.total||0)*100)+'%';
+    if(item.error) info.textContent+=' — '+item.error;
+  }
+}
+function drain(){
+  if(running>=QMAX)return;
+  while(running<QMAX && queue.length>0){
+    const item=queue.find(x=>x.status==='waiting');
+    if(!item)break;
+    item.status='uploading';running++;
+    renderQueue();
+    runChunk(item).then(()=>{running--;renderQueue();drain();}).catch(()=>{running--;renderQueue();drain();});
+  }
+  if(queue.length===0 && running===0)queueHide();
+}
+async function runChunk(item){
+  try{
+    const init=await api('upload-init',{path:item.parent,name:item.name,size:item.file.size,overwrite:item.overwrite?'1':'0',unique:item.unique?'1':'0'},{method:'POST'});
+    const d=await init.json();const uploadId=d.uploadId;
+    const chunk=Number(d.chunk||4*1024*1024);let offset=0;
+    const start=performance.now();
+    while(offset<item.file.size && !item.aborted && !item.paused){
+      const piece=item.file.slice(offset,Math.min(offset+chunk,item.file.size));
+      const res=await api('upload-chunk',{id:uploadId,offset:offset},{method:'POST',headers:{'Content-Length':String(piece.size)},body:piece});
+      const rd=await res.json();offset=Number(rd.received||offset);item.loaded=offset;item.total=Number(rd.size||item.total);
+      const now=performance.now();const dt=(now-start)/1000||0.001;item.lastBytes=offset;item.lastTime=now;
+      const el=item.row;if(el){const fill=el.querySelector('.qfill');if(fill)fill.style.width=Math.round((offset/item.total)*100)+'%';const info=el.querySelector('.qinfo');if(info)info.textContent=bytes(offset)+' / '+bytes(item.total)+' · '+humanSpeed(offset/dt);}
+    }
+    if(item.aborted){item.status='waiting';return;}
+    if(item.paused){item.status='paused';return;}
+    const fin=await api('upload-finish',{id:uploadId},{method:'POST'});
+    const fd=await fin.json();
+    item.status='done';item.loaded=item.total;
+    const el=item.row;if(el){const fill=el.querySelector('.qfill');if(fill)fill.style.width='100%';const info=el.querySelector('.qinfo');if(info)info.textContent=bytes(item.total)+' · готово';}
+  }catch(e){
+    item.retries++;
+    if(item.retries<3 && !item.aborted && !item.paused){item.status='waiting';renderQueue();setTimeout(()=>drain(),1500);return;}
+    item.status='error';item.error=(e.message||'ошибка загрузки');
+    const el=item.row;if(el){const info=el.querySelector('.qinfo');if(info)info.textContent=bytes(item.loaded)+' / '+bytes(item.total)+' — '+item.error;}
+    throw e;
+  }
+}
+function bytes(n){if(n==null)return'0 Б';const u=['Б','КБ','МБ','ГБ'];let i=0,v=Number(n);while(v>=1024&&i<u.length-1){v/=1024;i++}return v.toFixed(i?1:0)+' '+u[i]}
 function humanSpeed(b){if(!isFinite(b)||b<=0)return'';return bytes(b)+'/с'}
-el('progressCancel').onclick=()=>{if(currentUpload){try{currentUpload.abort()}catch(e){}}};
+async function enqueueFiles(list,parent,unique=false){
+  for(const f of list){
+    const name=unique?f.name:f.name;
+    const item=qItem(f,parent,name,false,unique);
+    item.row=document.getElementById('queueList').appendChild(document.createElement('div'));
+    enqueue(item);
+  }
+}
 function suggestName(name){const d=name.lastIndexOf('.');const base=d>0?name.slice(0,d):name,ext=d>0?name.slice(d):'';for(let i=1;i<1000;i++){const cand=base+' ('+i+')'+ext;if(!items.some(x=>x.name===cand))return cand}return base+'-новый'+ext}
 function conflictDialog(name){return actionDialog({title:'Файл уже существует',message:'«'+name+'» уже есть в этой папке. Сохранить под новым именем, перезаписать или пропустить?',accept:'Сохранить как',input:suggestName(name),cancel:'Пропустить',extra:{label:'Перезаписать',value:'overwrite',danger:true}})}
-function uploadOne(file,query,onProgress){return new Promise((resolve,reject)=>{const q=new URLSearchParams(query);const xhr=new XMLHttpRequest();currentUpload=xhr;xhr.open('POST','/api/upload?'+q,true);xhr.setRequestHeader('X-Access-Key',key);
-let lastLoaded=0,lastTime=performance.now();
-xhr.upload.onprogress=e=>{if(!e.lengthComputable||!onProgress)return;const now=performance.now();const speed=(e.loaded-lastLoaded)/Math.max(.001,(now-lastTime)/1000);if(now-lastTime>250||e.loaded===e.total){lastLoaded=e.loaded;lastTime=now;onProgress(e.loaded,e.total,speed)}};
-xhr.onload=()=>{if(xhr.status>=200&&xhr.status<300){try{resolve(JSON.parse(xhr.responseText||'{}'))}catch(e){resolve({})}}else{const err=new Error((xhr.responseText||('HTTP '+xhr.status)).trim());err.status=xhr.status;reject(err)}};
-xhr.onerror=()=>reject(new Error('Сеть недоступна'));
-xhr.onabort=()=>{const e=new Error('Отменено');e.aborted=true;reject(e)};
-xhr.send(file)})}
-async function uploadFiles(list){const errors=[];let index=0;showProgress('Подготовка…');
-try{for(const f of list){index++;let name=f.name,overwrite=false,skip=false;
-while(!skip){try{setProgress('Загрузка '+index+'/'+list.length+': '+name+' · 0%',0);
-await uploadOne(f,{path:current,name,overwrite:overwrite?'1':'0'},(loaded,total,speed)=>{const pct=Math.round(loaded/total*100);setProgress('Загрузка '+index+'/'+list.length+': '+name+' · '+pct+'%'+(speed?' · '+humanSpeed(speed):''),pct)});
-break}catch(err){
-if(err.aborted){errors.push(name+': отменено');skip=true;break}
-if(err.status===409){hideProgress();const choice=await conflictDialog(name);showProgress('Подготовка…');if(choice===null){errors.push(name+': пропущен');skip=true;break}if(choice==='overwrite'){overwrite=true;continue}name=String(choice);overwrite=false;continue}
-errors.push(f.name+': '+err.message);break}}}}
-finally{hideProgress();busy=false;await refreshListing();msg(errors.length?errors.slice(0,3).join('; ')+(errors.length>3?' и ещё '+(errors.length-3):''):'Файлы загружены',errors.length>0)}}
-el('upload').onclick=()=>el('fileInput').click();el('fileInput').onchange=async e=>{if(busy)return;busy=true;const files=[...e.target.files];e.target.value='';if(files.length)await uploadFiles(files);else busy=false};
-/* вид: плитка / список */
+async function uploadFiles(list){
+  const errors=[];
+  for(const f of list){
+    try{
+      await new Promise((resolve,reject)=>{
+        enqueueFiles([f],current,false);
+        const item=queue[queue.length-1];
+        const check=setInterval(()=>{
+          if(item.status==='done'){clearInterval(check);resolve();}
+          else if(item.status==='error'){clearInterval(check);reject(new Error(item.error||'ошибка'));losers.push(item.error);errors.push(f.name+': '+(item.error||'ошибка'));}
+        },300);
+      });
+    }catch(e){errors.push(f.name+': '+e.message);}
+  }
+  await refreshListing();
+  msg(errors.length?errors.slice(0,3).join('; ')+(errors.length>3?' и ещё '+(errors.length-3):''):'Файлы загружены: '+list.length,errors.length>0);
+}
+async function uploadFolder(files){
+  const errors=[],dirs=new Set();
+  try{
+    for(const f of files){
+      const rel=(f.webkitRelativePath||f.name).replace(/\\/g,'/');const parts=rel.split('/');const name=parts.pop();const dir=parts.length?joinPath(current,parts.join('/')):current;
+      if(dir!==current&&!dirs.has(dir)){await api('mkdirs',{path:dir},{method:'POST'});dirs.add(dir)}
+      try{await new Promise((resolve,reject)=>{
+        enqueueFiles([f],dir,false);
+        const item=queue[queue.length-1];
+        const check=setInterval(()=>{
+          if(item.status==='done'){clearInterval(check);resolve();}
+          else if(item.status==='error'){clearInterval(check);reject(new Error(item.error||'ошибка'));errors.push(rel+': '+(item.error||'ошибка'));}
+        },300);
+      });}catch(e){errors.push(rel+': '+e.message);}
+    }
+  }finally{
+    await refreshListing();
+    msg(errors.length?errors.slice(0,3).join('; ')+(errors.length>3?' и ещё '+(errors.length-3):''):'Папка загружена: '+files.length+' файлов',errors.length>0);
+  }
+}
+let losers=[];
+/* виды и тема */
 function setView(v){viewMode=v;localStorage.setItem('pb-view',v);el('view').textContent=v==='grid'?'☰ Список':'▦ Плитка';render()}
 el('view').onclick=()=>setView(viewMode==='grid'?'list':'grid');
-if(viewMode==='grid')el('view').textContent='☰ Список';
-/* тема */
-function applyTheme(t){document.documentElement.dataset.theme=t;localStorage.setItem('pb-theme',t);el('theme').textContent=t==='light'?'☾':'☀'}
-(function(){const saved=localStorage.getItem('pb-theme');const preferred=saved||(window.matchMedia&&matchMedia('(prefers-color-scheme: light)').matches?'light':'dark');applyTheme(preferred)})();
-el('theme').onclick=()=>applyTheme(document.documentElement.dataset.theme==='light'?'dark':'light');
-/* загрузка папки с сохранением структуры */
-function joinPath(base,rel){const b=base==='/'?'':base;return (b+'/'+rel).replace(/\/+/g,'/')}
-async function uploadFolder(files){const errors=[];showProgress('Подготовка папки…');const dirs=new Set();
-try{for(let i=0;i<files.length;i++){const f=files[i];const rel=(f.webkitRelativePath||f.name).replace(/\\/g,'/');const parts=rel.split('/');const name=parts.pop();const dir=parts.length?joinPath(current,parts.join('/')):current;
-if(dir!==current&&!dirs.has(dir)){await api('mkdirs',{path:dir},{method:'POST'});dirs.add(dir)}
-let target=name,overwrite=false,skip=false;
-while(!skip){try{setProgress('Загрузка '+(i+1)+'/'+files.length+': '+rel+' · 0%',0);
-await uploadOne(f,{path:dir,name:target,overwrite:overwrite?'1':'0'},(loaded,total,speed)=>{const pct=Math.round(loaded/total*100);setProgress('Загрузка '+(i+1)+'/'+files.length+': '+rel+' · '+pct+'%'+(speed?' · '+humanSpeed(speed):''),pct)});
-break}catch(err){if(err.aborted){errors.push(rel+': отменено');skip=true;break}
-if(err.status===409){hideProgress();const choice=await conflictDialog(target);showProgress('Подготовка…');if(choice===null){errors.push(rel+': пропущен');skip=true;break}if(choice==='overwrite'){overwrite=true;continue}target=String(choice);overwrite=false;continue}
-errors.push(rel+': '+err.message);break}}}}
-finally{hideProgress();busy=false;await refreshListing();msg(errors.length?errors.slice(0,3).join('; ')+(errors.length>3?' и ещё '+(errors.length-3):''):'Папка загружена: '+files.length+' файлов',errors.length>0)}}
-el('uploadDir').onclick=()=>el('dirInput').click();
-el('dirInput').onchange=async e=>{const files=[...e.target.files];e.target.value='';if(!files.length)return;if(busy){msg('Дождитесь окончания текущей загрузки');return}busy=true;await uploadFolder(files)};
 /* перетаскивание файлов в окно */
 (function(){const zone=el('app');if(!zone)return;
 zone.addEventListener('dragover',e=>{e.preventDefault();zone.classList.add('dropzone')});
 zone.addEventListener('dragleave',e=>{if(e.target===zone)zone.classList.remove('dropzone')});
 zone.addEventListener('drop',e=>{e.preventDefault();zone.classList.remove('dropzone');const files=e.dataTransfer&&e.dataTransfer.files;if(!files||!files.length)return;if(busy){msg('Дождитесь окончания текущей загрузки');return}busy=true;uploadFiles([...files])});})();
+el('upload').onclick=()=>el('fileInput').click();
+el('fileInput').onchange=async e=>{const files=[...e.target.files];e.target.value='';if(files.length)await uploadFiles(files);};
+el('uploadDir').onclick=()=>el('dirInput').click();
+el('dirInput').onchange=async e=>{const files=[...e.target.files];e.target.value='';if(!files.length)return;await uploadFolder(files);};
+/* перетаскивание файлов в окно */
+(function(){const zone=el('app');if(!zone)return;
+zone.addEventListener('dragover',e=>{e.preventDefault();zone.classList.add('dropzone')});
+zone.addEventListener('dragleave',e=>{if(e.target===zone)zone.classList.remove('dropzone')});
+zone.addEventListener('drop',e=>{e.preventDefault();zone.classList.remove('dropzone');const files=e.dataTransfer&&e.dataTransfer.files;if(!files||!files.length)return;uploadFiles([...files])});})();
 /* ссылка с кодом: /#k=XXXX входит автоматически */
 (function(){const match=/^#k=([0-9a-fA-F]{8,64})$/.exec(location.hash||'');if(!match)return;history.replaceState(null,'',location.pathname+location.search);el('code').value=match[1];el('loginForm').requestSubmit()})();
 </script></body></html>
