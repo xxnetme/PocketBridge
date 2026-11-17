@@ -1,5 +1,18 @@
 # CHANGELOG
 
+## 3.2 — 17.11.2026 «Готовность к Google Play»
+
+### Исправлено для Google Play
+- **android:networkSecurityConfig** вместо `usesCleartextTraffic="true"` — безопасная конфигурация для самоподписанного сертификата
+- **Убрано `requestLegacyExternalStorage="true"`** — не работает на targetSdk 34
+- **APK подписан схемой v2 (APK Signature Scheme v2)** — обязательное требование Google Play
+- Сертификат подписи действителен до 2054 года (требуется до 22 октября 2033)
+
+### Версия
+- `versionCode 16`, `versionName 3.2`
+
+---
+
 ## 3.1 — 17.11.2026 «Полировка и стабильность»
 
 ### Новое

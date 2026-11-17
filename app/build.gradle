@@ -7,7 +7,7 @@ def pbKeystore = System.getenv('PB_KEYSTORE')
 android {
     namespace 'com.local.wififiles'
     compileSdk 35
-    defaultConfig { applicationId 'com.local.wififiles'; minSdk 26; targetSdk 34; versionCode 15; versionName '3.1' }
+    defaultConfig { applicationId 'com.local.wififiles'; minSdk 26; targetSdk 34; versionCode 16; versionName '3.2' }
     signingConfigs {
         if (pbKeystore != null) {
             release {
@@ -21,7 +21,7 @@ android {
     buildTypes {
         release {
             minifyEnabled false
-            if (pbKeystore != null) signingConfig signingConfigs.release
+            signingConfig signingConfigs.release
         }
     }
     compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
