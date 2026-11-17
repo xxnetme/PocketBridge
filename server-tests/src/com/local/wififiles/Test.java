@@ -170,6 +170,8 @@ public class Test {
         nfcTests();
         heicRawTests();
         previewSizeLimitTests();
+        svgPreviewTests();
+        videoFrameTests();
         thumbCacheTests();
         edgeTests();
         dosTest();
@@ -550,6 +552,44 @@ public class Test {
         String dlUrl = jd.getString("url");
         r = req("GET", dlUrl, auth(), null);
         check("превью файла >50 МБ через stream возвращает 400", r.status == 400, "status=" + r.status);
+    }
+
+    /* ---------------- SVG превью v3.4 ---------------- */
+    static void svgPreviewTests() throws Exception {
+        Resp r = postJson("/api/session", "{}");
+        String token = new JSONObject(r.text()).getString("token");
+
+        // SVG файл
+        String svg = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"100\" height=\"100\"><circle cx=\"50\" cy=\"50\" r=\"40\" fill=\"red\"/></svg>";
+        Files.write(new File(ROOT, "test.svg").toPath(), svg.getBytes(StandardCharsets.UTF_8));
+
+        // preview-ticket для SVG
+        r = req("POST", "/api/preview-ticket?path=/test.svg", auth(), null);
+        check("preview-ticket для .svg -> 200", r.status == 200, "status=" + r.status);
+        JSONObject jd = new JSONObject(r.text());
+        String dlUrl = jd.getString("url");
+        r = req("GET", dlUrl, auth(), null);
+        check("превью .svg отдаёт image/svg+xml", r.status == 200 && r.h.get("content-type") != null && r.h.get("content-type").contains("image/svg+xml"),
+            "status=" + r.status + " mime=" + r.h.get("content-type"));
+    }
+
+    /* ---------------- видео кадр v3.4 ---------------- */
+    static void videoFrameTests() throws Exception {
+        Resp r = postJson("/api/session", "{}");
+        String token = new JSONObject(r.text()).getString("token");
+
+        // Создаём невалидный видео-файл (не видео, но с видео-расширением)
+        byte[] notVideo = "this is not a video file".getBytes(StandardCharsets.UTF_8);
+        Files.write(new File(ROOT, "fake.mp4").toPath(), notVideo);
+
+        // preview-ticket для .mp4 создаётся (видео не перекодируется в JPEG, отдаётся как есть)
+        r = req("POST", "/api/preview-ticket?path=/fake.mp4", auth(), null);
+        check("preview-ticket для .mp4 создаёт билет", r.status == 200, "status=" + r.status);
+        JSONObject jd = new JSONObject(r.text());
+        String dlUrl = jd.getString("url");
+        r = req("GET", dlUrl, auth(), null);
+        check(".mp4 отдаётся как видео (не как изображение)", r.status == 200 && r.h.get("content-type") != null && r.h.get("content-type").contains("video/mp4"),
+            "status=" + r.status + " mime=" + r.h.get("content-type"));
     }
 
     /* ---------------- очистка кеша миниатюр v3.0 ---------------- */
