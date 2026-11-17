@@ -28,10 +28,16 @@ import java.io.*;
 import java.net.*;
 import java.security.SecureRandom;
 import java.util.*;
+import android.graphics.Bitmap;
+import android.graphics.Color;
+import android.widget.ImageView;
+import com.github.kenglxn.QRGen.core.ImageType;
+import com.github.kenglxn.QRGen.QRCode;
 
 public final class MainActivity extends Activity {
     private static final int BG=0xff0a1419, PANEL=0xff14252b, PANEL2=0xff1b3035, BORDER=0xff2a4144, WHITE=0xffecf6f2, MUTED=0xff92aaa7, MINT=0xff83e5c2, DARK=0xff0d3028, RED=0xffffb6ab;
     private TextView statusTitle,statusDescription,addressText,codeText,permissionStatus,permissionButton,mainButton,copyAddress;
+    private ImageView qrImage;
     private LinearLayout connectionCard;
     private ServerService service;
     private boolean bound;
@@ -137,6 +143,16 @@ public final class MainActivity extends Activity {
             if(ips.isEmpty()) addressText.setText("Нет адреса Wi-Fi. Проверьте подключение.");
             else { List<String> urls=new ArrayList<>(); for(String ip:ips)urls.add("https://"+ip+":"+port); addressText.setText(String.join("\n",urls)); }
             codeText.setText(key); copyAddress.setAlpha(ips.isEmpty()?0.45f:1f); copyAddress.setEnabled(!ips.isEmpty());
+        connectionCard.addView(caption("QR-КОД ДЛЯ СКАНИРОВАНИЯ")); space(connectionCard,6);
+        qrImage=new ImageView(this); qrImage.setAdjustViewBounds(true);
+        if(!ips.isEmpty()) {
+            String link=linkWithKey();
+            Bitmap qr=QRCode.from(link).to(ImageType.PNG).withSize(260,260).bitmap();
+            qrImage.setImageBitmap(qr);
+        } else qrImage.setImageBitmap(null);
+        qrImage.setPadding(dp(8),dp(8),dp(8),dp(8));
+        connectionCard.addView(qrImage,new LinearLayout.LayoutParams(dp(280),dp(280)));
+        connectionCard.setGravity(Gravity.CENTER_HORIZONTAL);
             if(prefs==null || prefs.getBoolean(ServerService.PREF_KEEP_SCREEN,true)) getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
             else getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         } else {

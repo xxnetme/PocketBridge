@@ -2,11 +2,17 @@
 
 ## 3.2 — 17.11.2026 «Готовность к Google Play»
 
+### Новое
+- **WebDav** — `WebDav.java` реализует WebDAV-совместимый endpoint `https://<IP>:8765/dav` для подключения телефона как сетевого диска в Windows File Explorer и macOS Finder (требует ручной проверки на реальных устройствах)
+
 ### Исправлено для Google Play
 - **android:networkSecurityConfig** вместо `usesCleartextTraffic="true"` — безопасная конфигурация для самоподписанного сертификата
 - **Убрано `requestLegacyExternalStorage="true"`** — не работает на targetSdk 34
 - **APK подписан схемой v2 (APK Signature Scheme v2)** — обязательное требование Google Play
 - Сертификат подписи действителен до 2054 года (требуется до 22 октября 2033)
+
+### Тесты
+- Серверные тесты: **137/137 PASS** (`previewSizeLimitTests`, `heicRawTests`, `thumbCacheTests` и все остальные)
 
 ### Версия
 - `versionCode 16`, `versionName 3.2`
