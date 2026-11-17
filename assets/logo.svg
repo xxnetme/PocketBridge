@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">PocketBridge</title><desc id="desc">Телефон и папка соединены мостом.</desc>
+  <rect width="512" height="512" rx="112" fill="#0a171c"/>
+  <circle cx="256" cy="256" r="190" fill="#122c2e"/>
+  <path d="M122 136c0-15 12-27 27-27h72c15 0 27 12 27 27v240c0 15-12 27-27 27h-72c-15 0-27-12-27-27V136Z" fill="#80e6c3"/>
+  <path d="M140 145c0-10 8-18 18-18h54c10 0 18 8 18 18v201h-90V145Z" fill="#102b2a"/>
+  <rect x="170" y="369" width="30" height="7" rx="3.5" fill="#102b2a"/>
+  <path d="M289 207c0-13 10-23 23-23h30l15 18h37c13 0 23 10 23 23v103c0 14-11 25-25 25h-78c-14 0-25-11-25-25V207Z" fill="#80e6c3"/>
+  <path d="M272 258c20-26 41-39 62-39" fill="none" stroke="#baf8dc" stroke-width="12" stroke-linecap="round"/>
+  <path d="M272 287c23-20 43-29 62-29" fill="none" stroke="#baf8dc" stroke-width="12" stroke-linecap="round"/>
+  <circle cx="274" cy="258" r="7" fill="#baf8dc"/>
+</svg>
