@@ -1,5 +1,22 @@
 # CHANGELOG
 
+## 3.0 — 17.11.2026 «Просмотр и стабильность»
+
+### Новое
+- **HEIC/RAW полноразмерный просмотр** — превью для `.heic/.heif/.dng/.cr2/.nef/.arw/.raf` в браузере. Сервер перекодирует их в JPEG на лету (`FileServer.streamTicket` + `Thumbnails.previewJpeg`), RAW-форматы добавлены в `kind()` в `index.html`.
+- **Чистка кеша миниатюр** — лимит 200 МБ. `cleanupThumbsCache()` вызывается при кэшировании и в `stop()`, удаляет старейшие файлы (FIFO).
+- **WifiLock** — `WifiManager.WifiLock` (`WIFI_MODE_FULL_HIGH_PERF`) активируется при старте сервера (`ServerService`) и освобождается в `shutdown()`/`onDestroy()`. Передача не прерывается при блокировке экрана.
+- **Разрешения Wi-Fi** — добавлены `ACCESS_WIFI_STATE`, `CHANGE_WIFI_STATE` в `AndroidManifest.xml`.
+- **Тесты v3.0** — `heicRawTests()` (превью для 5 RAW-форматов) и `thumbCacheTests()` (50 миниатюр). Всего серверных тестов: **135/135**.
+
+### Исправлено
+- RAW-расширения теперь определяются как изображения в браузере (`kind()` в `index.html`).
+
+### Версия
+- `versionCode 14`, `versionName 3.0`
+
+---
+
 ## 2.0 — 17.11.2026
 
 Первая версия с **подписанным release-APK**. Закрывает пункты «осталось» из 1.7.
