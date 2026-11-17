@@ -131,6 +131,7 @@ final class FileServer {
         tickets.clear(); sessions.clear();
         for(Upload upload:uploads.values()) try { upload.tmp.delete(); } catch(Exception ignored) {}
         uploads.clear();
+        cleanupThumbsCache();
     }
 
     private static String line(InputStream in, int max) throws IOException {
@@ -255,6 +256,11 @@ final class FileServer {
             case "mp4": case "m4v": return "video/mp4"; case "webm": return "video/webm"; case "ogv": return "video/ogg"; case "mov": return "video/quicktime";
             case "mp3": return "audio/mpeg"; case "m4a": return "audio/mp4"; case "wav": return "audio/wav"; case "ogg": case "opus": return "audio/ogg"; case "flac": return "audio/flac";
             case "heic": case "heif": return "image/heic";
+            case "dng": return "image/x-adobe-dng";
+            case "cr2": return "image/x-canon-cr2";
+            case "nef": return "image/x-nikon-nef";
+            case "arw": return "image/x-sony-arw";
+            case "raf": return "image/x-fuji-raf";
             case "pdf": return "application/pdf"; default: return null;
         }
     }
@@ -320,6 +326,7 @@ final class FileServer {
                     File tmp=File.createTempFile("thumb-",".part",cache);
                     Files.write(tmp.toPath(),jpeg);
                     Files.move(tmp.toPath(),cached.toPath(),StandardCopyOption.REPLACE_EXISTING);
+                    cleanupThumbsCache();
                 } catch(Exception ignored) { /* кеш не критичен */ }
             }
         } else {
@@ -358,8 +365,8 @@ final class FileServer {
         Ticket ticket=token==null?null:tickets.get(token); if(ticket==null || ticket.expires<System.currentTimeMillis()) { sendText(out,403,"Срок действия ссылки истёк. Обновите страницу."); return; }
         if("zip".equals(ticket.type)) { writeZip(out,ticket.items); return; }
         File f=readable(ticket.path); if(ticket.mime!=null && !"application/octet-stream".equals(ticket.mime) && !ticket.mime.equals(mediaMime(f))) throw new ApiException(400,"Файл изменился");
-        if("image/heic".equals(ticket.mime)) {
-            // Браузеры (кроме Safari) не умеют HEIC: отдаём перекодированный JPEG
+        if("image/heic".equals(ticket.mime) || ticket.mime!=null && ticket.mime.startsWith("image/x-")) {
+            // Браузеры не умеют HEIC/RAW: отдаём перекодированный JPEG
             byte[] jpeg=Thumbnails.previewJpeg(f);
             send(out,200,"image/jpeg",jpeg,null);
             return;
@@ -567,6 +574,24 @@ final class FileServer {
         long now=System.currentTimeMillis();
         for(Map.Entry<String,Upload> e:uploads.entrySet()) {
             if(now-e.getValue().created>UPLOAD_TTL) { Upload upload=uploads.remove(e.getKey()); if(upload!=null) upload.tmp.delete(); }
+        }
+    }
+
+    /** Ограничивает кеш миниатюр 200 МБ: удаляет самые старые файлы, пока размер не уложится в лимит. */
+    private static final long THUMB_CACHE_LIMIT = 200L * 1024 * 1024;
+    private void cleanupThumbsCache() {
+        if(cacheDir==null) return;
+        File cache=new File(cacheDir,"thumbs");
+        if(!cache.isDirectory()) return;
+        File[] files=cache.listFiles((dir,name)->name.endsWith(".jpg"));
+        if(files==null || files.length==0) return;
+        java.util.Arrays.sort(files,java.util.Comparator.comparingLong(File::lastModified));
+        long total=0;
+        for(File f:files) total+=f.length();
+        for(File f:files) {
+            if(total<=THUMB_CACHE_LIMIT) break;
+            total-=f.length();
+            f.delete();
         }
     }
 

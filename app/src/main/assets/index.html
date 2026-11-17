@@ -181,7 +181,7 @@ function saveBlob(blob,name){let url=URL.createObjectURL(blob),a=document.create
 
 let remoteResults=null,searchTimer=null;
 let previewSerial=0,previewItem=null;
-function kind(name){const ext=(name.split('.').pop()||'').toLowerCase();if(['jpg','jpeg','png','gif','webp','bmp','avif','heic','heif'].includes(ext))return'image';if(['mp4','m4v','webm','ogv','mov'].includes(ext))return'video';if(['mp3','m4a','wav','ogg','opus','flac'].includes(ext))return'audio';if(ext==='pdf')return'pdf';if(['html','htm'].includes(ext))return'html';if(ext==='docx')return'docx';if(['txt','md','csv','log','json','xml','css','js'].includes(ext))return'text';return''}
+function kind(name){const ext=(name.split('.').pop()||'').toLowerCase();if(['jpg','jpeg','png','gif','webp','bmp','avif','heic','heif','dng','cr2','nef','arw','raf'].includes(ext))return'image';if(['mp4','m4v','webm','ogv','mov'].includes(ext))return'video';if(['mp3','m4a','wav','ogg','opus','flac'].includes(ext))return'audio';if(ext==='pdf')return'pdf';if(['html','htm'].includes(ext))return'html';if(ext==='docx')return'docx';if(['txt','md','csv','log','json','xml','css','js'].includes(ext))return'text';return''}
 function stopPlayback(){for(const media of el('previewBody').querySelectorAll('audio,video')){media.pause();media.removeAttribute('src');media.load()}}
 function closePreview(){previewSerial++;stopPlayback();el('preview').classList.add('hidden');el('previewBody').replaceChildren();previewItem=null}
 function playlist(){if(!previewItem)return [];let category=kind(previewItem.name);if(category!=='audio'&&category!=='video')return [];return visible().filter(x=>!x.dir&&kind(x.name)===category)}

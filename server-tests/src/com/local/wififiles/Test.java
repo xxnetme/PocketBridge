@@ -168,6 +168,8 @@ public class Test {
         settingsTests();
         chunkedUploadTests();
         nfcTests();
+        heicRawTests();
+        thumbCacheTests();
         edgeTests();
         dosTest();
     }
@@ -496,6 +498,59 @@ public class Test {
         Resp r = req("GET", "/api/search?q=%C3%A9.txt&scope=global", auth(), null);
         JSONObject j = new JSONObject(r.text());
         check("поиск NFC находит оба файла", r.status == 200 && j.getJSONArray("items").length() >= 2, "items=" + j.getJSONArray("items").length());
+    }
+
+    /* ---------------- HEIC/RAW превью v3.0 ---------------- */
+    static void heicRawTests() throws Exception {
+        Resp r = postJson("/api/session", "{}");
+        String token = new JSONObject(r.text()).getString("token");
+
+        // Создаём тестовые файлы RAW-форматов (как PNG, но с RAW-расширением)
+        byte[] smallPng = Base64.getDecoder().decode(
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==");
+        Files.write(new File(ROOT, "test.dng").toPath(), smallPng);
+        Files.write(new File(ROOT, "test.cr2").toPath(), smallPng);
+        Files.write(new File(ROOT, "test.nef").toPath(), smallPng);
+        Files.write(new File(ROOT, "test.arw").toPath(), smallPng);
+        Files.write(new File(ROOT, "test.raf").toPath(), smallPng);
+
+        // Проверяем MIME-типы через preview-ticket
+        String[] exts = {"dng", "cr2", "nef", "arw", "raf"};
+        String[] expectedMimes = {
+            "image/x-adobe-dng", "image/x-canon-cr2", "image/x-nikon-nef",
+            "image/x-sony-arw", "image/x-fuji-raf"
+        };
+        for (int i = 0; i < exts.length; i++) {
+            r = req("POST", "/api/preview-ticket?path=/test." + exts[i], auth(), null);
+            check("preview-ticket для ." + exts[i] + " -> 200", r.status == 200, "status=" + r.status);
+            JSONObject jd = new JSONObject(r.text());
+            String dlUrl = jd.getString("url");
+            r = req("GET", dlUrl, auth(), null);
+            check("превью ." + exts[i] + " отдаёт JPEG", r.status == 200 && r.body.length > 2
+                    && (r.body[0] & 0xFF) == 0xFF && (r.body[1] & 0xFF) == 0xD8,
+                "status=" + r.status + " len=" + r.body.length + " mime=" + r.h.get("content-type"));
+        }
+    }
+
+    /* ---------------- очистка кеша миниатюр v3.0 ---------------- */
+    static void thumbCacheTests() throws Exception {
+        Resp r = postJson("/api/session", "{}");
+        String token = new JSONObject(r.text()).getString("token");
+
+        // Создаём много маленьких изображений
+        byte[] smallPng = Base64.getDecoder().decode(
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==");
+        for (int i = 0; i < 50; i++) {
+            Files.write(new File(ROOT, "cache-test-" + i + ".jpg").toPath(), smallPng);
+        }
+
+        // Запрашиваем миниатюры всех файлов — все должны вернуться без ошибок
+        int ok = 0;
+        for (int i = 0; i < 50; i++) {
+            r = req("GET", "/thumb?token=" + token + "&path=/cache-test-" + i + ".jpg&w=96", auth(), null);
+            if (r.status == 200) ok++;
+        }
+        check("все 50 миниатюр отдаются без ошибок", ok == 50, "успешно=" + ok);
     }
 
     /* ---------------- граничные случаи ---------------- */

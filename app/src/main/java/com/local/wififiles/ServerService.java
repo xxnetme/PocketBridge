@@ -10,6 +10,7 @@ import android.content.pm.ServiceInfo;
 import android.os.Binder;
 import android.os.Build;
 import android.os.Environment;
+import android.net.wifi.WifiManager;
 import android.os.IBinder;
 
 import java.io.File;
@@ -41,6 +42,7 @@ public final class ServerService extends Service {
     private int port;
     private String error = "";
     private ScheduledExecutorService watchdog;
+    private WifiManager.WifiLock wifiLock;      // удерживает Wi-Fi активным во время передачи
 
     final class LocalBinder extends Binder {
         ServerService service() { return ServerService.this; }
@@ -71,6 +73,14 @@ public final class ServerService extends Service {
             int preferredPort = getSharedPreferences(PREFS, MODE_PRIVATE).getInt(PREF_PORT, DEFAULT_PORT);
             server = new FileServer(this, Environment.getExternalStorageDirectory(), key, ssl, getCacheDir(), preferredPort);
             port = server.start();
+            // Удерживаем Wi-Fi активным, чтобы передача не обрывалась при блокировке экрана
+            try {
+                WifiManager wm = (WifiManager) getApplicationContext().getSystemService(WIFI_SERVICE);
+                if (wm != null) {
+                    wifiLock = wm.createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "pocketbridge-wifi");
+                    wifiLock.acquire();
+                }
+            } catch (Exception ignored) {}
             startWatchdog();
         } catch (Exception e) {
             error = e.getMessage() == null ? "Не удалось запустить сервер" : e.getMessage();
@@ -98,9 +108,15 @@ public final class ServerService extends Service {
         }, 1, 1, TimeUnit.MINUTES);
     }
 
+    private void releaseWifiLock() {
+        try { if (wifiLock != null && wifiLock.isHeld()) wifiLock.release(); } catch (Exception ignored) {}
+        wifiLock = null;
+    }
+
     private void shutdown() {
         if (watchdog != null) { watchdog.shutdownNow(); watchdog = null; }
         if (server != null) { server.stop(); server = null; }
+        releaseWifiLock();
         stopForeground(STOP_FOREGROUND_REMOVE);
         stopSelf();
         notifyListeners();
@@ -109,6 +125,7 @@ public final class ServerService extends Service {
     @Override public void onDestroy() {
         if (watchdog != null) { watchdog.shutdownNow(); watchdog = null; }
         if (server != null) { server.stop(); server = null; }
+        releaseWifiLock();
         notifyListeners();
         super.onDestroy();
     }
