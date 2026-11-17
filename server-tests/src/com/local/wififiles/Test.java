@@ -169,6 +169,7 @@ public class Test {
         chunkedUploadTests();
         nfcTests();
         heicRawTests();
+        previewSizeLimitTests();
         thumbCacheTests();
         edgeTests();
         dosTest();
@@ -530,6 +531,25 @@ public class Test {
                     && (r.body[0] & 0xFF) == 0xFF && (r.body[1] & 0xFF) == 0xD8,
                 "status=" + r.status + " len=" + r.body.length + " mime=" + r.h.get("content-type"));
         }
+    }
+
+    /* ---------------- лимит размера превью v3.1 ---------------- */
+    static void previewSizeLimitTests() throws Exception {
+        Resp r = postJson("/api/session", "{}");
+        String token = new JSONObject(r.text()).getString("token");
+
+        // Создаём файл больше 50 МБ (имитируем большим массивом байт)
+        byte[] bigData = new byte[(int)(51L * 1024 * 1024)];
+        new java.util.Random(42).nextBytes(bigData);
+        Files.write(new File(ROOT, "bigfile.dng").toPath(), bigData);
+
+        // preview-ticket для большого файла должен создать ticket, но streamTicket вернёт 400
+        r = req("POST", "/api/preview-ticket?path=/bigfile.dng", auth(), null);
+        check("preview-ticket для большого файла создаёт билет", r.status == 200, "status=" + r.status);
+        JSONObject jd = new JSONObject(r.text());
+        String dlUrl = jd.getString("url");
+        r = req("GET", dlUrl, auth(), null);
+        check("превью файла >50 МБ через stream возвращает 400", r.status == 400, "status=" + r.status);
     }
 
     /* ---------------- очистка кеша миниатюр v3.0 ---------------- */

@@ -25,6 +25,8 @@ final class FileServer {
     private static final long PREVIEW_TTL = 10L * 60 * 1000;
     private static final long DOWNLOAD_TTL = 10L * 60 * 1000;
     private static final int TICKET_LIMIT = 256;
+    /** Максимальный размер файла для перекодирования в превью (50 МБ). Больше — скачивайте файл. */
+    private static final long PREVIEW_MAX_SIZE = 50L * 1024 * 1024;
     private static final long MAX_UPLOAD = 20L * 1024 * 1024 * 1024;
     private static final int IO_THREADS_MAX = 32;
     private static final int HEAD_TIMEOUT_MS = 15000;
@@ -366,7 +368,8 @@ final class FileServer {
         if("zip".equals(ticket.type)) { writeZip(out,ticket.items); return; }
         File f=readable(ticket.path); if(ticket.mime!=null && !"application/octet-stream".equals(ticket.mime) && !ticket.mime.equals(mediaMime(f))) throw new ApiException(400,"Файл изменился");
         if("image/heic".equals(ticket.mime) || ticket.mime!=null && ticket.mime.startsWith("image/x-")) {
-            // Браузеры не умеют HEIC/RAW: отдаём перекодированный JPEG
+            // Браузеры не умеют HEIC/RAW: отдаём перекодированный JPEG (лимит 50 МБ)
+            if(f.length()>PREVIEW_MAX_SIZE) throw new ApiException(400,"Файл больше 50 МБ — скачайте его для просмотра");
             byte[] jpeg=Thumbnails.previewJpeg(f);
             send(out,200,"image/jpeg",jpeg,null);
             return;
