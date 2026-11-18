@@ -61,7 +61,7 @@ jobs:
 
           ./server-tests/run.sh --serve "$PB_WORK/root" "$PB_KEY" tls > "$PB_WORK/server.log" 2>&1 &
           SERVER_PID=$!
-          trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
+          trap 'pkill -P "$SERVER_PID" 2>/dev/null || true; kill "$SERVER_PID" 2>/dev/null || true' EXIT
 
           for _ in $(seq 1 60); do
             if grep -q '^READY$' "$PB_WORK/server.log" 2>/dev/null; then

@@ -93,7 +93,7 @@ if shutil.which('ffmpeg'):
         [
             'ffmpeg', '-y', '-loglevel', 'error',
             '-f', 'lavfi', '-i', 'testsrc=duration=2:size=320x240:rate=15',
-            '-c:v', 'libvpx-vp9', '-pix_fmt', 'yuv420p', '-movflags', '+faststart',
+            '-c:v', 'libvpx-vp9', '-b:v', '200k', '-pix_fmt', 'yuv420p', '-movflags', '+faststart',
             video_path,
         ],
         check=False,

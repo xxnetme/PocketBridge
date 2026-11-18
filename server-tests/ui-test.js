@@ -525,7 +525,11 @@ function zipEntries(zipPath) {
 
   /* ---------- итоги ---------- */
   rec('Ошибки выполнения JS (pageerror)', pageErrors.length === 0, pageErrors.slice(0, 3).join(' || '));
-  const unexpectedConsole = consoleErrors.filter(e => !/status of (400|403|409)/.test(e));
+  const unexpectedConsole = consoleErrors.filter(e =>
+    !/status of (400|403|409)/.test(e) &&
+    !/Blocked script execution in 'about:srcdoc'/.test(e) &&
+    !/(example\.com|evil\.example).*Content Security Policy/.test(e)
+  );
   rec('Неожиданные ошибки в консоли', unexpectedConsole.length === 0, unexpectedConsole.slice(0, 3).join(' || '));
   const unexpectedFailed = failed.filter(u => !/example\.com|evil\.example/.test(u) && !/ERR_ABORTED|ERR_BLOCKED_BY_CSP/.test(u));
   rec('Неожиданные сетевые сбои', unexpectedFailed.length === 0, unexpectedFailed.slice(0, 3).join(' || '), 'note');

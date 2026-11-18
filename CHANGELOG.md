@@ -31,7 +31,7 @@
 
 ### CI/CD, тесты и документация
 - Серверные тесты расширены до **184 проверок** (полный набор тестов WebDAV, SVG CSP, разделение тикетов, докачка `upload-status`, X.509 v3 SAN).
-- Починены браузерные тесты Playwright (`ui-test.js` и `make-ui-tree.py`) с проверкой реальной UI-загрузки, конфликтов, локализации RU/EN, SVG и `pageerror`.
+- Починены браузерные тесты Playwright (`ui-test.js` и `make-ui-tree.py`, **55 проверок**) с проверкой реальной UI-загрузки, конфликтов, локализации RU/EN, SVG и `pageerror`.
 - Полностью исправлен `.github/workflows/build.yml` (триггер `tags`, права `contents: write`, Android SDK 36, запуск Playwright против живого HTTPS-сервера, сборка APK/AAB и публикация релиза, actions на Node 24).
 - Актуализированы `README.md`, `CHANGELOG.md`, `docs/API.md`, `docs/WEBDAV.md`.
 
