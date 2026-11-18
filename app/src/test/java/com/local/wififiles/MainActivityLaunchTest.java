@@ -139,17 +139,22 @@ public class MainActivityLaunchTest {
         assertNotNull(input);
         input.setText("9443");
         portDialog.getButton(DialogInterface.BUTTON_POSITIVE).performClick();
+        ShadowLooper.idleMainLooper();
 
         TextView settingsPort = getField(activity, "settingsPort", TextView.class);
         assertEquals("9443", settingsPort.getText().toString());
 
-        // Диалог автостопа (AppDialogTheme) открывается без сбоев.
+        // Диалог автостопа (AppDialogTheme) открывается без сбоев и меняет интервал.
         TextView autoName = getField(activity, "autoName", TextView.class);
         ((View) autoName.getParent().getParent()).performClick();
         AlertDialog autoDialog = ShadowAlertDialog.getLatestAlertDialog();
         assertNotNull("Auto-stop AlertDialog must open", autoDialog);
         assertTrue(autoDialog.isShowing());
-        autoDialog.dismiss();
+        autoDialog.getListView().performItemClick(
+                autoDialog.getListView().getAdapter().getView(0, null, autoDialog.getListView()), 0, 0);
+        ShadowLooper.idleMainLooper();
+        TextView settingsAuto = getField(activity, "settingsAutoStop", TextView.class);
+        assertTrue(settingsAuto.getText().toString().startsWith("15"));
 
         // Переключатель «Не гасить экран».
         TextView keepName = getField(activity, "keepName", TextView.class);
