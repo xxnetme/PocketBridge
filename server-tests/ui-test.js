@@ -449,12 +449,21 @@ function zipEntries(zipPath) {
   /* ---------- 12c. плитка, миниатюры (JPEG + SVG), темы, загрузка папки ---------- */
   await openFolder(page, 'Фото');
   await page.click('#view');
-  await page.waitForTimeout(1000);
+  await page.waitForFunction(() => {
+    const cards = Array.from(document.querySelectorAll('#grid .card'));
+    const c = cards.find(el => el.textContent && el.textContent.includes('иконка.svg'));
+    const img = c && c.querySelector('img');
+    return !!(img && img.complete && img.naturalWidth > 0);
+  }, { timeout: 8000 }).catch(() => {});
   const svgThumbOk = await page.locator('#grid .card', { hasText: 'иконка.svg' }).locator('img').evaluate(i => i.naturalWidth > 0).catch(() => false);
   rec('Плитка: SVG-миниатюра отображается без ошибок', svgThumbOk && dialogs.length === 0, '');
 
   await page.locator('#grid .card', { hasText: 'Отпуск' }).locator('.thumb').click();
-  await page.waitForTimeout(1200);
+  await page.waitForFunction(() => {
+    const cards = document.querySelectorAll('#grid .card');
+    const img = document.querySelector('#grid .card img');
+    return cards.length >= 6 && img && img.complete && img.naturalWidth > 0;
+  }, { timeout: 8000 }).catch(() => {});
   const cards = await page.locator('#grid .card').count();
   const thumbInfo = await page.locator('#grid .card img').first().evaluate(img => ({ w: img.naturalWidth, h: img.naturalHeight })).catch(() => null);
   rec('Плитка: карточки и JPEG-миниатюры загрузились', cards >= 6 && !!thumbInfo && thumbInfo.w > 0, 'карточек=' + cards + ' миниатюра=' + (thumbInfo ? thumbInfo.w + 'x' + thumbInfo.h : 'нет'));

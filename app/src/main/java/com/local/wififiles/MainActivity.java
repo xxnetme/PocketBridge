@@ -123,6 +123,7 @@ public final class MainActivity extends Activity {
     private final Runnable serverListener = () -> runOnUiThread(this::refreshView);
     private final ServiceConnection connection = new ServiceConnection() {
         @Override public void onServiceConnected(ComponentName name, IBinder binder) {
+            if (!(binder instanceof ServerService.LocalBinder)) return;
             service = ((ServerService.LocalBinder) binder).service();
             bound = true;
             service.addListener(serverListener);
@@ -1017,7 +1018,11 @@ public final class MainActivity extends Activity {
         }
 
         static boolean isStorageManager() {
-            return Environment.isExternalStorageManager();
+            try {
+                return Environment.isExternalStorageManager();
+            } catch (Throwable e) {
+                return false;
+            }
         }
 
         static Intent appAllFilesIntent(String pkg) {

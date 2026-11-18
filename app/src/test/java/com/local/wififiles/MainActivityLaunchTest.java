@@ -26,6 +26,7 @@ import org.robolectric.android.controller.ActivityController;
 import org.robolectric.android.controller.ServiceController;
 import org.robolectric.annotation.Config;
 import org.robolectric.shadows.ShadowAlertDialog;
+import org.robolectric.shadows.ShadowEnvironment;
 import org.robolectric.shadows.ShadowLooper;
 
 import java.io.File;
@@ -89,6 +90,21 @@ public class MainActivityLaunchTest {
                 texts.stream().anyMatch(s -> s.contains("v3.6.1")));
         assertTrue("Default port hint must mention 8765",
                 texts.stream().anyMatch(s -> s.contains("8765") && (s.contains("Default") || s.contains("По умолчанию"))));
+
+        // Проверяем состояние с выданным доступом ко всем файлам и нажатие кнопки запуска (API 30+).
+        if (android.os.Build.VERSION.SDK_INT >= 30) {
+            ShadowEnvironment.setExternalStorageManager(true);
+            try {
+                controller.resume();
+                assertEquals(View.GONE, getField(activity, "permissionCard", View.class).getVisibility());
+                assertEquals(View.VISIBLE, getField(activity, "permissionGrantedRow", View.class).getVisibility());
+                getField(activity, "mainButton", TextView.class).performClick();
+            } catch (Exception e) {
+                throw new AssertionError(e);
+            } finally {
+                ShadowEnvironment.setExternalStorageManager(false);
+            }
+        }
 
         controller.pause().stop().destroy();
     }
