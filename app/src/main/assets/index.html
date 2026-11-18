@@ -565,23 +565,27 @@ html.ready .card{transition:transform .14s ease,box-shadow .14s ease,border-colo
   .pathbar{padding:9px 12px}
   .selection{padding:9px 12px}
   .tablewrap{overflow-x:visible}
-  table,tbody{min-width:0;display:block}
+  table,tbody{min-width:0;width:100%;display:block}
   thead{display:none}
   tbody tr{
+    width:100%;
     display:grid;
-    grid-template-columns:30px minmax(0,1fr) auto;
-    grid-template-areas:"check name size" "check meta actions";
-    column-gap:10px;row-gap:4px;align-items:center;
+    grid-template-columns:24px auto minmax(0,1fr) auto;
+    grid-template-areas:"check name name size" "check meta actions actions";
+    column-gap:8px;row-gap:5px;align-items:center;
     padding:11px 12px;border-bottom:1px solid var(--border)
   }
   tbody tr:last-child{border-bottom:0}
-  tbody td{padding:0;border:0;display:block;width:auto}
-  .checkcol{grid-area:check;width:auto;padding:0;text-align:left}
+  tbody td,tbody td.size,tbody td.datecol{padding:0;border:0;display:block;width:auto}
+  tbody td.checkcol{grid-area:check;width:auto;padding:0;text-align:left}
   tbody td:nth-child(2){grid-area:name;min-width:0}
   tbody td:nth-child(3){grid-area:size;justify-self:end;font-size:12px}
-  tbody td:nth-child(4){grid-area:meta;font-size:11px;color:var(--faint)}
-  .rowactions{grid-area:actions;padding:0;display:flex;gap:1px;justify-content:flex-end;flex-wrap:wrap}
-  .iconbtn{padding:5px 6px;font-size:11.5px;margin:0}
+  tbody td:nth-child(4){grid-area:meta;font-size:11.5px;color:var(--faint);padding-left:2px}
+  tbody td.rowactions{
+    grid-area:actions;width:auto;padding:0;border:0;justify-self:end;
+    display:flex;gap:2px;justify-content:flex-end;flex-wrap:wrap
+  }
+  .iconbtn{padding:4px 6px;font-size:11px;margin:0;background:var(--panel2);border-color:var(--border)}
   .filecell{min-width:0;gap:10px}
   .icon{width:34px;height:34px;border-radius:9px}
 

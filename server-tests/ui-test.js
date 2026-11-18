@@ -530,7 +530,10 @@ function zipEntries(zipPath) {
   const mOverflow = await mp.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 2);
   rec('Мобильная вёрстка: список без горизонтального скролла', !mOverflow, mOverflow ? 'есть overflow' : 'ok');
   const delBox = await mp.locator('#rows tr').first().getByText('Удалить').boundingBox();
-  rec('Мобильная вёрстка: действия строки видны без скролла', !!delBox && delBox.x + delBox.width <= 391, delBox ? ('x=' + Math.round(delBox.x) + ' w=' + Math.round(delBox.width)) : 'нет кнопки');
+  const actBox = await mp.locator('#rows tr .rowactions').first().boundingBox();
+  rec('Мобильная вёрстка: действия строки видны без скролла',
+      !!delBox && delBox.x + delBox.width <= 391 && !!actBox && actBox.height <= 32,
+      (delBox ? ('x=' + Math.round(delBox.x) + ' w=' + Math.round(delBox.width)) : 'нет кнопки') + ' actH=' + (actBox ? Math.round(actBox.height) : 0));
   const mSearchBox = await mp.locator('#search').boundingBox();
   const mTopBox = await mp.locator('header.top').boundingBox();
   rec('Мобильная вёрстка: поиск на всю ширину и шапка в одну строку',
@@ -541,6 +544,9 @@ function zipEntries(zipPath) {
   await mp.screenshot({ path: path.join(shots, '28-mobile-dark.png') });
   await mp.locator('#rows tr', { hasText: 'Фото' }).locator('button.filename').click();
   await mp.waitForTimeout(400);
+  const fActBox = await mp.locator('#rows tr', { hasText: 'обложка' }).locator('.rowactions').boundingBox();
+  rec('Мобильная вёрстка: действия файла в одну строку', !!fActBox && fActBox.height <= 32, fActBox ? ('h=' + Math.round(fActBox.height) + 'px') : 'нет');
+  await mp.screenshot({ path: path.join(shots, '29-mobile-files.png') });
   await mp.locator('#rows tr', { hasText: 'обложка' }).locator('button.filename').click();
   await mp.waitForTimeout(900);
   await mp.screenshot({ path: path.join(shots, '21-mobile-preview.png') });
