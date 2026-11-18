@@ -1,3 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
   <color name="icon_bg">#122C2E</color>
+  <color name="pb_bg">#FF071015</color>
+  <color name="pb_surface">#FF0D1920</color>
+  <color name="pb_dialog">#FF112028</color>
+  <color name="pb_accent">#FF6EE7C0</color>
 </resources>

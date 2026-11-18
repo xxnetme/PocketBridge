@@ -89,7 +89,7 @@ jobs:
           retention-days: 7
 
   build:
-    name: Build Android APK
+    name: Build & Test Android APK
     runs-on: ubuntu-latest
     needs: server-tests
     outputs:
@@ -100,13 +100,14 @@ jobs:
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
-          java-version: '17'
-      - name: Cache Gradle
+          java-version: '21'
+      - name: Cache Gradle & Robolectric
         uses: actions/cache@v5
         with:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
+            ~/.m2/repository/org/robolectric
           key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', 'gradle/wrapper/gradle-wrapper.properties') }}
           restore-keys: |
             ${{ runner.os }}-gradle-
@@ -130,12 +131,13 @@ jobs:
         run: |
           VER=$(sed -n "s/.*versionName '\([^']*\)'.*/\1/p" app/build.gradle | head -n1)
           echo "version=$VER" >> "$GITHUB_OUTPUT"
-      - name: Build & verify debug APK
+      - name: Lint, Android lifecycle tests (Robolectric) & build debug APK
         run: |
-          ./gradlew --no-daemon assembleDebug
+          ./gradlew --no-daemon lintDebug testDebugUnitTest assembleDebug
           APK="app/build/outputs/apk/debug/app-debug.apk"
           "$ANDROID_HOME/build-tools/36.0.0/zipalign" -c 4 "$APK"
           "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose "$APK"
+          "$ANDROID_HOME/build-tools/36.0.0/aapt2" dump badging "$APK" | head -n 5
           mkdir -p "$RUNNER_TEMP/debug-out"
           cp "$APK" "$RUNNER_TEMP/debug-out/PocketBridge-v${{ steps.meta.outputs.version }}-debug.apk"
       - name: Upload debug APK

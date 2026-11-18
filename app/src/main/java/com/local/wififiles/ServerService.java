@@ -60,29 +60,48 @@ public final class ServerService extends Service {
     private void notifyListeners() { for (Runnable r : listeners) try { r.run(); } catch (Throwable ignored) {} }
 
     private boolean isEn() {
-        String saved = getSharedPreferences(PREFS, MODE_PRIVATE).getString("ui_lang", "");
+        String saved = "";
+        try { saved = getSharedPreferences(PREFS, MODE_PRIVATE).getString("ui_lang", ""); }
+        catch (ClassCastException ignored) {}
         if ("en".equals(saved) || "ru".equals(saved)) return "en".equals(saved);
         String sys = java.util.Locale.getDefault().getLanguage();
         return !("ru".equals(sys) || "uk".equals(sys) || "be".equals(sys) || "kk".equals(sys));
     }
 
+    private int safePrefInt(String k, int def) {
+        try { return getSharedPreferences(PREFS, MODE_PRIVATE).getInt(k, def); }
+        catch (ClassCastException e) { return def; }
+    }
+
     private String tr(String ru, String en) { return isEn() ? en : ru; }
+
+    void stopFromUi() { shutdown(); }
 
     @Override public int onStartCommand(Intent intent, int flags, int startId) {
         String action = intent == null ? null : intent.getAction();
         if (ACTION_STOP.equals(action)) { shutdown(); return START_NOT_STICKY; }
         String requested = intent == null ? null : intent.getStringExtra(EXTRA_KEY);
         if (requested == null || requested.isEmpty()) { stopSelf(); return START_NOT_STICKY; }
-        if (server != null && requested.equals(key)) { notifyListeners(); return START_NOT_STICKY; }
+        if (server != null && requested.equals(key)) {
+            if (!startInForeground(tr("PocketBridge активен · :" + port, "PocketBridge active · :" + port))) {
+                shutdown();
+                return START_NOT_STICKY;
+            }
+            notifyListeners();
+            return START_NOT_STICKY;
+        }
         if (server != null) { server.stop(); server = null; }   // смена кода — перезапуск
         stopWatchdog();
         releaseWifiLock();
         key = requested;
         error = "";
-        startInForeground(tr("Запуск доступа…", "Starting access…"));
+        if (!startInForeground(tr("Запуск доступа…", "Starting access…"))) {
+            shutdown();
+            return START_NOT_STICKY;
+        }
         try {
             SSLContext ssl = SelfSignedCertificate.createContext(getFilesDir());
-            int preferredPort = getSharedPreferences(PREFS, MODE_PRIVATE).getInt(PREF_PORT, DEFAULT_PORT);
+            int preferredPort = safePrefInt(PREF_PORT, DEFAULT_PORT);
             server = new FileServer(this, Environment.getExternalStorageDirectory(), key, ssl, getCacheDir(), preferredPort);
             port = server.start();
             acquireWifiLock();
@@ -132,7 +151,7 @@ public final class ServerService extends Service {
 
     private void startWatchdog() {
         stopWatchdog();
-        int minutes = getSharedPreferences(PREFS, MODE_PRIVATE).getInt(PREF_AUTOSTOP, DEFAULT_AUTOSTOP);
+        int minutes = safePrefInt(PREF_AUTOSTOP, DEFAULT_AUTOSTOP);
         if (minutes <= 0) return;   // автостоп отключён
         long limit = minutes * 60_000L;
         watchdog = Executors.newSingleThreadScheduledExecutor(r -> {
@@ -154,7 +173,7 @@ public final class ServerService extends Service {
         stopWatchdog();
         if (server != null) { server.stop(); server = null; }
         releaseWifiLock();
-        stopForeground(STOP_FOREGROUND_REMOVE);
+        try { stopForeground(STOP_FOREGROUND_REMOVE); } catch (Exception ignored) {}
         stopSelf();
         notifyListeners();
     }
@@ -167,12 +186,20 @@ public final class ServerService extends Service {
         super.onDestroy();
     }
 
-    private void startInForeground(String title) {
-        Notification notification = buildNotification(title);
-        if (Build.VERSION.SDK_INT >= 29) {
-            startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC);
-        } else {
-            startForeground(NOTIFICATION_ID, notification);
+    private boolean startInForeground(String title) {
+        try {
+            Notification notification = buildNotification(title);
+            if (Build.VERSION.SDK_INT >= 29) {
+                startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC);
+            } else {
+                startForeground(NOTIFICATION_ID, notification);
+            }
+            return true;
+        } catch (Exception e) {
+            Log.e("WiFiFiles", "startForeground failed", e);
+            error = tr("Android запретил фоновый запуск — откройте приложение и нажмите «Запустить»",
+                    "Foreground start blocked — keep PocketBridge open and tap Start");
+            return false;
         }
     }
 

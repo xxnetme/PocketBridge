@@ -1,6 +1,7 @@
 package com.local.wififiles;
 
 import android.Manifest;
+import android.annotation.TargetApi;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.ClipData;
@@ -28,6 +29,7 @@ import android.provider.Settings;
 import android.text.InputType;
 import android.view.Gravity;
 import android.view.View;
+import android.view.Window;
 import android.view.WindowInsets;
 import android.view.WindowInsetsController;
 import android.view.WindowManager;
@@ -43,10 +45,13 @@ import com.google.zxing.EncodeHintType;
 import com.google.zxing.common.BitMatrix;
 import com.google.zxing.qrcode.QRCodeWriter;
 
+import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.net.Inet4Address;
@@ -84,7 +89,7 @@ public final class MainActivity extends Activity {
     private static final int RIPPLE_LIGHT = 0x26ffffff;
     private static final int RIPPLE_DARK = 0x29071015;
 
-    private static final String APP_VERSION = "3.6";
+    private static final String APP_VERSION = "3.6.1";
     private static final String PREF_LANG = "ui_lang";
 
     private View statusDot;
@@ -135,25 +140,12 @@ public final class MainActivity extends Activity {
         super.onCreate(state);
         installCrashRecorder();
         prefs = getSharedPreferences(ServerService.PREFS, MODE_PRIVATE);
-        String savedLang = prefs.getString(PREF_LANG, "");
+        String savedLang = prefString(PREF_LANG, "");
         if ("en".equals(savedLang) || "ru".equals(savedLang)) {
             en = "en".equals(savedLang);
         } else {
             String sys = Locale.getDefault().getLanguage();
             en = !("ru".equals(sys) || "uk".equals(sys) || "be".equals(sys) || "kk".equals(sys));
-        }
-
-        if (Build.VERSION.SDK_INT < 35) {
-            getWindow().setStatusBarColor(BG);
-            getWindow().setNavigationBarColor(BG);
-        }
-        if (Build.VERSION.SDK_INT >= 30) {
-            WindowInsetsController ic = getWindow().getInsetsController();
-            if (ic != null) {
-                ic.setSystemBarsAppearance(0,
-                        WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
-                                | WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS);
-            }
         }
 
         ScrollView scroller = new ScrollView(this);
@@ -165,27 +157,28 @@ public final class MainActivity extends Activity {
         int padH = dp(20), padTop = dp(18), padBottom = dp(34);
         page.setPadding(padH, padTop, padH, padBottom);
         scroller.setOnApplyWindowInsetsListener((view, insets) -> {
-            int left, top, right, bottom;
             if (Build.VERSION.SDK_INT >= 30) {
-                Insets bars = insets.getInsets(WindowInsets.Type.systemBars() | WindowInsets.Type.displayCutout());
-                left = bars.left; top = bars.top; right = bars.right; bottom = bars.bottom;
+                Api30.applySafePadding(page, insets, padH, padTop, padBottom);
             } else {
-                left = insets.getSystemWindowInsetLeft();
-                top = insets.getSystemWindowInsetTop();
-                right = insets.getSystemWindowInsetRight();
-                bottom = insets.getSystemWindowInsetBottom();
+                page.setPadding(
+                        padH + insets.getSystemWindowInsetLeft(),
+                        padTop + insets.getSystemWindowInsetTop(),
+                        padH + insets.getSystemWindowInsetRight(),
+                        padBottom + insets.getSystemWindowInsetBottom());
             }
-            page.setPadding(padH + left, padTop + top, padH + right, padBottom + bottom);
             return insets;
         });
         scroller.addView(page);
         setContentView(scroller);
+        applySystemBars(getWindow());
 
         /* ---------- верхняя панель бренда ---------- */
         LinearLayout top = row();
         top.setGravity(Gravity.CENTER_VERTICAL);
         ImageView logo = new ImageView(this);
-        logo.setImageResource(R.drawable.ic_launcher_foreground);
+        try {
+            logo.setImageResource(R.drawable.ic_launcher_foreground);
+        } catch (Throwable ignored) {}
         logo.setScaleType(ImageView.ScaleType.CENTER_CROP);
         logo.setBackground(shape(MINT_SOFT, 13, MINT_BORDER));
         top.addView(logo, new LinearLayout.LayoutParams(dp(42), dp(42)));
@@ -200,7 +193,7 @@ public final class MainActivity extends Activity {
 
         liveBadge = label("", 11, MUTED, true);
         liveBadge.setPadding(dp(10), dp(6), dp(10), dp(6));
-        liveBadge.setBackground(shape(PANEL, 999, BORDER));
+        liveBadge.setBackground(shape(PANEL, 100, BORDER));
         top.addView(liveBadge);
         spaceH(top, 8);
 
@@ -236,7 +229,7 @@ public final class MainActivity extends Activity {
         LinearLayout statusHead = row();
         statusHead.setGravity(Gravity.CENTER_VERTICAL);
         statusDot = new View(this);
-        statusDot.setBackground(shape(MUTED, 999, 0));
+        statusDot.setBackground(shape(MUTED, 100, 0));
         statusHead.addView(statusDot, new LinearLayout.LayoutParams(dp(9), dp(9)));
         spaceH(statusHead, 9);
         statusTitle = label("", 16, WHITE, true);
@@ -415,9 +408,9 @@ public final class MainActivity extends Activity {
         securityBody.setLineSpacing(dp(2.5f), 1.0f);
         page.addView(securityBody);
 
-        /* ---------- карточка сбоя (если был) ---------- */
+        /* ---------- карточка сбоя (если был в текущей версии) ---------- */
         File crashFile = new File(getFilesDir(), "last-crash.txt");
-        if (crashFile.exists()) {
+        if (shouldShowCrashReport(crashFile)) {
             space(page, 18);
             errorCard = card(RED_BG, RED_BORDER);
             errorCard.setPadding(dp(16), dp(14), dp(16), dp(14));
@@ -434,7 +427,9 @@ public final class MainActivity extends Activity {
             spaceH(cBtns, 8);
             crashClear = chipButton("");
             crashClear.setOnClickListener(v -> {
-                if (crashFile.delete() && errorCard != null) errorCard.setVisibility(View.GONE);
+                //noinspection ResultOfMethodCallIgnored
+                crashFile.delete();
+                if (errorCard != null) errorCard.setVisibility(View.GONE);
             });
             cBtns.addView(crashClear, new LinearLayout.LayoutParams(0, dp(38), 1));
             errorCard.addView(cBtns);
@@ -446,13 +441,15 @@ public final class MainActivity extends Activity {
 
     @Override protected void onStart() {
         super.onStart();
-        bindService(new Intent(this, ServerService.class), connection, BIND_AUTO_CREATE);
+        try {
+            bindService(new Intent(this, ServerService.class), connection, BIND_AUTO_CREATE);
+        } catch (Exception ignored) {}
     }
 
     @Override protected void onStop() {
         if (bound) {
-            try { service.removeListener(serverListener); } catch (Exception ignored) {}
-            unbindService(connection);
+            try { if (service != null) service.removeListener(serverListener); } catch (Exception ignored) {}
+            try { unbindService(connection); } catch (Exception ignored) {}
             bound = false;
             service = null;
         }
@@ -584,18 +581,18 @@ public final class MainActivity extends Activity {
         langButton.setText(en ? "EN" : "RU");
         liveBadge.setText(running ? tr("● В сети", "● Online") : tr("○ Пауза", "○ Idle"));
         liveBadge.setTextColor(running ? MINT : MUTED);
-        liveBadge.setBackground(shape(running ? MINT_SOFT : PANEL, 999, running ? MINT_BORDER : BORDER));
+        liveBadge.setBackground(shape(running ? MINT_SOFT : PANEL, 100, running ? MINT_BORDER : BORDER));
 
         heroTitle.setText(tr("Файлы рядом. Без проводов.", "Files at hand. Wirelessly."));
         heroSub.setText(tr(
                 "Откройте хранилище телефона в браузере компьютера или подключите как сетевой диск.",
                 "Browse your phone storage in a desktop browser or mount it as a network drive."));
 
-        statusDot.setBackground(shape(running ? MINT : (hasErr ? RED : MUTED), 999, 0));
+        statusDot.setBackground(shape(running ? MINT : (hasErr ? RED : MUTED), 100, 0));
         statusTitle.setText(running ? tr("Доступ открыт", "Access is active") : tr("Доступ остановлен", "Access is stopped"));
         statusTitle.setTextColor(running ? MINT : WHITE);
 
-        int autoStopMin = prefs.getInt(ServerService.PREF_AUTOSTOP, ServerService.DEFAULT_AUTOSTOP);
+        int autoStopMin = prefInt(ServerService.PREF_AUTOSTOP, ServerService.DEFAULT_AUTOSTOP);
         String autoNote = autoStopMin <= 0
                 ? tr("Автостоп выключен.", "Auto-stop disabled.")
                 : tr("Автостоп через " + autoStopMin + " мин простоя.", "Auto-stops after " + autoStopMin + " min idle.");
@@ -639,7 +636,7 @@ public final class MainActivity extends Activity {
         settingsSub.setText(tr("Применяются сразу; активный сервер перезапустится.",
                 "Applied immediately; a running server restarts automatically."));
         portName.setText(tr("Порт HTTPS", "HTTPS port"));
-        portHint.setText(tr("По умолчанию 8443", "Default 8443"));
+        portHint.setText(tr("По умолчанию " + ServerService.DEFAULT_PORT, "Default " + ServerService.DEFAULT_PORT));
         autoName.setText(tr("Автостоп", "Auto-stop"));
         autoHint.setText(tr("Выключать без активности", "Stop when idle"));
         keepName.setText(tr("Не гасить экран", "Keep screen awake"));
@@ -680,7 +677,7 @@ public final class MainActivity extends Activity {
             setControlEnabled(shareLink, hasIp);
             setControlEnabled(copyDav, hasIp);
             updateQrCode(hasIp ? linkWithKey() : "");
-            if (prefs.getBoolean(ServerService.PREF_KEEP_SCREEN, true)) {
+            if (prefBool(ServerService.PREF_KEEP_SCREEN, true)) {
                 getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
             } else {
                 getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
@@ -796,19 +793,20 @@ public final class MainActivity extends Activity {
 
     private void refreshSettings() {
         if (settingsPort == null) return;
-        settingsPort.setText(String.valueOf(prefs.getInt(ServerService.PREF_PORT, ServerService.DEFAULT_PORT)));
-        int minutes = prefs.getInt(ServerService.PREF_AUTOSTOP, ServerService.DEFAULT_AUTOSTOP);
+        settingsPort.setText(String.valueOf(prefInt(ServerService.PREF_PORT, ServerService.DEFAULT_PORT)));
+        int minutes = prefInt(ServerService.PREF_AUTOSTOP, ServerService.DEFAULT_AUTOSTOP);
         settingsAutoStop.setText(minutes <= 0 ? tr("Никогда", "Never") : minutes + tr(" мин", " min"));
-        settingsKeepScreen.setText(prefs.getBoolean(ServerService.PREF_KEEP_SCREEN, true) ? tr("Вкл", "On") : tr("Выкл", "Off"));
+        settingsKeepScreen.setText(prefBool(ServerService.PREF_KEEP_SCREEN, true) ? tr("Вкл", "On") : tr("Выкл", "Off"));
     }
 
     private void editPort() {
+        if (isFinishing() || isDestroyed()) return;
         LinearLayout box = column();
         box.setPadding(dp(22), dp(12), dp(22), dp(4));
         final EditText input = new EditText(this);
         input.setInputType(InputType.TYPE_CLASS_NUMBER);
         input.setTextColor(WHITE);
-        input.setText(String.valueOf(prefs.getInt(ServerService.PREF_PORT, ServerService.DEFAULT_PORT)));
+        input.setText(String.valueOf(prefInt(ServerService.PREF_PORT, ServerService.DEFAULT_PORT)));
         input.setSelection(input.getText().length());
         box.addView(input, new LinearLayout.LayoutParams(-1, -2));
 
@@ -833,11 +831,12 @@ public final class MainActivity extends Activity {
     }
 
     private void editAutoStop() {
+        if (isFinishing() || isDestroyed()) return;
         final int[] values = { 15, 30, 60, 0 };
         String[] labels = en
                 ? new String[]{ "15 minutes", "30 minutes", "1 hour", "Never" }
                 : new String[]{ "15 минут", "30 минут", "1 час", "Никогда" };
-        int current = prefs.getInt(ServerService.PREF_AUTOSTOP, ServerService.DEFAULT_AUTOSTOP);
+        int current = prefInt(ServerService.PREF_AUTOSTOP, ServerService.DEFAULT_AUTOSTOP);
         int checked = 0;
         for (int i = 0; i < values.length; i++) if (values[i] == current) checked = i;
         new AlertDialog.Builder(this, R.style.AppDialogTheme)
@@ -853,14 +852,15 @@ public final class MainActivity extends Activity {
     }
 
     private void toggleKeepScreen() {
-        boolean value = !prefs.getBoolean(ServerService.PREF_KEEP_SCREEN, true);
+        boolean value = !prefBool(ServerService.PREF_KEEP_SCREEN, true);
         prefs.edit().putBoolean(ServerService.PREF_KEEP_SCREEN, value).apply();
         refreshView();
     }
 
     private void restartIfRunning() {
         if (!isRunning()) return;
-        startService(new Intent(this, ServerService.class).setAction(ServerService.ACTION_STOP));
+        try { startService(new Intent(this, ServerService.class).setAction(ServerService.ACTION_STOP)); }
+        catch (Exception ignored) {}
         final String current = key;
         new Handler(getMainLooper()).postDelayed(() -> {
             try { dispatchStartService(current); } catch (Exception ignored) {}
@@ -869,13 +869,15 @@ public final class MainActivity extends Activity {
 
     private void copyValue(String labelText, String value) {
         if (value == null || value.isEmpty()) return;
-        ClipboardManager clip = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
-        if (clip != null) clip.setPrimaryClip(ClipData.newPlainText(labelText, value));
-        Toast.makeText(this, en ? (labelText + " copied") : ("Скопировано: " + labelText), Toast.LENGTH_SHORT).show();
+        try {
+            ClipboardManager clip = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+            if (clip != null) clip.setPrimaryClip(ClipData.newPlainText(labelText, value));
+            Toast.makeText(this, en ? (labelText + " copied") : ("Скопировано: " + labelText), Toast.LENGTH_SHORT).show();
+        } catch (Exception ignored) {}
     }
 
     private boolean hasAccess() {
-        if (Build.VERSION.SDK_INT >= 30) return Environment.isExternalStorageManager();
+        if (Build.VERSION.SDK_INT >= 30) return Api30.isStorageManager();
         return checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED;
     }
 
@@ -886,9 +888,9 @@ public final class MainActivity extends Activity {
         }
         if (Build.VERSION.SDK_INT >= 30) {
             try {
-                startActivity(new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION, Uri.parse("package:" + getPackageName())));
+                startActivity(Api30.appAllFilesIntent(getPackageName()));
             } catch (Exception e) {
-                try { startActivity(new Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)); }
+                try { startActivity(Api30.allFilesIntent()); }
                 catch (Exception ex) {
                     Toast.makeText(this, tr("Откройте настройки доступа ко всем файлам", "Open All files access in Settings"), Toast.LENGTH_LONG).show();
                 }
@@ -905,15 +907,23 @@ public final class MainActivity extends Activity {
             return;
         }
         if (isRunning()) { refreshView(); return; }
-        if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-            requestPermissions(new String[]{ Manifest.permission.POST_NOTIFICATIONS }, 5);
+        if (Build.VERSION.SDK_INT >= 33) {
+            Api33.requestNotificationsIfNeeded(this);
         }
         key = randomHexKey();
-        dispatchStartService(key);
+        try {
+            dispatchStartService(key);
+        } catch (Exception e) {
+            Toast.makeText(this, tr("Не удалось запустить сервис", "Could not start service"), Toast.LENGTH_LONG).show();
+        }
     }
 
     private void stopServer() {
-        startService(new Intent(this, ServerService.class).setAction(ServerService.ACTION_STOP));
+        try {
+            startService(new Intent(this, ServerService.class).setAction(ServerService.ACTION_STOP));
+        } catch (Exception ignored) {
+            if (service != null) service.stopFromUi();
+        }
         Toast.makeText(this, tr("Доступ остановлен", "Access stopped"), Toast.LENGTH_SHORT).show();
     }
 
@@ -940,6 +950,92 @@ public final class MainActivity extends Activity {
             return (b[0] & 0xff) == 100 && second >= 64 && second <= 127;
         }
         return false;
+    }
+
+    @SuppressWarnings("deprecation")
+    private static void applySystemBars(Window window) {
+        if (window == null) return;
+        try {
+            if (Build.VERSION.SDK_INT < 35) {
+                window.setStatusBarColor(BG);
+                window.setNavigationBarColor(BG);
+            }
+            if (Build.VERSION.SDK_INT >= 30) {
+                Api30.clearLightSystemBars(window);
+            }
+        } catch (Throwable ignored) {
+            // Оформление системных панелей не должно прерывать запуск ни на одной прошивке.
+        }
+    }
+
+    private String prefString(String k, String def) {
+        try { return prefs.getString(k, def); } catch (ClassCastException e) { return def; }
+    }
+
+    private int prefInt(String k, int def) {
+        try { return prefs.getInt(k, def); } catch (ClassCastException e) { return def; }
+    }
+
+    private boolean prefBool(String k, boolean def) {
+        try { return prefs.getBoolean(k, def); } catch (ClassCastException e) { return def; }
+    }
+
+    private static boolean shouldShowCrashReport(File crashFile) {
+        if (crashFile == null || !crashFile.isFile() || crashFile.length() == 0) return false;
+        try (BufferedReader reader = new BufferedReader(
+                new InputStreamReader(new FileInputStream(crashFile), StandardCharsets.UTF_8))) {
+            String first = reader.readLine();
+            if (first != null && first.startsWith("PocketBridge ")
+                    && !first.startsWith("PocketBridge " + APP_VERSION + " ")) {
+                // Удаляем устаревший журнал сбоя от предыдущей версии после обновления.
+                //noinspection ResultOfMethodCallIgnored
+                crashFile.delete();
+                return false;
+            }
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    @TargetApi(30)
+    private static final class Api30 {
+        static void clearLightSystemBars(Window window) {
+            View decor = window.peekDecorView();
+            if (decor == null) return;
+            WindowInsetsController ic = decor.getWindowInsetsController();
+            if (ic != null) {
+                ic.setSystemBarsAppearance(0,
+                        WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
+                                | WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS);
+            }
+        }
+
+        static void applySafePadding(View page, WindowInsets insets, int padH, int padTop, int padBottom) {
+            Insets bars = insets.getInsets(WindowInsets.Type.systemBars() | WindowInsets.Type.displayCutout());
+            page.setPadding(padH + bars.left, padTop + bars.top, padH + bars.right, padBottom + bars.bottom);
+        }
+
+        static boolean isStorageManager() {
+            return Environment.isExternalStorageManager();
+        }
+
+        static Intent appAllFilesIntent(String pkg) {
+            return new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION, Uri.parse("package:" + pkg));
+        }
+
+        static Intent allFilesIntent() {
+            return new Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION);
+        }
+    }
+
+    @TargetApi(33)
+    private static final class Api33 {
+        static void requestNotificationsIfNeeded(Activity activity) {
+            if (activity.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                activity.requestPermissions(new String[]{ Manifest.permission.POST_NOTIFICATIONS }, 5);
+            }
+        }
     }
 
     private void installCrashRecorder() {

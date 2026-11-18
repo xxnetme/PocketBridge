@@ -1,5 +1,17 @@
 # CHANGELOG
 
+## 3.6.1 — 18.11.2026 «Исправление запуска Android-приложения»
+
+### Исправления
+- **Вылет при запуске на Android 11–16 (`MainActivity.java`):** устранён `NullPointerException` в `PhoneWindow.getInsetsController()` — настройка системных панелей перенесена после `setContentView(...)`, обращение идёт через `Window.peekDecorView().getWindowInsetsController()`, а все вызовы API 30+/33+ изолированы в `@TargetApi`-классы с защитой от прошивочных исключений.
+- **Системные темы и ресурсы (`styles.xml`, `values-v27/styles.xml`, `colors.xml`):** `AppTheme` и `AppDialogTheme` переведены на стандартные `@android:style/Theme.Material.NoActionBar` и `@android:style/Theme.Material.Dialog.Alert`; `android:windowBackground` и остальные цвета темы перенесены в `@color/...` вместо inline-hex (исключает `Resources$NotFoundException` на ряде оболочек и в системном экране запуска).
+- **Устойчивость сервиса и настроек (`MainActivity.java`, `ServerService.java`):** добавлена защита от `ForegroundServiceStartNotAllowedException`/`ForegroundServiceDidNotStartInTimeException`, некорректных типов в `SharedPreferences` и повторного `unbindService`; исправлена подсказка порта по умолчанию (`8765`); устаревший отчёт сбоя от предыдущей версии автоматически очищается при обновлении.
+- **Веб-интерфейс (`index.html`):** заменён `String.prototype.replaceAll` для совместимости со старыми мобильными браузерами и WebView.
+
+### CI и тестирование
+- В сборку добавлены Android Lint (`NewApi`, `ResourceType`) и модульные тесты жизненного цикла `MainActivity` / `AppTheme` / `AppDialogTheme` / `ServerService` на Robolectric (Android API 26, 30, 34, 36).
+- `versionCode 21`, `versionName 3.6.1`
+
 ## 3.6 — 18.11.2026 «Обновлённый интерфейс»
 
 ### Веб-интерфейс (`index.html`)

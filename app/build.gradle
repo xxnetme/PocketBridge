@@ -13,8 +13,8 @@ android {
         applicationId 'com.local.wififiles'
         minSdk 26
         targetSdk 36
-        versionCode 20
-        versionName '3.6'
+        versionCode 21
+        versionName '3.6.1'
     }
 
     signingConfigs {
@@ -40,6 +40,25 @@ android {
         }
     }
 
+    lint {
+        checkOnly 'NewApi', 'ResourceType'
+        fatal 'NewApi', 'ResourceType'
+        abortOnError true
+    }
+
+    testOptions {
+        unitTests {
+            includeAndroidResources = true
+            all {
+                testLogging {
+                    events 'passed', 'skipped', 'failed'
+                    exceptionFormat 'full'
+                    showStandardStreams = false
+                }
+            }
+        }
+    }
+
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
@@ -48,4 +67,6 @@ android {
 
 dependencies {
     implementation 'com.google.zxing:core:3.5.3'
+    testImplementation 'junit:junit:4.13.2'
+    testImplementation 'org.robolectric:robolectric:4.16.1'
 }
