@@ -1,20 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
-    <!-- Разрешаем самоподписанный сертификат для локальных адресов (Wi-Fi в той же сети) -->
-    <domain-config cleartextTrafficPermitted="false">
-        <domain includeSubdomains="true">192.168.1.1</domain>
-        <domain includeSubdomains="true">192.168.0.1</domain>
-        <domain includeSubdomains="true">10.0.0.1</domain>
-        <domain includeSubdomains="true">172.16.0.1</domain>
+    <!-- Запрещаем незашифрованный исходящий HTTP-трафик для всего приложения -->
+    <base-config cleartextTrafficPermitted="false">
         <trust-anchors>
-            <certificates src="user" />
+            <certificates src="system" />
         </trust-anchors>
-    </domain-config>
-    <!-- Для отладки на локальном хосте -->
+    </base-config>
+    <!-- Для локальной отладки разрешаем пользовательские корневые сертификаты -->
     <debug-overrides>
         <trust-anchors>
-            <certificates src="user" />
             <certificates src="system" />
+            <certificates src="user" />
         </trust-anchors>
     </debug-overrides>
 </network-security-config>

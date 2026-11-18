@@ -7,6 +7,7 @@ import android.media.MediaMetadataRetriever;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.util.Locale;
 
 /** Миниатюры и превью: изображения (включая HEIC на Android 9+), кадры видео. */
 final class Thumbnails {
@@ -25,7 +26,7 @@ final class Thumbnails {
         }
     }
 
-    /** Полноразмерное превью для форматов, которые браузер не умеет (HEIC): перекодируем в JPEG. */
+    /** Полноразмерное превью для форматов, которые браузер не умеет (HEIC/RAW): перекодируем в JPEG. */
     static byte[] previewJpeg(File file) throws IOException {
         Bitmap bitmap = decode(file, PREVIEW_WIDTH);
         try {
@@ -52,7 +53,14 @@ final class Thumbnails {
                 if (frame.getWidth() > width) {
                     int height = Math.max(1, Math.round(frame.getHeight() * (width / (float) frame.getWidth())));
                     Bitmap scaled = Bitmap.createScaledBitmap(frame, width, height, true);
-                    if (scaled != frame) { frame.recycle(); return compress(scaled); }
+                    if (scaled != frame) {
+                        frame.recycle();
+                        try {
+                            return compress(scaled);
+                        } finally {
+                            scaled.recycle();
+                        }
+                    }
                 }
                 return compress(frame);
             } finally {
@@ -85,14 +93,14 @@ final class Thumbnails {
         if (sourceWidth > width) {
             int scaledHeight = Math.max(1, Math.round(bitmap.getHeight() * (width / (float) sourceWidth)));
             Bitmap scaled = Bitmap.createScaledBitmap(bitmap, width, scaledHeight, true);
-            bitmap.recycle();
+            if (scaled != bitmap) bitmap.recycle();
             return scaled;
         }
         return bitmap;
     }
 
     private static String unsupportedMessage(File file) {
-        String name = file.getName().toLowerCase(java.util.Locale.ROOT);
+        String name = file.getName().toLowerCase(Locale.ROOT);
         if (name.endsWith(".heic") || name.endsWith(".heif"))
             return "HEIC поддерживается на Android 9 и новее. Скачайте файл или обновите систему.";
         if (name.endsWith(".dng") || name.endsWith(".cr2") || name.endsWith(".nef") || name.endsWith(".arw") || name.endsWith(".raf"))

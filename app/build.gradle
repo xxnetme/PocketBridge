@@ -1,33 +1,51 @@
 plugins { id 'com.android.application' }
 
 // Подпись release-сборки: задаётся переменными окружения, чтобы ключ не попадал в репозиторий.
-//   PB_KEYSTORE=/path/to/pocketbridge.jks PB_KEYSTORE_PASSWORD=... ./gradlew assembleRelease
+//   PB_KEYSTORE=/path/to/pocketbridge.jks PB_KEYSTORE_PASSWORD=... ./gradlew assembleRelease bundleRelease
 def pbKeystore = System.getenv('PB_KEYSTORE')
+def hasReleaseKeystore = pbKeystore != null && !pbKeystore.trim().isEmpty() && file(pbKeystore).isFile()
 
 android {
     namespace 'com.local.wififiles'
-    compileSdk 35
-    defaultConfig { applicationId 'com.local.wififiles'; minSdk 26; targetSdk 34; versionCode 18; versionName '3.4' }
+    compileSdk 36
+
+    defaultConfig {
+        applicationId 'com.local.wififiles'
+        minSdk 26
+        targetSdk 36
+        versionCode 19
+        versionName '3.5'
+    }
+
     signingConfigs {
-        if (pbKeystore != null) {
+        if (hasReleaseKeystore) {
             release {
                 storeFile file(pbKeystore)
                 storePassword System.getenv('PB_KEYSTORE_PASSWORD') ?: ''
                 keyAlias System.getenv('PB_KEY_ALIAS') ?: 'pocketbridge'
                 keyPassword System.getenv('PB_KEY_PASSWORD') ?: (System.getenv('PB_KEYSTORE_PASSWORD') ?: '')
+                enableV1Signing true
+                enableV2Signing true
+                enableV3Signing true
             }
         }
     }
+
     buildTypes {
         release {
             minifyEnabled false
-            signingConfig signingConfigs.release
+            if (hasReleaseKeystore) {
+                signingConfig signingConfigs.release
+            }
         }
     }
-    compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
 }
 
 dependencies {
-    implementation 'com.github.kenglxn.QRGen:qrgen:4.0.0'
     implementation 'com.google.zxing:core:3.5.3'
 }

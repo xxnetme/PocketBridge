@@ -1,47 +1,138 @@
 <!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>PocketBridge · Файлы телефона</title><style>
-:root{font-family:Inter,Segoe UI,Arial,sans-serif;color:#e9f2f2;background:#0a1218;font-synthesis:none}*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(ellipse at 5% 0%,#123138 0,transparent 40%),#0a1218}button,input{font:inherit}button{cursor:pointer}button:disabled{cursor:not-allowed;opacity:.38}.hidden{display:none!important}.shell{max-width:1420px;margin:auto;padding:28px 32px 60px}.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:36px}.brand{display:flex;align-items:center;gap:11px;font-weight:700;letter-spacing:-.03em}.brandicon{display:grid;place-items:center;width:39px;height:39px;border-radius:12px;background:#75e3bd;color:#102c27;font-size:20px;font-weight:800}.brand small{display:block;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#779598;margin-top:3px}.topright{font-size:12px;color:#a5c0bb;display:flex;align-items:center;gap:8px}.dot{width:7px;height:7px;border-radius:50%;background:#75e3bd;box-shadow:0 0 12px #75e3bd}.hero{display:flex;align-items:end;justify-content:space-between;gap:20px;margin-bottom:26px}.eyebrow{font-size:11px;letter-spacing:.17em;text-transform:uppercase;color:#75e3bd;font-weight:700}.hero h1{font-size:clamp(28px,4vw,42px);letter-spacing:-.045em;margin:9px 0 8px}.sub{font-size:14px;color:#91a7aa;margin:0;line-height:1.6}.badge{padding:10px 14px;border:1px solid #294044;border-radius:100px;color:#9db6b4;font-size:12px;white-space:nowrap}.panel{background:#111f25;border:1px solid #25383d;border-radius:18px;box-shadow:0 24px 80px #0003;overflow:hidden}.bar{padding:20px 22px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;border-bottom:1px solid #25383d}.btn{border:1px solid #30474b;border-radius:10px;background:#1a2c32;color:#e5f1ee;padding:10px 14px;font-size:13px;font-weight:600;transition:background .15s}.btn:hover:not(:disabled){background:#254047}.btn.primary{background:#83e5c2;color:#102c25;border-color:#83e5c2}.btn.primary:hover{background:#a5efd5}.btn.danger{color:#ffaea4;border-color:#62413f;background:#352c2e}.spacer{flex:1}.search{background:#0d1a20;border:1px solid #30464b;border-radius:10px;color:#eaf5f1;padding:10px 14px;min-width:200px;outline:none}.search:focus{border-color:#75e3bd}.pathbar{padding:17px 22px;display:flex;justify-content:space-between;gap:16px;align-items:center;border-bottom:1px solid #25383d}.pathline{min-width:0}.caption{color:#789393;font-size:10px;text-transform:uppercase;letter-spacing:.14em;font-weight:700;margin-bottom:7px}.path{color:#d3e9e1;font-family:Consolas,monospace;overflow-wrap:anywhere;font-size:13px}.count{color:#8ea7a5;font-size:12px;white-space:nowrap}.selection{background:#18352f;display:flex;align-items:center;gap:9px;padding:12px 22px;border-bottom:1px solid #2b5147;flex-wrap:wrap}.selection strong{font-size:13px;color:#b8edd9;margin-right:8px}.selection .btn{padding:8px 11px;font-size:12px}.tablewrap{overflow-x:auto}table{width:100%;border-collapse:collapse;min-width:620px}th{text-align:left;color:#779393;text-transform:uppercase;letter-spacing:.12em;font-size:10px;font-weight:700;padding:15px 14px;border-bottom:1px solid #25383d}td{padding:13px 14px;border-bottom:1px solid #1d3035;color:#c8d9d7;font-size:13px}tbody tr:hover{background:#172a30}tbody tr.selected{background:#1a3732}.checkcol{width:47px;text-align:center;padding-left:22px}input[type=checkbox]{width:16px;height:16px;accent-color:#75e3bd;cursor:pointer}.filecell{display:flex;align-items:center;gap:12px;min-width:180px}.icon{width:36px;height:36px;display:grid;place-items:center;border-radius:10px;font-size:16px;flex:none}.icon.folder{background:#314132;color:#cce49a}.icon.file{background:#24383e;color:#8fd4d0}.filename{border:0;background:none;padding:0;color:#eef7f3;text-align:left;font-weight:600;word-break:break-all}.filename:hover{color:#8cebc8;text-decoration:underline}.detail{color:#819c9a;font-size:12px}.size{white-space:nowrap}.rowactions{text-align:right;white-space:nowrap}.iconbtn{border:0;background:transparent;color:#94b0ad;border-radius:7px;padding:7px;font-size:12px}.iconbtn:hover{background:#294047;color:#fff}.empty{text-align:center;padding:55px 20px;color:#90aaa7}.empty span{display:block;font-size:28px;margin-bottom:14px}.message{padding:0 22px;font-size:13px;min-height:0;color:#ffb2a7}.message:not(:empty){padding:14px 22px;border-bottom:1px solid #25383d}.foot{padding:19px 4px;color:#708e8b;font-size:12px;line-height:1.6}.loginbox{max-width:475px;margin:12vh auto 0;padding:36px}.loginbox h1{font-size:30px;letter-spacing:-.04em;margin:22px 0 9px}.loginbox .sub{margin-bottom:25px}.label{display:block;font-size:11px;letter-spacing:.12em;color:#9cb7b2;text-transform:uppercase;margin-bottom:9px;font-weight:700}.loginbox .search{width:100%;font-size:15px;padding:14px}.loginbox .primary{width:100%;margin-top:14px;padding:14px}.loginbox .message{padding:0;margin-top:14px;border:0}.loginhelp{border-top:1px solid #294044;margin-top:24px;padding-top:18px;color:#91a7a5;font-size:12px;line-height:1.6}@media(max-width:700px){.shell{padding:18px 14px 40px}.top{margin-bottom:27px}.hero{align-items:start}.badge{display:none}.bar,.pathbar{padding:15px}.search{min-width:0;flex:1}.selection{padding:12px 15px}.loginbox{padding:24px;margin-top:8vh}}
+:root{
+  --panel:#111f25;
+  --panel2:#0f1d22;
+  --border:#25383d;
+  --text:#e9f2f2;
+  --muted:#8ea7a5;
+  --row-hover:#172a30;
+  --accent:#75e3bd;
+  --thumbbg:#0d1a20;
+  color-scheme:dark;
+  font-family:Inter,Segoe UI,Arial,sans-serif;
+  color:var(--text);
+  background:#0a1218;
+  font-synthesis:none
+}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;background:radial-gradient(ellipse at 5% 0%,#123138 0,transparent 40%),#0a1218;color:var(--text)}
+button,input,select{font:inherit}
+button{cursor:pointer}
+button:disabled{cursor:not-allowed;opacity:.38}
+.hidden,[hidden]{display:none!important}
+.shell{max-width:1420px;margin:auto;padding:28px 32px 60px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:36px}
+.brand{display:flex;align-items:center;gap:11px;font-weight:700;letter-spacing:-.03em}
+.brandicon{display:grid;place-items:center;width:39px;height:39px;border-radius:12px;background:#75e3bd;color:#102c27;font-size:20px;font-weight:800;flex:none}
+.brand small{display:block;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#779598;margin-top:3px;font-weight:700}
+.topright{font-size:12px;color:#a5c0bb;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.dot{width:7px;height:7px;border-radius:50%;background:#75e3bd;box-shadow:0 0 12px #75e3bd}
+.hero{display:flex;align-items:end;justify-content:space-between;gap:20px;margin-bottom:26px}
+.eyebrow{font-size:11px;letter-spacing:.17em;text-transform:uppercase;color:#75e3bd;font-weight:700}
+.hero h1{font-size:clamp(28px,4vw,42px);letter-spacing:-.045em;margin:9px 0 8px}
+.sub{font-size:14px;color:#91a7aa;margin:0;line-height:1.6}
+.badge{padding:10px 14px;border:1px solid #294044;border-radius:100px;color:#9db6b4;font-size:12px;white-space:nowrap}
+.panel{background:var(--panel);border:1px solid var(--border);border-radius:18px;box-shadow:0 24px 80px #0003;overflow:hidden}
+.bar{padding:20px 22px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;border-bottom:1px solid var(--border)}
+.btn{border:1px solid #30474b;border-radius:10px;background:#1a2c32;color:#e5f1ee;padding:10px 14px;font-size:13px;font-weight:600;transition:background .15s}
+.btn:hover:not(:disabled){background:#254047}
+.btn.primary{background:#83e5c2;color:#102c25;border-color:#83e5c2}
+.btn.primary:hover:not(:disabled){background:#a5efd5}
+.btn.danger{color:#ffaea4;border-color:#62413f;background:#352c2e}
+.themeBtn{padding:8px 11px;font-size:12px}
+.spacer{flex:1}
+.search{background:#0d1a20;border:1px solid #30464b;border-radius:10px;color:#eaf5f1;padding:10px 14px;min-width:200px;outline:none}
+.search:focus{border-color:#75e3bd}
+.pathbar{padding:17px 22px;display:flex;justify-content:space-between;gap:16px;align-items:center;border-bottom:1px solid var(--border)}
+.pathline{min-width:0}
+.caption{color:#789393;font-size:10px;text-transform:uppercase;letter-spacing:.14em;font-weight:700;margin-bottom:7px}
+.path{color:#d3e9e1;font-family:Consolas,monospace;overflow-wrap:anywhere;font-size:13px}
+.count{color:var(--muted);font-size:12px;white-space:nowrap}
+.selection{background:#18352f;display:flex;align-items:center;gap:9px;padding:12px 22px;border-bottom:1px solid #2b5147;flex-wrap:wrap}
+.selection strong{font-size:13px;color:#b8edd9;margin-right:8px}
+.selection .btn{padding:8px 11px;font-size:12px}
+.tablewrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;min-width:620px}
+th{text-align:left;color:#779393;text-transform:uppercase;letter-spacing:.12em;font-size:10px;font-weight:700;padding:15px 14px;border-bottom:1px solid var(--border)}
+td{padding:13px 14px;border-bottom:1px solid #1d3035;color:#c8d9d7;font-size:13px}
+tbody tr:hover{background:var(--row-hover)}
+tbody tr.selected{background:#1a3732}
+.checkcol{width:47px;text-align:center;padding-left:22px}
+input[type=checkbox]{width:16px;height:16px;accent-color:#75e3bd;cursor:pointer}
+.filecell{display:flex;align-items:center;gap:12px;min-width:180px}
+.icon{width:36px;height:36px;display:grid;place-items:center;border-radius:10px;font-size:16px;flex:none}
+.icon.folder{background:#314132;color:#cce49a}
+.icon.file{background:#24383e;color:#8fd4d0}
+.filename{border:0;background:none;padding:0;color:#eef7f3;text-align:left;font-weight:600;word-break:break-all}
+.filename:hover{color:#8cebc8;text-decoration:underline}
+.detail{color:#819c9a;font-size:12px}
+.size{white-space:nowrap}
+.rowactions{text-align:right;white-space:nowrap}
+.iconbtn{border:0;background:transparent;color:#94b0ad;border-radius:7px;padding:7px;font-size:12px}
+.iconbtn:hover{background:#294047;color:#fff}
+.empty{text-align:center;padding:55px 20px;color:#90aaa7}
+.empty .empty-icon{display:block;font-size:28px;margin-bottom:14px}
+.message{padding:0 22px;font-size:13px;min-height:0;color:#ffb2a7}
+.message.ok{color:#9be5ca}
+.message:not(:empty){padding:14px 22px;border-bottom:1px solid var(--border)}
+.foot{padding:19px 4px;color:#708e8b;font-size:12px;line-height:1.6}
+.loginbox{max-width:475px;margin:12vh auto 0;padding:36px}
+.loginbox h1{font-size:30px;letter-spacing:-.04em;margin:22px 0 9px}
+.loginbox .sub{margin-bottom:25px}
+.label{display:block;font-size:11px;letter-spacing:.12em;color:#9cb7b2;text-transform:uppercase;margin-bottom:9px;font-weight:700}
+.loginbox .search{width:100%;font-size:15px;padding:14px}
+.loginbox .primary{width:100%;margin-top:14px;padding:14px}
+.loginbox .message{padding:0;margin-top:14px;border:0}
+.loginhelp{border-top:1px solid #294044;margin-top:24px;padding-top:18px;color:#91a7a5;font-size:12px;line-height:1.6}
 
-.overlay{position:fixed;inset:0;background:#030a0de6;backdrop-filter:blur(7px);z-index:50;display:flex;align-items:center;justify-content:center;padding:28px}.viewer{width:min(1120px,100%);height:min(850px,90vh);background:#122127;border:1px solid #355052;border-radius:20px;box-shadow:0 25px 90px #000b;display:flex;flex-direction:column;overflow:hidden}.viewtop{display:flex;align-items:center;gap:14px;padding:17px 20px;border-bottom:1px solid #2b4246}.viewtitle{min-width:0;flex:1}.viewtitle strong{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.viewtitle small{color:#8daaa6;display:block;margin-top:5px}.viewbody{flex:1;min-height:0;overflow:auto;display:flex;align-items:center;justify-content:center;padding:20px;background:#0b161b}.viewbody img{max-width:100%;max-height:100%;object-fit:contain}.viewbody video{max-width:100%;max-height:100%;background:#000}.viewbody audio{width:min(600px,100%)}.viewbody iframe{width:100%;height:100%;border:0;background:#fff;border-radius:8px}.viewbody pre{align-self:stretch;width:min(950px,100%);margin:0;padding:25px;background:#f5f5ef;color:#283533;border-radius:8px;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.6;font:14px/1.6 Consolas,monospace}.viewempty{color:#a9c2bd;text-align:center;line-height:1.6}.viewbody .error{color:#ffaea4}@media(max-width:700px){.overlay{padding:8px}.viewer{height:95vh}.viewtop{padding:12px}.viewbody{padding:8px}.viewbody pre{padding:16px}}
+.overlay{position:fixed;inset:0;background:#030a0de6;backdrop-filter:blur(7px);z-index:50;display:flex;align-items:center;justify-content:center;padding:28px}
+.viewer{width:min(1120px,100%);height:min(850px,90vh);background:#122127;border:1px solid #355052;border-radius:20px;box-shadow:0 25px 90px #000b;display:flex;flex-direction:column;overflow:hidden}
+.viewtop{display:flex;align-items:center;gap:14px;padding:17px 20px;border-bottom:1px solid #2b4246}
+.viewtitle{min-width:0;flex:1}
+.viewtitle strong{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.viewtitle small{color:#8daaa6;display:block;margin-top:5px}
+.viewbody{flex:1;min-height:0;overflow:auto;display:flex;align-items:center;justify-content:center;padding:20px;background:#0b161b}
+.viewbody img{max-width:100%;max-height:100%;object-fit:contain}
+.viewbody video{max-width:100%;max-height:100%;background:#000}
+.viewbody audio{width:min(600px,100%)}
+.viewbody iframe{width:100%;height:100%;border:0;background:#fff;border-radius:8px}
+.viewbody pre{align-self:stretch;width:min(950px,100%);margin:0;padding:25px;background:#f5f5ef;color:#283533;border-radius:8px;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.6;font:14px/1.6 Consolas,monospace}
+.viewempty{color:#a9c2bd;text-align:center;line-height:1.6}
+.viewbody .error{color:#ffaea4}
 
-.dialog-overlay{position:fixed;inset:0;z-index:100;background:#02090ce6;backdrop-filter:blur(7px);display:flex;justify-content:center;align-items:center;padding:20px}.action-dialog{width:min(455px,100%);background:#14262b;border:1px solid #34504e;border-radius:20px;box-shadow:0 24px 90px #000a;padding:26px}.dialog-symbol{display:flex;align-items:center;justify-content:center;width:42px;height:42px;border-radius:13px;background:#27473e;color:#95eccb;font-size:20px;font-weight:bold}.dialog-symbol.danger{background:#4a302e;color:#ffb6a9}.action-dialog h2{font-size:21px;letter-spacing:-.025em;margin:19px 0 9px;color:#eef8f3}.dialog-message{color:#a6bbb7;line-height:1.55;font-size:14px;overflow-wrap:anywhere;margin:0}.dialog-input{width:100%;margin-top:19px;padding:13px;background:#0e1c20;border:1px solid #3b5956;border-radius:10px;color:#eef8f3;outline:none;font:inherit}.dialog-input:focus{border-color:#83e5c2;box-shadow:0 0 0 3px #83e5c226}.dialog-error{font-size:12px;color:#ffb6a9;margin-top:8px}.dialog-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:24px}.dialog-actions .btn{padding:11px 16px}.dialog-actions .danger-solid{background:#df6e62;border-color:#df6e62;color:#1e1010}.dialog-actions .danger-solid:hover{background:#ee887b}@media(max-width:500px){.action-dialog{padding:21px}.dialog-actions .btn{flex:1}}
+.dialog-overlay{position:fixed;inset:0;z-index:120;background:#02090ce6;backdrop-filter:blur(7px);display:flex;justify-content:center;align-items:center;padding:20px}
+.action-dialog{width:min(455px,100%);background:#14262b;border:1px solid #34504e;border-radius:20px;box-shadow:0 24px 90px #000a;padding:26px}
+.dialog-symbol{display:flex;align-items:center;justify-content:center;width:42px;height:42px;border-radius:13px;background:#27473e;color:#95eccb;font-size:20px;font-weight:bold}
+.dialog-symbol.danger{background:#4a302e;color:#ffb6a9}
+.action-dialog h2{font-size:21px;letter-spacing:-.025em;margin:19px 0 9px;color:#eef8f3}
+.dialog-message{color:#a6bbb7;line-height:1.55;font-size:14px;overflow-wrap:anywhere;margin:0}
+.dialog-input{width:100%;margin-top:19px;padding:13px;background:#0e1c20;border:1px solid #3b5956;border-radius:10px;color:#eef8f3;outline:none;font:inherit}
+.dialog-input:focus{border-color:#83e5c2;box-shadow:0 0 0 3px #83e5c226}
+.dialog-error{font-size:12px;color:#ffb6a9;margin-top:8px}
+.dialog-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:24px;flex-wrap:wrap}
+.dialog-actions .btn{padding:11px 16px}
+.dialog-actions .danger-solid{background:#df6e62;border-color:#df6e62;color:#1e1010}
+.dialog-actions .danger-solid:hover{background:#ee887b}
 
-.progress{display:flex;align-items:center;gap:12px;padding:12px 22px;border-bottom:1px solid #25383d;background:#0f1d22;flex-wrap:wrap}
-.progress .plabel{font-size:12px;color:#a9c4bf;min-width:230px;flex:1;font-variant-numeric:tabular-nums}
+.progress{display:flex;align-items:center;gap:12px;padding:12px 22px;border-bottom:1px solid var(--border);background:var(--panel2);flex-wrap:wrap}
+.progress .plabel{font-size:12px;color:#a9c4bf;min-width:200px;flex:1;font-variant-numeric:tabular-nums}
 .progress .ptrack{flex:1;min-width:140px;height:6px;border-radius:3px;background:#22383d;overflow:hidden}
-.progress .pfill{height:100%;width:0;background:#83e5c2;transition:width .15s}
+.progress .pfill{height:100%;width:0;background:var(--accent);transition:width .15s}
 .crumbs{display:flex;flex-wrap:wrap;gap:2px;align-items:center;font-family:Consolas,monospace;font-size:13px}
 .crumbs button{border:0;background:none;color:#d3e9e1;padding:2px 5px;border-radius:6px;font:inherit;cursor:pointer}
 .crumbs button:hover{background:#22383d;color:#8cebc8}
 .crumbs span{color:#5f7b7a}
 .sortsel{background:#0d1a20;border:1px solid #30464b;border-radius:10px;color:#eaf5f1;padding:10px 8px;font-size:13px;outline:none}
-#dialogExtra[hidden]{display:none}
-@media(max-width:700px){
-  .tablewrap{overflow-x:visible}
-  table{min-width:0;display:block}
-  thead{display:none}
-  tbody{display:block}
-  tbody tr{display:grid;grid-template-columns:40px 1fr auto;grid-template-areas:"check name size" "check meta actions";column-gap:10px;align-items:center;padding:12px 14px;border-bottom:1px solid #1d3035}
-  tbody tr:hover{background:#172a30}
-  td{padding:0;border:0;display:block}
-  .checkcol{grid-area:check;width:auto;padding:0;align-self:center;text-align:left}
-  td:nth-child(2){grid-area:name}
-  td:nth-child(3){grid-area:size;justify-self:end;white-space:nowrap}
-  td:nth-child(4){grid-area:meta;font-size:11px!important;margin-top:2px}
-  td:nth-child(4):before{content:"изменён ";color:#5f7b7a}
-  .rowactions{grid-area:actions;display:flex;gap:2px;justify-content:flex-end;flex-wrap:wrap;margin-top:2px}
-  .iconbtn{padding:8px 7px}
-  .filecell{min-width:0}
-}
 
-.dropzone{outline:2px dashed #83e5c2;outline-offset:-10px;background:#102a26!important}
+.dropzone{outline:3px dashed var(--accent);outline-offset:-6px;border-radius:18px}
 .subpath{color:#6f8f8c;font-size:11px;margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .namewrap{min-width:0;display:flex;flex-direction:column}
 
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:12px;padding:16px 22px 22px}
 .card{position:relative;border:1px solid var(--border);border-radius:14px;background:var(--panel2);overflow:hidden;display:flex;flex-direction:column;min-width:0;transition:transform .12s,box-shadow .12s}
 .card:hover{transform:translateY(-1px);box-shadow:0 10px 24px #0004}
-.card.selected{outline:2px solid #83e5c2;outline-offset:-2px}
-.card .thumb{position:relative;aspect-ratio:4/3;background:var(--thumbbg,#0d1a20);display:grid;place-items:center;overflow:hidden;cursor:pointer}
+.card.selected{outline:2px solid var(--accent);outline-offset:-2px}
+.card .thumb{position:relative;aspect-ratio:4/3;background:var(--thumbbg);display:grid;place-items:center;overflow:hidden;cursor:pointer}
 .card .thumb img{width:100%;height:100%;object-fit:cover;display:block}
 .card .thumb .ic{font-size:34px;color:#8fd4d0;opacity:.85}
 .card .pick{position:absolute;top:8px;left:8px;z-index:2;background:#0a1218a8;border-radius:6px;padding:4px;display:grid;place-items:center}
@@ -51,10 +142,72 @@
 .card .acts{display:flex;gap:2px;border-top:1px solid var(--border);margin-top:auto}
 .card .acts button{flex:1;border:0;background:transparent;color:var(--muted);padding:8px 0;font-size:12px;cursor:pointer}
 .card .acts button:hover{background:var(--row-hover);color:var(--text)}
-@media(max-width:700px){.grid{grid-template-columns:repeat(auto-fill,minmax(108px,1fr));gap:8px;padding:12px 14px 16px}.card .cap{font-size:11px}.card .acts button{padding:9px 0}}
 
-/* ---------- светлая тема ---------- */
-[data-theme=light]{color-scheme:light}
+#uploadQueue{background:var(--panel2);border:1px solid var(--border);border-radius:14px;box-shadow:0 20px 60px #0006;color:var(--text);max-height:55vh;overflow-y:auto}
+#uploadQueue h2{margin:0;font-size:14px;color:var(--text)}
+.qrow{border-bottom:1px solid var(--border);padding:8px 0;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.qrow:last-child{border-bottom:0}
+.qhead{flex:1;min-width:120px}
+.qname{font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.qstate{font-size:11px;color:var(--muted)}
+.qbar{width:96px;height:7px;background:#1a2a2d;border-radius:4px;overflow:hidden;flex:none}
+.qfill{height:100%;background:var(--accent);width:0%;transition:width .2s}
+.qinfo{font-size:11px;color:var(--muted);min-width:96px;text-align:right;font-variant-numeric:tabular-nums}
+.qactions{display:flex;gap:5px}
+.qbtn{font-size:11px;padding:3px 8px;border:1px solid var(--border);background:transparent;color:var(--text);border-radius:6px;cursor:pointer}
+.qbtn:hover{background:var(--row-hover)}
+.qstart{background:var(--accent);color:#0b3d2b;border-color:var(--accent);font-weight:600}
+.qstart:hover{opacity:.9}
+.qpause,.qcancel{background:transparent}
+.qpause:hover,.qcancel:hover{border-color:#f87171;color:#f87171}
+
+@media(max-width:700px){
+  .shell{padding:18px 14px 40px}
+  .top{margin-bottom:24px}
+  #netText,.dot{display:none}
+  .hero{align-items:start}
+  .badge{display:none}
+  .bar,.pathbar{padding:15px}
+  .search{min-width:0;flex:1}
+  .selection{padding:12px 15px}
+  .loginbox{padding:24px;margin-top:8vh}
+  .overlay{padding:8px}
+  .viewer{height:95vh}
+  .viewtop{padding:12px}
+  .viewbody{padding:8px}
+  .viewbody pre{padding:16px}
+  .tablewrap{overflow-x:visible}
+  table{min-width:0;display:block}
+  thead{display:none}
+  tbody{display:block}
+  tbody tr{display:grid;grid-template-columns:36px 1fr auto;grid-template-areas:"check name size" "check meta actions";column-gap:10px;align-items:center;padding:12px 14px;border-bottom:1px solid #1d3035}
+  td{padding:0;border:0;display:block}
+  .checkcol{grid-area:check;width:auto;padding:0;align-self:center;text-align:left}
+  td:nth-child(2){grid-area:name;min-width:0}
+  td:nth-child(3){grid-area:size;justify-self:end;white-space:nowrap}
+  td:nth-child(4){grid-area:meta;font-size:11px!important;margin-top:2px}
+  td:nth-child(4):before{content:"изменён ";color:#5f7b7a}
+  html[lang=en] td:nth-child(4):before{content:"modified "}
+  .rowactions{grid-area:actions;display:flex;gap:2px;justify-content:flex-end;flex-wrap:wrap;margin-top:2px}
+  .iconbtn{padding:8px 7px}
+  .filecell{min-width:0}
+  .grid{grid-template-columns:repeat(auto-fill,minmax(108px,1fr));gap:8px;padding:12px 14px 16px}
+  .card .cap{font-size:11px}
+  .card .acts button{padding:9px 0}
+}
+@media(max-width:500px){.action-dialog{padding:21px}.dialog-actions .btn{flex:1}}
+
+[data-theme=light]{
+  --panel:#ffffff;
+  --panel2:#f7fbf9;
+  --border:#d9e7e3;
+  --text:#10231f;
+  --muted:#5f7f79;
+  --row-hover:#f1f8f5;
+  --accent:#0f9f7a;
+  --thumbbg:#e9f2ef;
+  color-scheme:light
+}
 [data-theme=light] body{background:radial-gradient(ellipse at 5% 0%,#d8efe8 0,transparent 42%),#f4f8f7;color:#10231f}
 [data-theme=light] .brand small,[data-theme=light] .topright{color:#5c7a74}
 [data-theme=light] .hero .sub,[data-theme=light] .sub{color:#526f6a}
@@ -64,19 +217,20 @@
 [data-theme=light] .btn{background:#eef5f2;border-color:#cfe0db;color:#15322b}
 [data-theme=light] .btn:hover:not(:disabled){background:#e3efeb}
 [data-theme=light] .btn.primary{background:#0f9f7a;border-color:#0f9f7a;color:#fff}
-[data-theme=light] .btn.primary:hover{background:#0d8b6b}
+[data-theme=light] .btn.primary:hover:not(:disabled){background:#0d8b6b}
 [data-theme=light] .btn.danger{background:#fdeeec;border-color:#f0c9c3;color:#b23b2c}
 [data-theme=light] .search,[data-theme=light] .sortsel,[data-theme=light] .dialog-input{background:#ffffff;border-color:#cfe0db;color:#132c26}
 [data-theme=light] .search:focus{border-color:#0f9f7a}
+[data-theme=light] input[type=checkbox]{accent-color:#0f9f7a}
 [data-theme=light] .eyebrow{color:#0f9f7a}
 [data-theme=light] .caption,[data-theme=light] th{color:#5f7f79}
 [data-theme=light] th,[data-theme=light] .pathline,[data-theme=light] .tablewrap{border-color:#e2eeea}
-[data-theme=light] td{color:#2b463f;border-color:#e8f1ee}
+[data-theme=light] td,[data-theme=light] tbody tr{color:#2b463f;border-color:#e8f1ee}
 [data-theme=light] tbody tr:hover{background:#f1f8f5}
 [data-theme=light] tbody tr.selected{background:#e2f5ee}
 [data-theme=light] .filename{color:#10231f}
 [data-theme=light] .filename:hover{color:#0f9f7a}
-[data-theme=light] .detail{color:#5f7f79}
+[data-theme=light] .detail,[data-theme=light] .subpath{color:#5f7f79}
 [data-theme=light] .icon.folder{background:#e8f1d8;color:#5d7a22}
 [data-theme=light] .icon.file{background:#e3efee;color:#2f7a72}
 [data-theme=light] .iconbtn{color:#47655f}
@@ -84,20 +238,23 @@
 [data-theme=light] .selection{background:#e2f5ee;border-color:#bfe6d9}
 [data-theme=light] .selection strong{color:#0b6b53}
 [data-theme=light] .message{color:#b23b2c}
+[data-theme=light] .message.ok{color:#0b6b53}
 [data-theme=light] .empty,[data-theme=light] .foot{color:#5f7f79}
 [data-theme=light] .crumbs button{color:#17332c}
 [data-theme=light] .crumbs button:hover{background:#e3efeb;color:#0f9f7a}
 [data-theme=light] .crumbs span{color:#93b0a9}
 [data-theme=light] .progress{background:#f4faf8;border-color:#e2eeea}
 [data-theme=light] .progress .plabel{color:#3d5c56}
-[data-theme=light] .progress .ptrack{background:#dcebe6}
-[data-theme=light] .progress .pfill{background:#0f9f7a}
+[data-theme=light] .progress .ptrack,[data-theme=light] .qbar{background:#dcebe6}
+[data-theme=light] .progress .pfill,[data-theme=light] .qfill{background:#0f9f7a}
+[data-theme=light] .qstart{color:#fff}
 [data-theme=light] .overlay{background:#0c211c66}
 [data-theme=light] .viewer{background:#ffffff;border-color:#cfe0db;box-shadow:0 22px 70px #0c2c2426}
 [data-theme=light] .viewtop{border-color:#e2eeea}
 [data-theme=light] .viewtitle small{color:#5f7f79}
 [data-theme=light] .viewbody{background:#f5faf8}
 [data-theme=light] .viewempty{color:#3f5f59}
+[data-theme=light] .viewbody .error{color:#b23b2c}
 [data-theme=light] .dialog-overlay{background:#0c211c55}
 [data-theme=light] .action-dialog{background:#ffffff;border-color:#cfe0db;box-shadow:0 22px 70px #0c2c2426}
 [data-theme=light] .action-dialog h2{color:#10231f}
@@ -107,278 +264,149 @@
 [data-theme=light] .dialog-error{color:#b23b2c}
 [data-theme=light] .dialog-actions .danger-solid{background:#c4453a;border-color:#c4453a;color:#fff}
 [data-theme=light] .loginhelp{color:#4d6b65;border-color:#e2eeea}
-[data-theme=light] .card{background:#f7fbf9;border-color:#d9e7e3}
-[data-theme=light] .card .thumb{background:#e9f2ef}
+[data-theme=light] .label{color:#4d6b65}
 [data-theme=light] .card .thumb .ic{color:#2f7a72}
 [data-theme=light] .card .pick{background:#ffffffcc}
-[data-theme=light] .card.selected{outline-color:#0f9f7a}
 [data-theme=light] .themeBtn{background:#eef5f2;border-color:#cfe0db;color:#15322b}
-/* ---------- очередь загрузки ---------- */
-#uploadQueue{background:var(--panel2);border:1px solid var(--border);border-radius:10px;box-shadow:0 20px 60px #0005;color:var(--text)}
-#uploadQueue h2{margin:0 0 10px;font-size:15px;color:var(--text)}
-.qrow{border-bottom:1px solid var(--border);padding:8px 0;display:flex;align-items:center;gap:8px}
-.qhead{flex:1;min-width:0}
-.qname{font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.qstate{font-size:11px;color:var(--muted);margin-left:6px}
-.qbar{width:120px;height:8px;background:#1a2a2d;border-radius:4px;overflow:hidden}
-.qfill{height:100%;background:var(--accent,#4ade80);width:0%;transition:width .3s}
-.qinfo{font-size:11px;color:var(--muted);min-width:110px;text-align:right}
-.qactions{display:flex;gap:6px}
-.qbtn{font-size:11px;padding:3px 8px;border:1px solid var(--border);background:transparent;color:var(--text);border-radius:4px;cursor:pointer}
-.qbtn:hover{background:var(--row-hover)}
-.qstart{background:var(--accent,#4ade80);color:#0b3d2b;border-color:var(--accent,#4ade80)}
-.qstart:hover{background:#2dd4bf}
-.qpause,.qcancel{background:transparent}
-.qpause:hover{border-color:#f87171;color:#f87171}
-.qcancel:hover{border-color:#f87171;color:#f87171}
-.dropzone{outline:3px dashed var(--accent,#4ade80);outline-offset:-3px}
-</style></head><body><main class="shell"><div class="top"><div class="brand"><div class="brandicon">▤</div><div data-i18n="appTitle">PocketBridge · Файлы телефона</div><small data-i18n="wifiProvider">Wi-Fi ПРОВОДНИК</small></div><div class="topright"><button id="theme" class="btn themeBtn" title="Светлая/тёмная тема" aria-label="Переключить тему">☀</button><button id="langBtn" class="btn themeBtn" title="Язык / Language" aria-label="Сменить язык">RU</button><span class="dot"></span><span id="netText" data-i18n="accessSubtitle">Доступ по коду в локальной сети</span></div></div>
-<section id="login" class="panel loginbox"><div class="eyebrow" data-i18n="accessSubtitle">Доступ по коду в локальной сети</div><h1 data-i18n="deviceDesc">Ваш телефон рядом.</h1><p class="sub" data-i18n="descPc">Работайте с файлами телефона прямо в браузере компьютера.</p><form id="loginForm"><label class="label" for="code" data-i18n="loginCodeLabel">Код с экрана телефона</label><input class="search" id="code" type="text" data-i18n="loginCodePlaceholder" placeholder="Например, 1a2b3c4d..." autocomplete="off" spellcheck="false" required><button class="btn primary" data-i18n="loginSubmit" type="submit">Подключиться →</button></form><div id="loginError" class="message"></div><div class="loginhelp" data-i18n="accessHelp">Оба устройства должны быть в одной сети Wi-Fi. Соединение шифруется самоподписанным сертификатом: при первом открытии браузер попросит подтвердить исключение («Дополнительно» → «Перейти на сайт»). Ссылку с кодом можно скопировать на телефоне — она входит автоматически.</div></section>
-<section id="app" class="hidden"><div class="hero"><div><div class="eyebrow">Ваше устройство · файлы</div><h1 data-i18n="heroTitle">Всё под рукой.</h1><p class="sub" data-i18n="heroSub">Просматривайте файлы и управляйте ими без проводов.</p></div><div class="badge" data-i18n="deviceNearby">● Ваше устройство · файлы</div></div><div class="panel"><div class="bar"><button class="btn" id="up" data-i18n="headerBack" title="На уровень выше">← Назад</button><button class="btn" id="refresh" data-i18n="headerRefresh" title="Обновить">↻</button><button class="btn" id="mkdir" data-i18n="headerMkdir">＋ Папка</button><button class="btn" id="sizes" data-i18n="headerSizes">◫ Размеры папок</button><button class="btn" id="view" data-i18n="headerView" title="Вид: плитка или список">▦ Плитка</button><button class="btn primary" id="upload" data-i18n="headerUpload">↑ Загрузить файлы</button><button class="btn" id="uploadDir" data-i18n="headerUploadDir">⇪ Загрузить папку</button><input id="fileInput" type="file" multiple><input id="dirInput" type="file" webkitdirectory multiple><span class="spacer"></span><input class="search" type="search" id="search" data-i18n="searchPlaceholder" aria-label="Поиск"><select id="scope" class="sortsel" aria-label="Где искать"><option value="local" data-i18n="searchLocal">искать здесь</option><option value="global" data-i18n="searchGlobal">искать везде</option></select><select id="sort" class="sortsel" aria-label="Сортировка"><option value="name" data-i18n="sortName">Сортировка: имя</option><option value="size" data-i18n="sortSize">размер</option><option value="date" data-i18n="sortDate">дата</option><option value="type" data-i18n="sortType">тип</option></select><button class="btn" id="logout" data-i18n="headerLogout">Выйти</button></div><div class="pathbar"><div class="pathline"><div class="caption">Текущая папка</div><div id="path" class="path">/</div></div><div id="itemCount" class="count"></div></div><div id="selection" class="selection hidden"><strong id="selectedCount"></strong><button id="downloadSelected" class="btn primary" data-i18n="btnDownloadSelected">↓ Скачать выбранные файлы ZIP</button><button id="deleteSelected" class="btn danger" data-i18n="btnDeleteSelected">Удалить выбранное</button><button id="clearSelected" class="btn" data-i18n="btnClearSelected">Снять выделение</button></div><div id="message" class="message"></div><div id="progress" class="progress hidden"><span class="plabel" id="progressLabel"></span><div class="ptrack"><div class="pfill" id="progressFill"></div></div><button class="btn" id="progressCancel" data-i18n="btnQueueCancel" type="button">Отмена</button></div><div id="grid" class="grid hidden"></div><div class="tablewrap" id="tableWrap"><table><thead><tr><th class="checkcol"><input type="checkbox" id="selectAll" data-i18n="btnSelectAll" title="Выделить все видимые" aria-label="Выделить все видимые"></th><th data-i18n="colName">Название</th><th data-i18n="colSize">Размер</th><th data-i18n="colDate">Изменён</th><th data-i18n="colActions"></th></tr></thead><tbody id="rows"></tbody></table><div id="empty" class="empty hidden"><span>◌</span><span data-i18n="emptyFolder">Здесь пока ничего нет</span></div></div></div><div class="foot" data-i18n="sizesDisabled">Для подсчёта размеров нажмите «Размеры папок». Подсчёт может быть неполным из-за ограничений Android. Не закрывайте приложение на телефоне во время передачи.</div></section></main><div id="preview" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="previewTitle"><div class="viewer"><div class="viewtop"><div class="viewtitle"><strong id="previewTitle"></strong><small id="previewHint"></small></div><button id="previewPrev" class="btn hidden" data-i18n="previewPrev" title="Предыдущий файл" aria-label="Предыдущий файл">⏮</button><button id="previewNext" class="btn hidden" data-i18n="previewNext" title="Следующий файл" aria-label="Следующий файл">⏭</button><button id="previewDownload" data-i18n="previewDownload" class="btn">↓ Скачать</button><button id="previewClose" data-i18n="previewClose" class="btn" aria-label="Закрыть">✕</button></div><div id="previewBody" class="viewbody"></div></div></div><div id="actionDialog" class="dialog-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="dialogTitle" aria-describedby="dialogMessage"><form class="action-dialog" id="dialogForm"><div id="dialogIcon" class="dialog-symbol">✦</div><h2 id="dialogTitle"></h2><p id="dialogMessage" class="dialog-message"></p><input id="dialogInput" class="dialog-input hidden" maxlength="200" autocomplete="off" aria-label="Имя"><div id="dialogError" class="dialog-error hidden"></div><div class="dialog-actions"><button id="dialogExtra" class="btn" type="button" hidden></button><button id="dialogCancel" data-i18n="actionCancel" class="btn" type="button">Отмена</button><button id="dialogAccept" data-i18n="btnContinue" class="btn primary" type="submit">Продолжить</button></div></form></div><script>
-'use strict';const el=id=>document.getElementById(id);let key='',current='/',items=[],selected=new Set(),sizes=new Map(),generation=0,busy=false,scanning=false;
-async function api(route,params={},options={}){const q=new URLSearchParams(params);const r=await fetch('/api/'+route+'?'+q,{...options,headers:{'X-Access-Key':key,...(options.headers||{})},cache:'no-store'});if(!r.ok)throw Error(await r.text());return r}
-function msg(s,error=true){let m=el('message');m.textContent=s;m.style.color=error?'#ffb2a7':'#9be5ca'}
-function bytes(n){if(n<1024)return n+' Б';let u=['КБ','МБ','ГБ','ТБ'],i=-1;do{n/=1024;i++}while(n>=1024&&i<u.length-1);return n.toFixed(1)+' '+u[i]}
-function extOf(name){return (name.split('.').pop()||'').toLowerCase()}
-function visible(){let s=el('search').value.trim().toLocaleLowerCase();let arr=remoteResults?remoteResults.slice():items.filter(x=>x.name.toLocaleLowerCase().includes(s));
-let mode=el('sort')?el('sort').value:'name';
-let cmp=(a,b)=>{if(a.dir!==b.dir)return a.dir?-1:1;if(mode==='size')return b.size-a.size;if(mode==='date')return (b.modified||0)-(a.modified||0);if(mode==='type')return extOf(a.name).localeCompare(extOf(b.name),'ru')||a.name.localeCompare(b.name,'ru',{numeric:true,sensitivity:'base'});return a.name.localeCompare(b.name,'ru',{numeric:true,sensitivity:'base'})};
-return arr.slice().sort(cmp)}
-function updateSelection(){let v=visible(),num=selected.size,sel=el('selection');sel.classList.toggle('hidden',!num);el('selectedCount').textContent=t('selectedCount',{n:num});let all=el('selectAll'),n=v.filter(x=>selected.has(x.path)).length;all.checked=v.length>0&&n===v.length;all.indeterminate=n>0&&n<v.length;all.disabled=!v.length;el('downloadSelected').disabled=num===0}
-let viewMode=localStorage.getItem('pb-view')||'list',sessionToken=null;
-function sessionValid(){return !!sessionToken}
-async function ensureSession(){if(sessionToken)return sessionToken;const d=await(await api('session',{},{method:'POST'})).json();sessionToken=d.token;return sessionToken}
-function thumbUrl(item){return '/thumb?token='+(sessionToken||'')+'&path='+encodeURIComponent(item.path)+'&w=320'}
-function render(){if(viewMode==='grid')renderGrid();else renderList()}
-function renderCounters(view){el('itemCount').textContent=t('itemCount')+view.length;el('empty').classList.toggle('hidden',view.length>0);el('empty').innerHTML=view.length?'':'<span>◌</span>'+(items.length?t('emptySearch'):t('emptyFolder'))}
-function renderGrid(){const grid=el('grid'),view=visible();grid.replaceChildren();el('tableWrap').classList.add('hidden');grid.classList.remove('hidden');renderCounters(view);
-for(const item of view){const card=document.createElement('div');card.className='card'+(selected.has(item.path)?' selected':'');
-const thumb=document.createElement('div');thumb.className='thumb';
-if(!item.dir&&kind(item.name)==='image'){const img=document.createElement('img');img.alt='';img.loading='lazy';img.onerror=()=>{if(!img.dataset.retried){img.dataset.retried='1';sessionToken=null;img.src=thumbUrl(item)}};img.src=thumbUrl(item);thumb.append(img)}
-else{const ic=document.createElement('span');ic.className='ic';ic.textContent=item.dir?'▰':'▤';thumb.append(ic)}
-thumb.onclick=()=>item.dir?show(item.path):openPreview(item);
-const pick=document.createElement('label');pick.className='pick';const check=document.createElement('input');check.type='checkbox';check.checked=selected.has(item.path);check.setAttribute('aria-label',t('selectItem',{name:item.name}));
-check.onchange=()=>{if(check.checked)selected.add(item.path);else selected.delete(item.path);card.classList.toggle('selected',check.checked);updateSelection()};pick.append(check);thumb.append(pick);
-const cap=document.createElement('div');cap.className='cap';cap.textContent=item.name;cap.title=item.name;cap.onclick=thumb.onclick;
-const sub=document.createElement('div');sub.className='sub';const sizeTxt=document.createElement('span');sizeTxt.className='size';sizeTxt.dataset.path=item.path;setSize(sizeTxt,item);sub.append(sizeTxt);
-if(remoteResults){const p=document.createElement('span');p.className='subpath';p.textContent=parentOf(item.path);sub.append(p)}
-const acts=document.createElement('div');acts.className='acts';const act=(label,title,fn)=>{const b=document.createElement('button');b.type='button';b.textContent=label;b.title=title;b.onclick=fn;acts.append(b)};
-if(item.dir){act('ZIP',t('btnZipFolder'),()=>downloadFolderZip(item))}else{if(kind(item.name))act('◉',t('btnPreview'),()=>openPreview(item));act('↓',t('btnDownload'),()=>download(item))}
-act('✎',t('btnRename'),()=>rename(item));act('✕',t('btnDelete'),()=>removeItem(item));
-card.append(thumb,cap,sub,acts);grid.append(card)}
-updateSelection()}
-function renderList(){let rows=el('rows'),view=visible();el('grid').classList.add('hidden');el('tableWrap').classList.remove('hidden');rows.replaceChildren();el('empty').classList.toggle('hidden',view.length>0);el('itemCount').textContent=t('itemCount')+view.length;el('empty').classList.toggle('hidden',view.length>0);el('empty').innerHTML=view.length?'':'<span>◌</span>'+(items.length?t('emptySearch'):t('emptyFolder'));for(const item of view){let tr=document.createElement('tr');tr.classList.toggle('selected',selected.has(item.path));let checkcell=document.createElement('td');checkcell.className='checkcol';let check=document.createElement('input');check.type='checkbox';check.checked=selected.has(item.path);check.setAttribute('aria-label','Выбрать '+item.name);check.onchange=()=>{if(check.checked)selected.add(item.path);else selected.delete(item.path);tr.classList.toggle('selected',check.checked);updateSelection()};checkcell.append(check);let n=document.createElement('td'),box=document.createElement('div');box.className='filecell';let icon=document.createElement('span');icon.className='icon '+(item.dir?'folder':'file');icon.textContent=item.dir?'▰':'▤';let name=document.createElement('button');name.className='filename';name.textContent=item.name;name.onclick=()=>item.dir?show(item.path):openPreview(item);
-let nameWrap=document.createElement('div');nameWrap.className='namewrap';nameWrap.append(name);
-if(remoteResults){let sub=document.createElement('div');sub.className='subpath';sub.textContent=parentOf(item.path);nameWrap.append(sub)}
-box.append(icon,nameWrap);n.append(box);let size=document.createElement('td');size.className='detail size';size.dataset.path=item.path;size.title=item.dir?t('folderSizeTitle'):'';setSize(size,item);let date=document.createElement('td');date.className='detail';date.textContent=item.modified?new Date(item.modified).toLocaleDateString():'—';let a=document.createElement('td');a.className='rowactions';const button=(label,fn)=>{let b=document.createElement('button');b.className='iconbtn';b.textContent=label;b.onclick=fn;a.append(b)};if(!item.dir){if(kind(item.name))button(t('btnPreview'),()=>openPreview(item));button(t('btnDownload'),()=>download(item));}else button(t('btnZipFolder'),()=>downloadFolderZip(item));button(t('btnRename'),()=>rename(item));button(t('btnDelete'),()=>removeItem(item));tr.append(checkcell,n,size,date,a);rows.append(tr)}updateSelection()}
-function setSize(cell,item){if(!item.dir){cell.textContent=bytes(item.size);return}let v=sizes.get(item.path);cell.textContent=!v?'—':v.loading?'Подсчёт…':v.error?'Недоступно':(v.partial?'≥ ':'')+bytes(v.bytes);if(v&&v.partial)cell.title='Часть файлов недоступна или подсчёт занял слишком много времени'}
-async function calculateSizes(token){if(scanning)return;scanning=true;el('sizes').disabled=true;let dirs=items.filter(x=>x.dir);try{for(let item of dirs){if(token!==generation)break;sizes.set(item.path,{loading:true});for(let cell of el('rows').querySelectorAll('td.size'))if(cell.dataset.path===item.path)setSize(cell,item);try{let result=await(await api('size',{path:item.path})).json();if(token!==generation)break;sizes.set(item.path,result)}catch(e){if(token!==generation)break;sizes.set(item.path,{error:true})}for(let cell of el('rows').querySelectorAll('td.size'))if(cell.dataset.path===item.path)setSize(cell,item)}}finally{scanning=false;el('sizes').disabled=false}}
-function renderPath(path){let box=el('path');box.classList.add('crumbs');box.replaceChildren();
-const root=document.createElement('button');root.type='button';root.textContent=t('rootName');root.title=t('rootTitle');root.onclick=()=>show('/');box.append(root);
-let acc='';for(const seg of path.split('/').filter(Boolean)){acc+='/'+seg;const sep=document.createElement('span');sep.textContent='/';const b=document.createElement('button');b.type='button';b.textContent=seg;const target=acc;b.onclick=()=>show(target);box.append(sep,b)}}
-async function show(path,preloaded=null){const token=++generation;try{msg(t('msgOpening'),false);let data=preloaded||await(await api('list',{path})).json();if(token!==generation)return;await ensureSession().catch(()=>{});current=data.path;items=data.items;selected.clear();sizes.clear();remoteResults=null;el('search').value='';renderPath(current);el('up').disabled=current==='/';render();msg('',false)}catch(e){if(token===generation)msg(e.message)}}
-function saveBlob(blob,name){let url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000)}
+</style></head><body>
+<main class="shell">
+  <div class="top">
+    <div class="brand">
+      <div class="brandicon">▤</div>
+      <div><span data-i18n="appTitle">PocketBridge · Файлы телефона</span><small data-i18n="wifiProvider">Wi-Fi ПРОВОДНИК</small></div>
+    </div>
+    <div class="topright">
+      <button id="theme" class="btn themeBtn" type="button" data-i18n-title="themeTitle" data-i18n-aria="themeTitle" title="Светлая/тёмная тема" aria-label="Светлая/тёмная тема">☀</button>
+      <button id="langBtn" class="btn themeBtn" type="button" data-i18n-title="langSwitchTitle" data-i18n-aria="langSwitchTitle" title="Язык / Language" aria-label="Язык / Language">RU</button>
+      <span class="dot"></span>
+      <span id="netText" data-i18n="accessSubtitle">Доступ по коду в локальной сети</span>
+    </div>
+  </div>
 
-let remoteResults=null,searchTimer=null;
-let previewSerial=0,previewItem=null;
-function kind(name){const ext=(name.split('.').pop()||'').toLowerCase();if(['jpg','jpeg','png','gif','webp','bmp','avif','heic','heif','dng','cr2','nef','arw','raf','svg'].includes(ext))return'image';if(['mp4','m4v','webm','ogv','mov'].includes(ext))return'video';if(['mp3','m4a','wav','ogg','opus','flac'].includes(ext))return'audio';if(ext==='pdf')return'pdf';if(['html','htm'].includes(ext))return'html';if(ext==='docx')return'docx';if(['txt','md','csv','log','json','xml','css','js'].includes(ext))return'text';return''}
-function stopPlayback(){for(const media of el('previewBody').querySelectorAll('audio,video')){media.pause();media.removeAttribute('src');media.load()}}
-function closePreview(){previewSerial++;stopPlayback();el('preview').classList.add('hidden');el('previewBody').replaceChildren();previewItem=null}
-function playlist(){if(!previewItem)return [];let category=kind(previewItem.name);if(category!=='audio'&&category!=='video')return [];return visible().filter(x=>!x.dir&&kind(x.name)===category)}
-function stepTrack(direction){let list=playlist(),index=list.findIndex(x=>x.path===previewItem?.path),next=index+direction;if(index>=0&&next>=0&&next<list.length)openPreview(list[next])}
-function updateTrackButtons(type){let active=type==='audio'||type==='video',list=playlist(),index=list.findIndex(x=>x.path===previewItem?.path);el('previewPrev').classList.toggle('hidden',!active);el('previewNext').classList.toggle('hidden',!active);el('previewPrev').disabled=index<=0;el('previewNext').disabled=index<0||index>=list.length-1}
-async function openPreview(item){let type=kind(item.name);if(!type){msg(t('previewUnsupported'));return}let serial=++previewSerial;stopPlayback();previewItem=item;updateTrackButtons(type);el('previewTitle').textContent=item.name;el('previewHint').textContent=type==='html'?t('previewHTMLDesc'):type==='docx'?t('previewDocxDesc'):t('previewFromPhone')+bytes(item.size);el('preview').classList.remove('hidden');let body=el('previewBody');body.replaceChildren();let note=document.createElement('div');note.className='viewempty';note.textContent=t('previewOpening');body.append(note);try{
- if(type==='text'||type==='html'){let response=await api('text',{path:item.path}),raw=await response.text();if(serial!==previewSerial)return;body.replaceChildren();if(type==='text'){let pre=document.createElement('pre');pre.textContent=raw;body.append(pre)}else{let frame=document.createElement('iframe');frame.setAttribute('sandbox','');frame.title='Просмотр HTML';frame.srcdoc=`<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src data:">`+raw;body.append(frame)}}
- else if(type==='docx'){let result=await(await api('docx',{path:item.path})).json();if(serial!==previewSerial)return;body.replaceChildren();let pre=document.createElement('pre');pre.textContent=result.text+(result.truncated?'\n\n[Показана только часть документа]':'');body.append(pre)}
- else {let data=await(await api('preview-ticket',{path:item.path},{method:'POST'})).json();if(serial!==previewSerial)return;body.replaceChildren();let media;if(type==='image'){media=document.createElement('img');media.alt=item.name}else if(type==='video'){media=document.createElement('video');media.controls=true;media.preload='metadata'}else if(type==='audio'){media=document.createElement('audio');media.controls=true;media.preload='metadata'}else{media=document.createElement('iframe');media.title='Просмотр PDF'}media.referrerPolicy='no-referrer';if(type==='video'||type==='audio'){media.autoplay=true;media.onended=()=>{if(serial===previewSerial)stepTrack(1)};media.onerror=()=>{if(serial===previewSerial)el('previewHint').textContent=t('previewCodecError')}}media.src=data.url;body.append(media);if(type==='video'||type==='audio'){el('previewHint').textContent=t('previewFromPhone')+bytes(item.size);let attempt=media.play();if(attempt&&attempt.catch)attempt.catch(e=>{if(serial!==previewSerial)return;el('previewHint').textContent=e.name==='NotAllowedError'?t('previewAutoplayBlocked'):t('previewPlaybackError')})}}
- }catch(e){if(serial!==previewSerial)return;body.replaceChildren();let err=document.createElement('div');err.className='viewempty error';err.textContent=t('previewFailed')+e.message;body.append(err)}}
-el('previewPrev').onclick=()=>stepTrack(-1);el('previewNext').onclick=()=>stepTrack(1);el('previewClose').onclick=closePreview;el('previewDownload').onclick=()=>{if(previewItem)download(previewItem)};el('preview').onclick=e=>{if(e.target===el('preview'))closePreview()};document.addEventListener('keydown',e=>{if(e.key==='Escape'&&el('actionDialog').classList.contains('hidden')&&!el('preview').classList.contains('hidden'))closePreview()});
+  <section id="login" class="panel loginbox">
+    <div class="eyebrow" data-i18n="accessSubtitle">Доступ по коду в локальной сети</div>
+    <h1 data-i18n="deviceDesc">Ваш телефон рядом.</h1>
+    <p class="sub" data-i18n="descPc">Работайте с файлами телефона прямо в браузере компьютера.</p>
+    <form id="loginForm">
+      <label class="label" for="code" data-i18n="loginCodeLabel">Код с экрана телефона</label>
+      <input class="search" id="code" type="text" data-i18n-placeholder="loginCodePlaceholder" placeholder="Например, 1a2b3c4d…" autocomplete="off" spellcheck="false" required>
+      <button class="btn primary" data-i18n="loginSubmit" type="submit">Подключиться →</button>
+    </form>
+    <div id="loginError" class="message"></div>
+    <div class="loginhelp" data-i18n="accessHelp">Оба устройства должны быть в одной сети Wi-Fi. Соединение шифруется самоподписанным сертификатом: при первом открытии браузер попросит подтвердить исключение («Дополнительно» → «Перейти на сайт»). Ссылку с кодом можно скопировать на телефоне — она входит автоматически.</div>
+  </section>
 
-function triggerDownload(url){const a=document.createElement('a');a.href=url;a.rel='noopener';a.style.display='none';document.body.append(a);a.click();a.remove()}
-async function downloadFolderZip(item){try{msg('Готовим архив папки '+item.name+'…',false);const base=remoteResults?'/':current;const t=await(await api('zip-ticket',{base},{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({paths:[item.path]})})).json();triggerDownload(t.url);msg(t('msgDownloadStarted'),false)}catch(e){msg(e.message)}}
-function parentOf(path){const i=path.lastIndexOf('/');return i<=0?'/':path.slice(0,i)}
-async function download(item){try{msg(t('msgPreparingDownload',{name:item.name}),false);const t=await(await api('download-ticket',{path:item.path},{method:'POST'})).json();triggerDownload(t.url);msg(t('msgDownloadStarted'),false)}catch(e){msg(e.message)}}
+  <section id="app" class="hidden">
+    <div class="hero">
+      <div>
+        <div class="eyebrow" data-i18n="deviceNearby">Ваше устройство · файлы</div>
+        <h1 data-i18n="heroTitle">Всё под рукой.</h1>
+        <p class="sub" data-i18n="heroSub">Просматривайте файлы и управляйте ими без проводов.</p>
+      </div>
+      <div class="badge" data-i18n="deviceBadge">● Ваше устройство · файлы</div>
+    </div>
 
-let dialogResolve=null,dialogPreviousFocus=null,dialogNeedsInput=false;
-function finishDialog(value){if(!dialogResolve)return;let resolve=dialogResolve;dialogResolve=null;el('actionDialog').classList.add('hidden');if(dialogPreviousFocus&&document.contains(dialogPreviousFocus))dialogPreviousFocus.focus();resolve(value)}
-let dialogExtraValue=null;
-function actionDialog({title,message,accept='Продолжить',danger=false,input=null,extra=null,cancel='Отмена'}){return new Promise(resolve=>{if(dialogResolve)finishDialog(null);dialogResolve=resolve;dialogPreviousFocus=document.activeElement;dialogNeedsInput=input!==null;el('dialogTitle').textContent=title;el('dialogMessage').textContent=message;el('dialogIcon').textContent=danger?'!':'✦';el('dialogIcon').classList.toggle('danger',danger);el('dialogAccept').textContent=accept;el('dialogAccept').className='btn '+(danger?'danger-solid':'primary');el('dialogCancel').textContent=cancel;let extraBtn=el('dialogExtra');dialogExtraValue=extra?extra.value:null;extraBtn.hidden=!extra;if(extra){extraBtn.textContent=extra.label;extraBtn.className='btn '+(extra.danger?'danger':'')}let field=el('dialogInput');field.classList.toggle('hidden',!dialogNeedsInput);field.value=dialogNeedsInput?input:'';el('dialogError').classList.add('hidden');el('actionDialog').classList.remove('hidden');if(dialogNeedsInput){field.focus();field.select()}else el('dialogCancel').focus()})}
-el('dialogExtra').onclick=()=>finishDialog(dialogExtraValue);
-el('dialogForm').onsubmit=e=>{e.preventDefault();if(!dialogNeedsInput){finishDialog(true);return}let value=el('dialogInput').value;if(!value.trim()||value==='.'||value==='..'||value.includes('/')||value.includes('\\')){el('dialogError').textContent='Введите корректное имя без символов / и \\.';el('dialogError').classList.remove('hidden');el('dialogInput').focus();return}finishDialog(value)};
-el('dialogCancel').onclick=()=>finishDialog(null);el('actionDialog').onclick=e=>{if(e.target===el('actionDialog'))finishDialog(null)};document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!el('actionDialog').classList.contains('hidden')){e.preventDefault();finishDialog(null)}});
+    <div class="panel">
+      <div class="bar">
+        <button class="btn" id="up" type="button" data-i18n="headerBack" data-i18n-title="headerBackTitle" title="На уровень выше">← Назад</button>
+        <button class="btn" id="refresh" type="button" data-i18n-title="headerRefreshTitle" data-i18n-aria="headerRefreshTitle" title="Обновить" aria-label="Обновить">↻</button>
+        <button class="btn" id="mkdir" type="button" data-i18n="headerMkdir">＋ Папка</button>
+        <button class="btn" id="sizes" type="button" data-i18n="headerSizes">◫ Размеры папок</button>
+        <button class="btn" id="view" type="button" data-i18n-title="viewTitle" title="Вид: плитка или список">▦ Плитка</button>
+        <button class="btn primary" id="upload" type="button" data-i18n="headerUpload">↑ Загрузить файлы</button>
+        <button class="btn" id="uploadDir" type="button" data-i18n="headerUploadDir">⇪ Загрузить папку</button>
+        <input id="fileInput" type="file" multiple hidden>
+        <input id="dirInput" type="file" webkitdirectory multiple hidden>
+        <span class="spacer"></span>
+        <input class="search" type="search" id="search" data-i18n-placeholder="searchPlaceholder" data-i18n-aria="searchPlaceholder" placeholder="Поиск в этой папке" aria-label="Поиск в этой папке">
+        <select id="scope" class="sortsel" data-i18n-aria="scopeAria" aria-label="Где искать">
+          <option value="local" data-i18n="searchLocal">искать здесь</option>
+          <option value="global" data-i18n="searchGlobal">искать везде</option>
+        </select>
+        <select id="sort" class="sortsel" data-i18n-aria="sortAria" aria-label="Сортировка">
+          <option value="name" data-i18n="sortName">Сортировка: имя</option>
+          <option value="size" data-i18n="sortSize">размер</option>
+          <option value="date" data-i18n="sortDate">дата</option>
+          <option value="type" data-i18n="sortType">тип</option>
+        </select>
+        <button class="btn" id="logout" type="button" data-i18n="headerLogout">Выйти</button>
+      </div>
 
-async function rename(item){let name=await actionDialog({title:t('renameTitle'),message:t('renameMsg'),accept:t('renameAccept'),input:item.name});if(name===null||name===item.name)return;try{await api('rename',{path:item.path,name},{method:'POST'});await refreshListing()}catch(e){msg(e.message)}}
-async function removeItem(item){if(!await actionDialog({title:t('deleteItemTitle',{type:item.dir?'папку':'файл'}),message:'«'+item.name+'»'+(item.dir?t('deleteItemFolderSuffix'):t('deleteItemFileSuffix'))+' '+t('actionDialogMsg').split('.')[1].trim(),accept:t('actionAccept'),danger:true}))return;try{msg(t('msgDeleting',{i:1,n:1}),false);await api('delete',{path:item.path},{method:'POST'});await refreshListing()}catch(e){await refreshListing();msg(e.message)}}
-el('loginForm').onsubmit=async e=>{e.preventDefault();key=el('code').value.trim();try{let data=await(await api('list',{path:'/'})).json();el('login').classList.add('hidden');el('app').classList.remove('hidden');await show('/',data)}catch(e){el('loginError').textContent=e.message}};
-el('up').onclick=()=>show(current.substring(0,current.lastIndexOf('/'))||'/');el('refresh').onclick=()=>show(current);el('logout').onclick=()=>{closePreview();generation++;key='';items=[];selected.clear();sessionToken=null;el('code').value='';el('loginError').textContent='';el('app').classList.add('hidden');el('login').classList.remove('hidden')};function scheduleRemote(){clearTimeout(searchTimer);const q=el('search').value.trim();if(el('scope').value!=='global'||q.length<2){remoteResults=null;render();return}searchTimer=setTimeout(runRemoteSearch,300)}
-async function runRemoteSearch(){const q=el('search').value.trim();if(q.length<2){remoteResults=null;render();return}
-try{msg('Ищем во всех папках…',false);const data=await(await api('search',{path:current,q})).json();if(el('search').value.trim()!==q)return;remoteResults=data.items;selected.clear();sizes.clear();render();msg(data.truncated?'Показаны первые результаты — уточните запрос':'Найдено: '+data.items.length,false)}catch(e){msg(e.message)}}
-async function refreshListing(){if(remoteResults!==null)await runRemoteSearch();else await show(current)}
-el('search').oninput=()=>{if(el('scope').value==='global')scheduleRemote();else render()};
-el('scope').onchange=()=>{remoteResults=null;if(el('scope').value==='global')scheduleRemote();else{el('search').value='';render()}};
-el('sort').onchange=render;
-el('selectAll').onchange=e=>{for(const item of visible()){if(e.target.checked)selected.add(item.path);else selected.delete(item.path)}render()};el('clearSelected').onclick=()=>{selected.clear();render()};
-el('downloadSelected').onclick=async()=>{let chosen=(remoteResults?remoteResults:items).filter(x=>selected.has(x.path));if(!chosen.length){msg(t('msgNothingSelected'));return}if(chosen.length>500){msg(t('msgMaxSelect'));return}try{msg(t('msgPreparing'),false);const base=remoteResults?'/':current;const t=await(await api('zip-ticket',{base},{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({paths:chosen.map(x=>x.path)})})).json();triggerDownload(t.url);msg(t('msgDownloadStarted'),false)}catch(e){msg(e.message)}};
-el('deleteSelected').onclick=async()=>{let chosen=items.filter(x=>selected.has(x.path));if(!chosen.length||!await actionDialog({title:t('actionDialogTitle'),message:t('actionDialogMsg',{n:chosen.length}),accept:t('actionAccept'),danger:true}))return;let errors=[];for(let i=0;i<chosen.length;i++){let x=chosen[i];try{msg(t('msgDeleting',{i:i+1,n:chosen.length}),false);await api('delete',{path:x.path},{method:'POST'})}catch(e){errors.push(x.name+': '+e.message)}}await refreshListing();msg(errors.length?errors.join('; '):t('msgFilesUploaded'),errors.length>0)};
-el('sizes').onclick=()=>calculateSizes(generation);el('mkdir').onclick=async()=>{let name=await actionDialog({title:t('mkdirTitle'),message:t('mkdirMsg'),accept:t('mkdirAccept'),input:''});if(name===null)return;try{await api('mkdir',{path:current,name},{method:'POST'});await show(current)}catch(e){msg(e.message)}};
-/* ---------- очередь загрузки с докачкой ---------- */
-let uploadBusy=false;
-const queueEl=document.createElement('div');queueEl.id='uploadQueue';queueEl.className='panel hidden';queueEl.style.padding='14px';
-queueEl.style.position='fixed';queueEl.style.bottom='16px';queueEl.style.right='16px';queueEl.style.width='min(420px,90vw)';queueEl.style.zIndex='100';
-queueEl.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><h2 style="margin:0;font-size:15px" data-i18n="queueTitle">Загрузка</h2><div style="display:flex;gap:4px"><button id="queuePauseAll" class="qbtn" style="font-size:10px;padding:2px 6px" data-i18n="queuePauseAll">Пауза все</button><button id="queueResumeAll" class="qbtn" style="font-size:10px;padding:2px 6px" data-i18n="queueResumeAll">Продолжить</button><button id="queueClear" class="qbtn" style="font-size:10px;padding:2px 6px" data-i18n="queueClear">Очистить</button></div></div><div id="queueList"></div><div id="queueEmpty" style="color:var(--muted);font-size:12px" data-i18n="queueEmpty">Очередь пуста</div>';
-document.getElementById('app').appendChild(queueEl);
-function queueShow(){if(!uploadBusy){uploadBusy=true;queueEl.classList.remove('hidden');el('progress').classList.remove('hidden')}}
-function queueHide(){uploadBusy=false;queueEl.classList.add('hidden');el('progress').classList.add('hidden')}
-const QMAX=3;
-let globalPaused=false;
-el('queuePauseAll').onclick=()=>{globalPaused=true;queue.forEach(i=>{if(i.status==='uploading')i.paused=true;});renderQueue();};
-el('queueResumeAll').onclick=()=>{globalPaused=false;queue.forEach(i=>{if(i.status==='paused'){i.paused=false;i.status='waiting';}});renderQueue();drain();};
-el('queueClear').onclick=()=>{queue=queue.filter(i=>i.status!=='done');renderQueue();if(queue.length===0&&running===0)queueHide();};
-let queue=[],running=0;
-function qItem(file,parent,name,overwrite=false,unique=false){
-  return {id:'u'+Math.random().toString(36).slice(2),file,parent,name,overwrite,unique,status:'waiting',loaded:0,total:file.size,error:null,retries:0,paused:false,aborted:false,start:null,lastBytes:0,lastTime:0};
-}
-function enqueue(item){
-  queue.push(item);
-  queueShow();
-  renderQueue();
-  drain();
-}
-function renderQueue(){
-  const list=el('queueList');list.replaceChildren();
-  const empty=el('queueEmpty');empty.style.display=queue.length?'none':'block';
-  for(const item of queue){const row=document.createElement('div');row.className='qrow';
-    const head=document.createElement('div');head.className='qhead';
-    const name=document.createElement('div');name.className='qname';name.textContent=item.name+ (item.unique?'  (с сохранением имени)' : '');
-    const state=document.createElement('span');state.className='qstate';state.textContent=item.status==='waiting'?t('queueWaiting'):item.status==='paused'?t('queuePaused'):(item.status==='uploading'&&globalPaused?t('queuePaused'):item.status==='uploading'?t('queueUploading'):t('queueError'));
-    head.append(name,state);
-    const bar=document.createElement('div');bar.className='qbar';const fill=document.createElement('div');fill.className='qfill';bar.append(fill);
-    const info=document.createElement('div');info.className='qinfo';info.textContent=bytes(item.loaded)+' / '+bytes(item.total);
-    const actions=document.createElement('div');actions.className='qactions';
-    const btn=(label,cls,fn)=>{const b=document.createElement('button');b.textContent=label;b.className='qbtn '+cls;b.onclick=fn;actions.append(b)};
-    const isPaused = item.status==='paused' || (item.status==='uploading' && globalPaused);
-    if(item.status==='waiting') btn(t('btnQueueStart'),'qstart',()=>{item.paused=false;item.aborted=false;renderQueue();drain()});
-    else if(item.status==='uploading'){btn(globalPaused?t('queueResumeAll'):t('btnQueuePause'),'qpause',()=>{if(globalPaused){globalPaused=false;item.paused=false;item.status='waiting';drain();}else{item.paused=true;renderQueue();}}); btn(t('btnQueueCancel'),'qcancel',()=>{item.aborted=true;renderQueue();})}
-    else if(isPaused){btn(t('queueResumeAll'),'qstart',()=>{item.paused=false;renderQueue();drain()}); btn(t('btnQueueCancel'),'qcancel',()=>{item.aborted=true;renderQueue();})}
-    else if(item.status==='error'){btn(t('btnQueueRetry'),'qstart',()=>{item.error=null;item.retries=0;item.loaded=0;item.status='waiting';renderQueue();drain()}); btn(t('btnDelete'),'qcancel',()=>{const i=queue.indexOf(item);if(i>=0)queue.splice(i,1);renderQueue();})}
-    row.append(head,bar,info,actions);list.append(row);
-    fill.style.width=Math.round((item.loaded/item.total||0)*100)+'%';
-    if(item.error) info.textContent+=' — '+item.error;
-  }
-}
-function drain(){
-  if(globalPaused)return;
-  if(running>=QMAX)return;
-  while(running<QMAX && queue.length>0){
-    const item=queue.find(x=>x.status==='waiting');
-    if(!item)break;
-    item.status='uploading';running++;
-    renderQueue();
-    runChunk(item).then(()=>{running--;renderQueue();drain();}).catch(()=>{running--;renderQueue();drain();});
-  }
-  if(queue.length===0 && running===0)queueHide();
-}
-async function runChunk(item){
-  try{
-    const init=await api('upload-init',{path:item.parent,name:item.name,size:item.file.size,overwrite:item.overwrite?'1':'0',unique:item.unique?'1':'0'},{method:'POST'});
-    const d=await init.json();const uploadId=d.uploadId;
-    const chunk=Number(d.chunk||4*1024*1024);let offset=0;
-    const start=performance.now();
-    while(offset<item.file.size && !item.aborted && !item.paused && !globalPaused){
-      const piece=item.file.slice(offset,Math.min(offset+chunk,item.file.size));
-      const res=await api('upload-chunk',{id:uploadId,offset:offset},{method:'POST',headers:{'Content-Length':String(piece.size)},body:piece});
-      const rd=await res.json();offset=Number(rd.received||offset);item.loaded=offset;item.total=Number(rd.size||item.total);
-      const now=performance.now();const dt=(now-start)/1000||0.001;item.lastBytes=offset;item.lastTime=now;
-      const el=item.row;if(el){const fill=el.querySelector('.qfill');if(fill)fill.style.width=Math.round((offset/item.total)*100)+'%';const info=el.querySelector('.qinfo');if(info)info.textContent=bytes(offset)+' / '+bytes(item.total)+' · '+humanSpeed(offset/dt);}
-    }
-    if(item.aborted){item.status='waiting';return;}
-    if(item.paused){item.status='paused';return;}
-    const fin=await api('upload-finish',{id:uploadId},{method:'POST'});
-    const fd=await fin.json();
-    item.status='done';item.loaded=item.total;
-    const el=item.row;if(el){const fill=el.querySelector('.qfill');if(fill)fill.style.width='100%';const info=el.querySelector('.qinfo');if(info)info.textContent=bytes(item.total)+' · готово';}
-  }catch(e){
-    item.retries++;
-    if(item.retries<3 && !item.aborted && !item.paused){item.status='waiting';renderQueue();setTimeout(()=>drain(),1500);return;}
-    item.status='error';item.error=(e.message||'ошибка загрузки');
-    const el=item.row;if(el){const info=el.querySelector('.qinfo');if(info)info.textContent=bytes(item.loaded)+' / '+bytes(item.total)+' — '+item.error;}
-    throw e;
-  }
-}
-function bytes(n){if(n==null)return'0 Б';const u=['Б','КБ','МБ','ГБ'];let i=0,v=Number(n);while(v>=1024&&i<u.length-1){v/=1024;i++}return v.toFixed(i?1:0)+' '+u[i]}
-function humanSpeed(b){if(!isFinite(b)||b<=0)return'';return bytes(b)+'/с'}
-async function enqueueFiles(list,parent,unique=false){
-  for(const f of list){
-    const name=unique?f.name:f.name;
-    const item=qItem(f,parent,name,false,unique);
-    item.row=document.getElementById('queueList').appendChild(document.createElement('div'));
-    enqueue(item);
-  }
-}
-function suggestName(name){const d=name.lastIndexOf('.');const base=d>0?name.slice(0,d):name,ext=d>0?name.slice(d):'';for(let i=1;i<1000;i++){const cand=base+' ('+i+')'+ext;if(!items.some(x=>x.name===cand))return cand}return base+'-новый'+ext}
-function conflictDialog(name){return actionDialog({title:'Файл уже существует',message:'«'+name+'» уже есть в этой папке. Сохранить под новым именем, перезаписать или пропустить?',accept:'Сохранить как',input:suggestName(name),cancel:'Пропустить',extra:{label:'Перезаписать',value:'overwrite',danger:true}})}
-async function uploadFiles(list){
-  const errors=[];
-  for(const f of list){
-    try{
-      await new Promise((resolve,reject)=>{
-        enqueueFiles([f],current,false);
-        const item=queue[queue.length-1];
-        const check=setInterval(()=>{
-          if(item.status==='done'){clearInterval(check);resolve();}
-          else if(item.status==='error'){clearInterval(check);reject(new Error(item.error||'ошибка'));losers.push(item.error);errors.push(f.name+': '+(item.error||'ошибка'));}
-        },300);
-      });
-    }catch(e){errors.push(f.name+': '+e.message);}
-  }
-  await refreshListing();
-  msg(errors.length?errors.slice(0,3).join('; ')+(errors.length>3?' и ещё '+(errors.length-3):''):'Файлы загружены: '+list.length,errors.length>0);
-}
-async function uploadFolder(files){
-  const errors=[],dirs=new Set();
-  try{
-    for(const f of files){
-      const rel=(f.webkitRelativePath||f.name).replace(/\\/g,'/');const parts=rel.split('/');const name=parts.pop();const dir=parts.length?joinPath(current,parts.join('/')):current;
-      if(dir!==current&&!dirs.has(dir)){await api('mkdirs',{path:dir},{method:'POST'});dirs.add(dir)}
-      try{await new Promise((resolve,reject)=>{
-        enqueueFiles([f],dir,false);
-        const item=queue[queue.length-1];
-        const check=setInterval(()=>{
-          if(item.status==='done'){clearInterval(check);resolve();}
-          else if(item.status==='error'){clearInterval(check);reject(new Error(item.error||'ошибка'));errors.push(rel+': '+(item.error||'ошибка'));}
-        },300);
-      });}catch(e){errors.push(rel+': '+e.message);}
-    }
-  }finally{
-    await refreshListing();
-    msg(errors.length?errors.slice(0,3).join('; ')+(errors.length>3?' и ещё '+(errors.length-3):''):'Папка загружена: '+files.length+' файлов',errors.length>0);
-  }
-}
-let losers=[];
-/* виды и тема */
-function setView(v){viewMode=v;localStorage.setItem('pb-view',v);el('view').textContent=v==='grid'?t('viewList'):t('viewGrid');render()}
-el('view').onclick=()=>setView(viewMode==='grid'?'list':'grid');
-/* тема */
-(function(){const saved=localStorage.getItem('pb-theme');const preferred=saved||(window.matchMedia&&matchMedia('(prefers-color-scheme: light)').matches?'light':'dark');applyTheme(preferred);updateLangUI();})();
-el('theme').onclick=()=>applyTheme(document.documentElement.dataset.theme==='light'?'dark':'light');
-el('langBtn').onclick=()=>setLang(currentLang==='ru'?'en':'ru');
-/* перетаскивание файлов в окно */
-(function(){const zone=el('app');if(!zone)return;
-zone.addEventListener('dragover',e=>{e.preventDefault();zone.classList.add('dropzone')});
-zone.addEventListener('dragleave',e=>{if(e.target===zone)zone.classList.remove('dropzone')});
-zone.addEventListener('drop',e=>{e.preventDefault();zone.classList.remove('dropzone');const files=e.dataTransfer&&e.dataTransfer.files;if(!files||!files.length)return;if(busy){msg(t('msgBusy'));return}busy=true;uploadFiles([...files])});})();
-el('upload').onclick=()=>el('fileInput').click();
-el('fileInput').onchange=async e=>{const files=[...e.target.files];e.target.value='';if(files.length)await uploadFiles(files);};
-el('uploadDir').onclick=()=>el('dirInput').click();
-el('dirInput').onchange=async e=>{const files=[...e.target.files];e.target.value='';if(!files.length)return;await uploadFolder(files);};
-/* перетаскивание файлов в окно */
-(function(){const zone=el('app');if(!zone)return;
-zone.addEventListener('dragover',e=>{e.preventDefault();zone.classList.add('dropzone')});
-zone.addEventListener('dragleave',e=>{if(e.target===zone)zone.classList.remove('dropzone')});
-zone.addEventListener('drop',e=>{e.preventDefault();zone.classList.remove('dropzone');const files=e.dataTransfer&&e.dataTransfer.files;if(!files||!files.length)return;uploadFiles([...files])});})();
-/* ссылка с кодом: /#k=XXXX входит автоматически */
-(function(){const match=/^#k=([0-9a-fA-F]{8,64})$/.exec(location.hash||'');if(!match)return;history.replaceState(null,'',location.pathname+location.search);el('code').value=match[1];el('loginForm').requestSubmit()})();
-</script>
+      <div class="pathbar">
+        <div class="pathline">
+          <div class="caption" data-i18n="currentFolder">Текущая папка</div>
+          <div id="path" class="path">/</div>
+        </div>
+        <div id="itemCount" class="count"></div>
+      </div>
+
+      <div id="selection" class="selection hidden">
+        <strong id="selectedCount"></strong>
+        <button id="downloadSelected" class="btn primary" type="button" data-i18n="btnDownloadSelected">↓ Скачать выбранные файлы ZIP</button>
+        <button id="deleteSelected" class="btn danger" type="button" data-i18n="btnDeleteSelected">Удалить выбранное</button>
+        <button id="clearSelected" class="btn" type="button" data-i18n="btnClearSelected">Снять выделение</button>
+      </div>
+
+      <div id="message" class="message"></div>
+
+      <div id="progress" class="progress hidden">
+        <span class="plabel" id="progressLabel"></span>
+        <div class="ptrack"><div class="pfill" id="progressFill"></div></div>
+        <button class="btn" id="progressCancel" data-i18n="btnQueueCancel" type="button">Отмена</button>
+      </div>
+
+      <div id="grid" class="grid hidden"></div>
+      <div class="tablewrap" id="tableWrap">
+        <table>
+          <thead>
+            <tr>
+              <th class="checkcol"><input type="checkbox" id="selectAll" data-i18n-title="btnSelectAll" data-i18n-aria="btnSelectAll" title="Выделить все видимые" aria-label="Выделить все видимые"></th>
+              <th data-i18n="colName">Название</th>
+              <th data-i18n="colSize">Размер</th>
+              <th data-i18n="colDate">Изменён</th>
+              <th data-i18n="colActions"></th>
+            </tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+        <div id="empty" class="empty hidden"><span class="empty-icon">◌</span><span data-i18n="emptyFolder">Здесь пока ничего нет</span></div>
+      </div>
+    </div>
+
+    <div class="foot" data-i18n="sizesDisabled">Для подсчёта размеров нажмите «Размеры папок». Подсчёт может быть неполным из-за ограничений Android. Не закрывайте приложение на телефоне во время передачи.</div>
+  </section>
+</main>
+
+<div id="preview" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="previewTitle">
+  <div class="viewer">
+    <div class="viewtop">
+      <div class="viewtitle"><strong id="previewTitle"></strong><small id="previewHint"></small></div>
+      <button id="previewPrev" class="btn hidden" type="button" data-i18n-title="previewPrev" data-i18n-aria="previewPrev" title="Предыдущий файл" aria-label="Предыдущий файл">⏮</button>
+      <button id="previewNext" class="btn hidden" type="button" data-i18n-title="previewNext" data-i18n-aria="previewNext" title="Следующий файл" aria-label="Следующий файл">⏭</button>
+      <button id="previewDownload" type="button" data-i18n="previewDownload" class="btn">↓ Скачать</button>
+      <button id="previewClose" type="button" class="btn" data-i18n-title="previewCloseTitle" data-i18n-aria="previewCloseTitle" title="Закрыть" aria-label="Закрыть">✕</button>
+    </div>
+    <div id="previewBody" class="viewbody"></div>
+  </div>
+</div>
+
+<div id="actionDialog" class="dialog-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="dialogTitle" aria-describedby="dialogMessage">
+  <form class="action-dialog" id="dialogForm">
+    <div id="dialogIcon" class="dialog-symbol">✦</div>
+    <h2 id="dialogTitle"></h2>
+    <p id="dialogMessage" class="dialog-message"></p>
+    <input id="dialogInput" class="dialog-input hidden" maxlength="200" autocomplete="off" data-i18n-aria="colName" aria-label="Название">
+    <div id="dialogError" class="dialog-error hidden"></div>
+    <div class="dialog-actions">
+      <button id="dialogExtra" class="btn" type="button" hidden></button>
+      <button id="dialogCancel" data-i18n="actionCancel" class="btn" type="button">Отмена</button>
+      <button id="dialogAccept" data-i18n="btnContinue" class="btn primary" type="submit">Продолжить</button>
+    </div>
+  </form>
+</div>
+
+<script>
+'use strict';
 
 /* ---------- локализация RU/EN ---------- */
 const LANG = {
@@ -388,6 +416,7 @@ const LANG = {
     heroTitle: 'Всё под рукой.',
     heroSub: 'Просматривайте файлы и управляйте ими без проводов.',
     deviceNearby: 'Ваше устройство · файлы',
+    deviceBadge: '● Ваше устройство · файлы',
     deviceDesc: 'Ваш телефон рядом.',
     descPc: 'Работайте с файлами телефона прямо в браузере компьютера.',
     accessSubtitle: 'Доступ по коду в локальной сети',
@@ -395,12 +424,11 @@ const LANG = {
     loginCodeLabel: 'Код с экрана телефона',
     loginCodePlaceholder: 'Например, 1a2b3c4d…',
     loginSubmit: 'Подключиться →',
-    loginInvalid: 'Неверный код доступа',
-    headerBack: 'На уровень выше',
-    headerRefresh: 'Обновить',
+    headerBack: '← Назад',
+    headerBackTitle: 'На уровень выше',
+    headerRefreshTitle: 'Обновить',
     headerMkdir: '＋ Папка',
     headerSizes: '◫ Размеры папок',
-    headerView: '▦ Плитка',
     headerUpload: '↑ Загрузить файлы',
     headerUploadDir: '⇪ Загрузить папку',
     headerLogout: 'Выйти',
@@ -409,6 +437,7 @@ const LANG = {
     colDate: 'Изменён',
     colActions: '',
     rootName: 'Телефон',
+    rootTitle: 'Корень хранилища',
     currentFolder: 'Текущая папка',
     emptyFolder: 'Здесь пока ничего нет',
     emptySearch: 'Ничего не найдено',
@@ -416,9 +445,9 @@ const LANG = {
     btnPreview: 'Просмотр',
     btnDownload: 'Скачать',
     btnZip: 'ZIP',
+    btnZipFolder: 'Скачать папку в ZIP',
     btnRename: 'Имя',
     btnDelete: 'Удалить',
-    btnSizes: 'Размеры папок',
     btnSelectAll: 'Выделить все видимые',
     btnClearSelected: 'Снять выделение',
     btnDownloadSelected: '↓ Скачать выбранные файлы ZIP',
@@ -431,10 +460,10 @@ const LANG = {
     renameTitle: 'Переименовать',
     renameMsg: 'Введите новое имя файла или папки.',
     renameAccept: 'Сохранить',
-    deleteItemTitle: 'Удалить {type}?',
-    deleteItemMsg: '«{name}»{suffix} Отменить это действие нельзя.',
-    deleteItemFolderSuffix: ' и всё её содержимое будут удалены.',
-    deleteItemFileSuffix: ' будет удалён.',
+    deleteFolderTitle: 'Удалить папку?',
+    deleteFileTitle: 'Удалить файл?',
+    deleteFolderMsg: '«{name}» и всё её содержимое будут удалены. Отменить это действие нельзя.',
+    deleteFileMsg: '«{name}» будет удалён. Отменить это действие нельзя.',
     dialogInputError: 'Введите корректное имя без символов / и \\.',
     mkdirTitle: 'Новая папка',
     mkdirMsg: 'Как назвать новую папку?',
@@ -444,25 +473,14 @@ const LANG = {
     conflictAccept: 'Сохранить как',
     conflictCancel: 'Пропустить',
     conflictOverwrite: 'Перезаписать',
+    newNameSuffix: '-новый',
     previewPrev: 'Предыдущий файл',
     previewNext: 'Следующий файл',
     previewDownload: '↓ Скачать',
-    previewClose: '✕',
-    queueTitle: 'Загрузка',
-    queueEmpty: 'Очередь пуста',
-    queueWaiting: 'в очереди',
-    queueUploading: 'загрузка',
-    queuePaused: 'пауза',
-    queueError: 'ошибка',
-    btnQueueStart: 'Старт',
-    btnQueuePause: 'Пауза',
-    btnQueueCancel: 'Отмена',
-    btnQueueRetry: 'Повтор',
-    queuePauseAll: 'Пауза все',
-    queueResumeAll: 'Продолжить',
-    queueClear: 'Очистить',
-    selectedCount: 'Выбрано: {n}',
-    btnZipFolder: 'Скачать папку в ZIP',
+    previewCloseTitle: 'Закрыть',
+    previewHtmlTitle: 'Просмотр HTML',
+    previewPdfTitle: 'Просмотр PDF',
+    previewDocxTruncated: '[Показана только часть документа]',
     previewUnsupported: 'Просмотр этого формата не поддерживается. Скачайте файл для открытия.',
     previewHTMLDesc: 'HTML без скриптов и внешних ресурсов',
     previewDocxDesc: 'DOCX: только текст, без оформления и изображений',
@@ -472,50 +490,74 @@ const LANG = {
     previewCodecError: 'Браузер не смог воспроизвести этот файл или не поддерживает кодек.',
     previewAutoplayBlocked: 'Нажмите ▶ в плеере: браузер заблокировал автозапуск.',
     previewPlaybackError: 'Не удалось запустить файл. Нажмите ▶ или проверьте поддержку кодека.',
-    msgPreparingFolder: 'Готовим архив папки {name}…',
-    msgPreparingDownload: 'Готовим скачивание: {name}',
-    msgSearching: 'Ищем во всех папках…',
-    msgSearchTruncated: 'Показаны первые результаты — уточните запрос',
-    msgSearchFound: 'Найдено: {n}',
-    msgDeleting: 'Удаление {i} из {n}…',
+    queueTitle: 'Загрузка',
+    queueEmpty: 'Очередь пуста',
+    queueWaiting: 'в очереди',
+    queueUploading: 'загрузка',
+    queuePaused: 'пауза',
+    queueDone: 'готово',
+    queueCancelled: 'отменено',
+    queueSkipped: 'пропущен',
+    queueError: 'ошибка',
+    queueErrorDefault: 'ошибка загрузки',
+    queueUniqueSuffix: '(с сохранением имени)',
+    btnQueueStart: 'Старт',
+    btnQueuePause: 'Пауза',
+    btnQueueCancel: 'Отмена',
+    btnQueueRetry: 'Повтор',
+    queuePauseAll: 'Пауза все',
+    queueResumeAll: 'Продолжить',
+    queueClear: 'Очистить',
+    progressUploading: 'Загрузка {done} из {total} · {pct}%',
+    selectedCount: 'Выбрано: {n}',
+    selectItem: 'Выбрать {name}',
     themeTitle: 'Светлая/тёмная тема',
+    langSwitchTitle: 'Язык / Language',
     viewTitle: 'Вид: плитка или список',
     viewList: '☰ Список',
     viewGrid: '▦ Плитка',
     searchPlaceholder: 'Поиск в этой папке',
+    scopeAria: 'Где искать',
+    sortAria: 'Сортировка',
     searchLocal: 'искать здесь',
     searchGlobal: 'искать везде',
     sortName: 'Сортировка: имя',
     sortSize: 'размер',
     sortDate: 'дата',
     sortType: 'тип',
-    selectItem: 'Выбрать {name}',
-    rootTitle: 'Корень хранилища',
     folderSizeTitle: 'Размер вложенных доступных файлов',
+    sizeLoading: 'Подсчёт…',
+    sizeError: 'Недоступно',
+    sizePartialTitle: 'Часть файлов недоступна или подсчёт занял слишком много времени',
     sizesDisabled: 'Для подсчёта размеров нажмите «Размеры папок». Подсчёт может быть неполным из-за ограничений Android. Не закрывайте приложение на телефоне во время передачи.',
+    msgPreparingFolder: 'Готовим архив папки {name}…',
+    msgPreparingDownload: 'Готовим скачивание: {name}',
     msgPreparing: 'Готовим ZIP-архив…',
     msgDownloadStarted: 'Скачивание архива началось',
+    msgFileDownloadStarted: 'Скачивание началось',
     msgNothingSelected: 'Ничего не выбрано',
     msgMaxSelect: 'За один раз можно выбрать не более 500 объектов.',
     msgOpening: 'Открываем папку…',
+    msgSearching: 'Ищем во всех папках…',
+    msgSearchTruncated: 'Показаны первые результаты — уточните запрос',
+    msgSearchFound: 'Найдено: {n}',
+    msgDeleting: 'Удаление {i} из {n}…',
+    msgDeleted: 'Удалено: {n}',
     msgUploadingFiles: 'Файлы загружены: {n}',
     msgUploadingFolder: 'Папка загружена: {n} файлов',
-    msgUploadCancelled: '{name}: отменено',
-    msgUploadSkipped: '{name}: пропущен',
-    msgFilesUploaded: 'Файлы загружены',
-    msgBusy: 'Дождитесь окончания текущей загрузки',
-    msgPreviewLarge: 'Файл больше 5 МБ — скачайте его для просмотра',
-    msgNetworkUnavailable: 'Сеть недоступна',
-    langRu: 'Русский',
-    langEn: 'English',
-    langCurrent: 'Язык',
+    msgUploadCancelledAll: 'Загрузка отменена',
+    msgUploadSkippedAll: 'Загрузка пропущена',
+    msgAndMore: ' и ещё {n}',
+    units: ['Б', 'КБ', 'МБ', 'ГБ', 'ТБ'],
+    unitSec: 'с'
   },
   en: {
     appTitle: 'PocketBridge · Phone Files',
-    wifiProvider: 'Wi-Fi PROVIDER',
+    wifiProvider: 'Wi-Fi EXPLORER',
     heroTitle: 'Everything at hand.',
     heroSub: 'Browse and manage your phone files without cables.',
     deviceNearby: 'Your device · files',
+    deviceBadge: '● Your device · files',
     deviceDesc: 'Your phone is right here.',
     descPc: 'Work with phone files right in your computer browser.',
     accessSubtitle: 'Access by code on local network',
@@ -523,30 +565,30 @@ const LANG = {
     loginCodeLabel: 'Code from phone screen',
     loginCodePlaceholder: 'e.g. 1a2b3c4d…',
     loginSubmit: 'Connect →',
-    loginInvalid: 'Invalid access code',
-    headerBack: 'Up one level',
-    headerRefresh: 'Refresh',
-    headerMkdir: '+ Folder',
-    headerSizes: 'Folder sizes',
-    headerView: 'Tiles / List',
-    headerUpload: 'Upload files',
-    headerUploadDir: 'Upload folder',
+    headerBack: '← Back',
+    headerBackTitle: 'Up one level',
+    headerRefreshTitle: 'Refresh',
+    headerMkdir: '＋ Folder',
+    headerSizes: '◫ Folder sizes',
+    headerUpload: '↑ Upload files',
+    headerUploadDir: '⇪ Upload folder',
     headerLogout: 'Log out',
     colName: 'Name',
     colSize: 'Size',
     colDate: 'Modified',
     colActions: '',
     rootName: 'Phone',
+    rootTitle: 'Root of storage',
     currentFolder: 'Current folder',
-    emptyFolder: 'Folder is empty',
+    emptyFolder: 'Nothing here yet',
     emptySearch: 'Nothing found',
     itemCount: 'Items: ',
     btnPreview: 'Preview',
     btnDownload: 'Download',
     btnZip: 'ZIP',
-    btnRename: 'Name',
+    btnZipFolder: 'Download folder as ZIP',
+    btnRename: 'Rename',
     btnDelete: 'Delete',
-    btnSizes: 'Folder sizes',
     btnSelectAll: 'Select all visible',
     btnClearSelected: 'Clear selection',
     btnDownloadSelected: '↓ Download selected as ZIP',
@@ -557,31 +599,49 @@ const LANG = {
     actionCancel: 'Cancel',
     btnContinue: 'Continue',
     renameTitle: 'Rename',
-    renameMsg: 'Enter new file or folder name.',
+    renameMsg: 'Enter a new file or folder name.',
     renameAccept: 'Save',
-    deleteItemTitle: 'Delete {type}?',
-    deleteItemMsg: '«{name}»{suffix} This cannot be undone.',
-    deleteItemFolderSuffix: ' and all its contents will be deleted.',
-    deleteItemFileSuffix: ' will be deleted.',
-    dialogInputError: 'Enter a valid name without / and \ characters.',
+    deleteFolderTitle: 'Delete folder?',
+    deleteFileTitle: 'Delete file?',
+    deleteFolderMsg: '“{name}” and all its contents will be deleted. This cannot be undone.',
+    deleteFileMsg: '“{name}” will be deleted. This cannot be undone.',
+    dialogInputError: 'Enter a valid name without / and \\ characters.',
     mkdirTitle: 'New folder',
-    mkdirMsg: 'What to name the new folder?',
+    mkdirMsg: 'What should the new folder be named?',
     mkdirAccept: 'Create',
     conflictTitle: 'File already exists',
-    conflictMsg: '«{name}» already exists in this folder. Save under new name, overwrite or skip?',
+    conflictMsg: '“{name}” already exists in this folder. Save under a new name, overwrite, or skip?',
     conflictAccept: 'Save as',
     conflictCancel: 'Skip',
     conflictOverwrite: 'Overwrite',
+    newNameSuffix: '-new',
     previewPrev: 'Previous file',
     previewNext: 'Next file',
     previewDownload: '↓ Download',
-    previewClose: '✕',
+    previewCloseTitle: 'Close',
+    previewHtmlTitle: 'HTML preview',
+    previewPdfTitle: 'PDF preview',
+    previewDocxTruncated: '[Showing part of the document]',
+    previewUnsupported: 'Preview is not supported for this format. Download the file to open it.',
+    previewHTMLDesc: 'HTML without scripts or external resources',
+    previewDocxDesc: 'DOCX: plain text only, without layout or images',
+    previewFromPhone: 'Preview from phone · ',
+    previewOpening: 'Opening file…',
+    previewFailed: 'Failed to open: ',
+    previewCodecError: 'The browser could not play this file or does not support its codec.',
+    previewAutoplayBlocked: 'Press ▶ in the player: the browser blocked autoplay.',
+    previewPlaybackError: 'Failed to play file. Press ▶ or check codec support.',
     queueTitle: 'Uploads',
     queueEmpty: 'Queue is empty',
     queueWaiting: 'waiting',
     queueUploading: 'uploading',
     queuePaused: 'paused',
+    queueDone: 'done',
+    queueCancelled: 'cancelled',
+    queueSkipped: 'skipped',
     queueError: 'error',
+    queueErrorDefault: 'upload error',
+    queueUniqueSuffix: '(renamed)',
     btnQueueStart: 'Start',
     btnQueuePause: 'Pause',
     btnQueueCancel: 'Cancel',
@@ -589,92 +649,1502 @@ const LANG = {
     queuePauseAll: 'Pause all',
     queueResumeAll: 'Resume',
     queueClear: 'Clear',
+    progressUploading: 'Uploading {done} of {total} · {pct}%',
     selectedCount: 'Selected: {n}',
-    btnZipFolder: 'Download folder as ZIP',
-    previewUnsupported: 'Preview not supported for this format. Download the file to open.',
-    previewHTMLDesc: 'HTML without scripts and external resources',
-    previewDocxDesc: 'DOCX: text only, without formatting and images',
-    previewFromPhone: 'Preview from phone · ',
-    previewOpening: 'Opening file…',
-    previewFailed: 'Failed to open: ',
-    previewCodecError: 'Browser could not play this file or does not support the codec.',
-    previewAutoplayBlocked: 'Press ▶ in the player: browser blocked autoplay.',
-    previewPlaybackError: 'Failed to play file. Press ▶ or check codec support.',
-    msgPreparingFolder: 'Preparing archive of folder {name}…',
+    selectItem: 'Select {name}',
+    themeTitle: 'Light / dark theme',
+    langSwitchTitle: 'Language / Язык',
+    viewTitle: 'View: tiles or list',
+    viewList: '☰ List',
+    viewGrid: '▦ Tiles',
+    searchPlaceholder: 'Search in this folder',
+    scopeAria: 'Search scope',
+    sortAria: 'Sort order',
+    searchLocal: 'search here',
+    searchGlobal: 'search everywhere',
+    sortName: 'Sort: name',
+    sortSize: 'size',
+    sortDate: 'date',
+    sortType: 'type',
+    folderSizeTitle: 'Size of nested accessible files',
+    sizeLoading: 'Calculating…',
+    sizeError: 'Unavailable',
+    sizePartialTitle: 'Some files are inaccessible or calculation took too long',
+    sizesDisabled: 'Click “Folder sizes” to calculate. Results may be partial due to Android restrictions. Keep the app open during transfers.',
+    msgPreparingFolder: 'Preparing ZIP for folder {name}…',
     msgPreparingDownload: 'Preparing download: {name}',
+    msgPreparing: 'Preparing ZIP archive…',
+    msgDownloadStarted: 'Archive download started',
+    msgFileDownloadStarted: 'Download started',
+    msgNothingSelected: 'Nothing selected',
+    msgMaxSelect: 'You can select at most 500 items at once.',
+    msgOpening: 'Opening folder…',
     msgSearching: 'Searching all folders…',
     msgSearchTruncated: 'Showing first results — refine your query',
     msgSearchFound: 'Found: {n}',
     msgDeleting: 'Deleting {i} of {n}…',
-    themeTitle: 'Light/dark theme',
-    viewTitle: 'Tiles / List',
-    viewList: '☰ List',
-    viewGrid: '▦ Tiles',
-    searchPlaceholder: 'Search in this folder',
-    searchLocal: 'search here',
-    searchGlobal: 'search everywhere',
-    sortName: 'Sort by: name',
-    sortSize: 'size',
-    sortDate: 'date',
-    sortType: 'type',
-    selectItem: 'Select {name}',
-    rootTitle: 'Root of storage',
-    folderSizeTitle: 'Size of nested accessible files',
-    sizesDisabled: 'Tap "Folder sizes" to calculate. Size calculation may be incomplete due to Android limitations. Do not close the app during transfer.',
-    msgPreparing: 'Preparing ZIP archive…',
-    msgDownloadStarted: 'ZIP download started',
-    msgNothingSelected: 'Nothing selected',
-    msgMaxSelect: 'No more than 500 objects at once.',
-    msgOpening: 'Opening folder…',
+    msgDeleted: 'Deleted: {n}',
     msgUploadingFiles: 'Files uploaded: {n}',
     msgUploadingFolder: 'Folder uploaded: {n} files',
-    msgUploadCancelled: '{name}: cancelled',
-    msgUploadSkipped: '{name}: skipped',
-    msgFilesUploaded: 'Files uploaded',
-    msgBusy: 'Wait for the current upload to finish',
-    msgPreviewLarge: 'File larger than 5 MB — download it to view',
-    msgNetworkUnavailable: 'Network unavailable',
-    langRu: 'Русский',
-    langEn: 'English',
-    langCurrent: 'Language',
+    msgUploadCancelledAll: 'Upload cancelled',
+    msgUploadSkippedAll: 'Upload skipped',
+    msgAndMore: ' and {n} more',
+    units: ['B', 'KB', 'MB', 'GB', 'TB'],
+    unitSec: 's'
   }
 };
 
-let currentLang = localStorage.getItem('pb-lang') || 'ru';
-function t(key, params) {
-  let text = (LANG[currentLang] && LANG[currentLang][key]) || (LANG.ru[key]) || key;
+const el = id => document.getElementById(id);
+function safeGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+function safeSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+
+let currentLang = safeGet('pb-lang') === 'en' ? 'en' : 'ru';
+let viewMode = safeGet('pb-view') === 'grid' ? 'grid' : 'list';
+let key = '', current = '/', items = [], selected = new Set(), sizes = new Map();
+let generation = 0, scanning = false, sessionToken = null;
+let remoteResults = null, searchTimer = null;
+let previewSerial = 0, previewItem = null;
+let queue = [], running = 0, globalPaused = false, uploadBusy = false;
+
+function t(id, params) {
+  const dict = LANG[currentLang] || LANG.ru;
+  let val = dict[id] !== undefined ? dict[id] : (LANG.ru[id] !== undefined ? LANG.ru[id] : id);
+  if (typeof val !== 'string') return val;
   if (params) {
     for (const [k, v] of Object.entries(params)) {
-      text = text.replace(new RegExp('\\{' + k + '\\}', 'g'), v);
+      val = val.split('{' + k + '}').join(String(v));
     }
   }
-  return text;
+  return val;
 }
+
+function populateI18n() {
+  document.documentElement.lang = currentLang;
+  document.title = t('appTitle');
+  document.querySelectorAll('[data-i18n]').forEach(node => {
+    node.textContent = t(node.getAttribute('data-i18n'));
+  });
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(node => {
+    node.setAttribute('placeholder', t(node.getAttribute('data-i18n-placeholder')));
+  });
+  document.querySelectorAll('[data-i18n-title]').forEach(node => {
+    node.setAttribute('title', t(node.getAttribute('data-i18n-title')));
+  });
+  document.querySelectorAll('[data-i18n-aria]').forEach(node => {
+    node.setAttribute('aria-label', t(node.getAttribute('data-i18n-aria')));
+  });
+  const viewBtn = el('view');
+  if (viewBtn) viewBtn.textContent = viewMode === 'grid' ? t('viewList') : t('viewGrid');
+  const langBtn = el('langBtn');
+  if (langBtn) langBtn.textContent = currentLang === 'ru' ? 'RU' : 'EN';
+}
+
 function setLang(lang) {
-  currentLang = lang;
-  localStorage.setItem('pb-lang', lang);
-  document.documentElement.lang = lang;
+  currentLang = lang === 'en' ? 'en' : 'ru';
+  safeSet('pb-lang', currentLang);
   updateLangUI();
 }
+
 function updateLangUI() {
-  const btn = document.getElementById('langBtn');
-  if (btn) btn.textContent = currentLang === 'ru' ? 'RU' : 'EN';
   populateI18n();
-  try { render(); } catch(e) {}
+  if (key && !el('app').classList.contains('hidden')) {
+    renderPath(current);
+    render();
+    renderQueue();
+  }
 }
-function populateI18n() {
-  document.querySelectorAll('[data-i18n]').forEach(el => {
-    const key = el.getAttribute('data-i18n');
-    el.textContent = t(key);
+
+function applyTheme(theme) {
+  const next = theme === 'light' ? 'light' : 'dark';
+  document.documentElement.dataset.theme = next;
+  safeSet('pb-theme', next);
+  el('theme').textContent = next === 'light' ? '☾' : '☀';
+}
+
+async function api(route, params = {}, options = {}) {
+  const q = new URLSearchParams();
+  for (const [k, v] of Object.entries(params)) {
+    if (v !== undefined && v !== null) q.set(k, String(v));
+  }
+  const url = '/api/' + route + (q.toString() ? '?' + q : '');
+  const r = await fetch(url, {
+    ...options,
+    headers: { 'X-Access-Key': key, ...(options.headers || {}) },
+    cache: 'no-store'
   });
-  // Update select option text (they have data-i18n but need textContent too)
-  document.querySelectorAll('option[data-i18n]').forEach(el => {
-    el.textContent = t(el.getAttribute('data-i18n'));
+  if (!r.ok) {
+    const err = new Error((await r.text()) || ('HTTP ' + r.status));
+    err.status = r.status;
+    err.headers = r.headers;
+    throw err;
+  }
+  return r;
+}
+
+function msg(s, error = true) {
+  const m = el('message');
+  m.textContent = s || '';
+  m.classList.toggle('ok', !error);
+}
+
+function bytes(n) {
+  const units = t('units');
+  let v = Math.max(0, Number(n) || 0), i = 0;
+  while (v >= 1024 && i < units.length - 1) { v /= 1024; i++; }
+  return (i === 0 ? Math.round(v) : v.toFixed(1)) + ' ' + units[i];
+}
+
+function humanSpeed(b) {
+  if (!isFinite(b) || b <= 0) return '';
+  return bytes(b) + '/' + t('unitSec');
+}
+
+function extOf(name) {
+  const dot = name.lastIndexOf('.');
+  return dot > 0 ? name.slice(dot + 1).toLowerCase() : '';
+}
+
+function parentOf(path) {
+  const i = path.lastIndexOf('/');
+  return i <= 0 ? '/' : path.slice(0, i);
+}
+
+function joinPath(base, rel) {
+  const a = base === '/' ? '' : base.replace(/\/+$/, '');
+  const b = rel.replace(/^\/+/, '');
+  return a + '/' + b;
+}
+
+function visible() {
+  const s = el('search').value.trim().toLocaleLowerCase();
+  const arr = remoteResults ? remoteResults.slice() : items.filter(x => x.name.toLocaleLowerCase().includes(s));
+  const mode = el('sort') ? el('sort').value : 'name';
+  const loc = currentLang === 'en' ? 'en' : 'ru';
+  const cmp = (a, b) => {
+    if (a.dir !== b.dir) return a.dir ? -1 : 1;
+    if (mode === 'size') return b.size - a.size;
+    if (mode === 'date') return (b.modified || 0) - (a.modified || 0);
+    if (mode === 'type') return extOf(a.name).localeCompare(extOf(b.name), loc) || a.name.localeCompare(b.name, loc, { numeric: true, sensitivity: 'base' });
+    return a.name.localeCompare(b.name, loc, { numeric: true, sensitivity: 'base' });
+  };
+  return arr.slice().sort(cmp);
+}
+
+function updateSelection() {
+  const v = visible(), num = selected.size;
+  el('selection').classList.toggle('hidden', !num);
+  el('selectedCount').textContent = t('selectedCount', { n: num });
+  const all = el('selectAll'), n = v.filter(x => selected.has(x.path)).length;
+  all.checked = v.length > 0 && n === v.length;
+  all.indeterminate = n > 0 && n < v.length;
+  all.disabled = !v.length;
+  el('downloadSelected').disabled = num === 0;
+}
+
+async function ensureSession(force = false) {
+  if (sessionToken && !force) return sessionToken;
+  const d = await (await api('session', {}, { method: 'POST' })).json();
+  sessionToken = d.token;
+  return sessionToken;
+}
+
+function thumbUrl(item) {
+  return '/thumb?token=' + encodeURIComponent(sessionToken || '') + '&path=' + encodeURIComponent(item.path) + '&w=320';
+}
+
+function renderCounters(view) {
+  el('itemCount').textContent = t('itemCount') + view.length;
+  const empty = el('empty');
+  empty.classList.toggle('hidden', view.length > 0);
+  empty.replaceChildren();
+  if (!view.length) {
+    const ic = document.createElement('span');
+    ic.className = 'empty-icon';
+    ic.textContent = '◌';
+    const txt = document.createElement('span');
+    txt.textContent = items.length ? t('emptySearch') : t('emptyFolder');
+    empty.append(ic, txt);
+  }
+}
+
+function render() {
+  if (viewMode === 'grid') renderGrid();
+  else renderList();
+}
+
+function renderGrid() {
+  const grid = el('grid'), view = visible();
+  grid.replaceChildren();
+  el('tableWrap').classList.add('hidden');
+  grid.classList.remove('hidden');
+  renderCounters(view);
+  if (!view.length) {
+    const emptyCard = document.createElement('div');
+    emptyCard.className = 'empty';
+    emptyCard.style.gridColumn = '1 / -1';
+    const ic = document.createElement('span');
+    ic.className = 'empty-icon';
+    ic.textContent = '◌';
+    emptyCard.append(ic, document.createTextNode(items.length ? t('emptySearch') : t('emptyFolder')));
+    grid.append(emptyCard);
+  }
+  for (const item of view) {
+    const card = document.createElement('div');
+    card.className = 'card' + (selected.has(item.path) ? ' selected' : '');
+    const thumb = document.createElement('div');
+    thumb.className = 'thumb';
+    const showIcon = () => {
+      const ic = document.createElement('span');
+      ic.className = 'ic';
+      ic.textContent = item.dir ? '▰' : '▤';
+      thumb.prepend(ic);
+    };
+    if (!item.dir && kind(item.name) === 'image') {
+      const img = document.createElement('img');
+      img.alt = '';
+      img.loading = 'lazy';
+      img.onerror = async () => {
+        if (!img.dataset.retried && key) {
+          img.dataset.retried = '1';
+          try {
+            await ensureSession(true);
+            img.src = thumbUrl(item);
+            return;
+          } catch (e) {}
+        }
+        img.remove();
+        showIcon();
+      };
+      img.src = thumbUrl(item);
+      thumb.append(img);
+    } else {
+      showIcon();
+    }
+    thumb.onclick = () => item.dir ? show(item.path) : openPreview(item);
+
+    const pick = document.createElement('label');
+    pick.className = 'pick';
+    pick.onclick = e => e.stopPropagation();
+    const check = document.createElement('input');
+    check.type = 'checkbox';
+    check.checked = selected.has(item.path);
+    check.setAttribute('aria-label', t('selectItem', { name: item.name }));
+    check.onchange = () => {
+      if (check.checked) selected.add(item.path);
+      else selected.delete(item.path);
+      card.classList.toggle('selected', check.checked);
+      updateSelection();
+    };
+    pick.append(check);
+    thumb.append(pick);
+
+    const cap = document.createElement('div');
+    cap.className = 'cap';
+    cap.textContent = item.name;
+    cap.title = item.name;
+    cap.onclick = thumb.onclick;
+
+    const sub = document.createElement('div');
+    sub.className = 'sub';
+    const sizeTxt = document.createElement('span');
+    sizeTxt.className = 'size';
+    sizeTxt.dataset.path = item.path;
+    setSize(sizeTxt, item);
+    sub.append(sizeTxt);
+    if (remoteResults) {
+      const p = document.createElement('span');
+      p.className = 'subpath';
+      p.textContent = parentOf(item.path);
+      sub.append(p);
+    }
+
+    const acts = document.createElement('div');
+    acts.className = 'acts';
+    const act = (label, title, fn) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = label;
+      b.title = title;
+      b.setAttribute('aria-label', title);
+      b.onclick = fn;
+      acts.append(b);
+    };
+    if (item.dir) {
+      act(t('btnZip'), t('btnZipFolder'), () => downloadFolderZip(item));
+    } else {
+      if (kind(item.name)) act('◉', t('btnPreview'), () => openPreview(item));
+      act('↓', t('btnDownload'), () => download(item));
+    }
+    act('✎', t('btnRename'), () => rename(item));
+    act('✕', t('btnDelete'), () => removeItem(item));
+    card.append(thumb, cap, sub, acts);
+    grid.append(card);
+  }
+  updateSelection();
+}
+
+function renderList() {
+  const rows = el('rows'), view = visible();
+  el('grid').classList.add('hidden');
+  el('tableWrap').classList.remove('hidden');
+  rows.replaceChildren();
+  renderCounters(view);
+  const dateLocale = currentLang === 'en' ? 'en-GB' : 'ru-RU';
+  for (const item of view) {
+    const tr = document.createElement('tr');
+    tr.classList.toggle('selected', selected.has(item.path));
+
+    const checkcell = document.createElement('td');
+    checkcell.className = 'checkcol';
+    const check = document.createElement('input');
+    check.type = 'checkbox';
+    check.checked = selected.has(item.path);
+    check.setAttribute('aria-label', t('selectItem', { name: item.name }));
+    check.onchange = () => {
+      if (check.checked) selected.add(item.path);
+      else selected.delete(item.path);
+      tr.classList.toggle('selected', check.checked);
+      updateSelection();
+    };
+    checkcell.append(check);
+
+    const n = document.createElement('td');
+    const box = document.createElement('div');
+    box.className = 'filecell';
+    const icon = document.createElement('span');
+    icon.className = 'icon ' + (item.dir ? 'folder' : 'file');
+    icon.textContent = item.dir ? '▰' : '▤';
+    const name = document.createElement('button');
+    name.type = 'button';
+    name.className = 'filename';
+    name.textContent = item.name;
+    name.onclick = () => item.dir ? show(item.path) : openPreview(item);
+    const nameWrap = document.createElement('div');
+    nameWrap.className = 'namewrap';
+    nameWrap.append(name);
+    if (remoteResults) {
+      const sub = document.createElement('div');
+      sub.className = 'subpath';
+      sub.textContent = parentOf(item.path);
+      nameWrap.append(sub);
+    }
+    box.append(icon, nameWrap);
+    n.append(box);
+
+    const size = document.createElement('td');
+    size.className = 'detail size';
+    size.dataset.path = item.path;
+    size.title = item.dir ? t('folderSizeTitle') : '';
+    setSize(size, item);
+
+    const date = document.createElement('td');
+    date.className = 'detail';
+    date.textContent = item.modified ? new Date(item.modified).toLocaleDateString(dateLocale) : '—';
+
+    const a = document.createElement('td');
+    a.className = 'rowactions';
+    const button = (label, fn, title = '') => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'iconbtn';
+      b.textContent = label;
+      if (title) b.title = title;
+      b.onclick = fn;
+      a.append(b);
+    };
+    if (!item.dir) {
+      if (kind(item.name)) button(t('btnPreview'), () => openPreview(item));
+      button(t('btnDownload'), () => download(item));
+    } else {
+      button(t('btnZip'), () => downloadFolderZip(item), t('btnZipFolder'));
+    }
+    button(t('btnRename'), () => rename(item));
+    button(t('btnDelete'), () => removeItem(item));
+
+    tr.append(checkcell, n, size, date, a);
+    rows.append(tr);
+  }
+  updateSelection();
+}
+
+function setSize(cell, item) {
+  if (!item.dir) { cell.textContent = bytes(item.size); return; }
+  const v = sizes.get(item.path);
+  cell.textContent = !v ? '—' : v.loading ? t('sizeLoading') : v.error ? t('sizeError') : (v.partial ? '≥ ' : '') + bytes(v.bytes);
+  cell.title = v && v.partial ? t('sizePartialTitle') : t('folderSizeTitle');
+}
+
+function updateSizeCells(item) {
+  for (const cell of document.querySelectorAll('.size')) {
+    if (cell.dataset.path === item.path) setSize(cell, item);
+  }
+}
+
+async function calculateSizes(token) {
+  if (scanning) return;
+  scanning = true;
+  el('sizes').disabled = true;
+  const dirs = (remoteResults || items).filter(x => x.dir);
+  try {
+    for (const item of dirs) {
+      if (token !== generation) break;
+      sizes.set(item.path, { loading: true });
+      updateSizeCells(item);
+      try {
+        const result = await (await api('size', { path: item.path })).json();
+        if (token !== generation) break;
+        sizes.set(item.path, result);
+      } catch (e) {
+        if (token !== generation) break;
+        sizes.set(item.path, { error: true });
+      }
+      updateSizeCells(item);
+    }
+  } finally {
+    scanning = false;
+    el('sizes').disabled = false;
+  }
+}
+
+function renderPath(path) {
+  const box = el('path');
+  box.classList.add('crumbs');
+  box.replaceChildren();
+  const root = document.createElement('button');
+  root.type = 'button';
+  root.textContent = t('rootName');
+  root.title = t('rootTitle');
+  root.onclick = () => show('/');
+  box.append(root);
+  let acc = '';
+  for (const seg of path.split('/').filter(Boolean)) {
+    acc += '/' + seg;
+    const sep = document.createElement('span');
+    sep.textContent = '/';
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = seg;
+    const target = acc;
+    b.onclick = () => show(target);
+    box.append(sep, b);
+  }
+}
+
+async function show(path, preloaded = null) {
+  const token = ++generation;
+  try {
+    msg(t('msgOpening'), false);
+    const data = preloaded || await (await api('list', { path })).json();
+    if (token !== generation) return;
+    await ensureSession().catch(() => {});
+    current = data.path;
+    items = data.items;
+    selected.clear();
+    sizes.clear();
+    remoteResults = null;
+    el('search').value = '';
+    renderPath(current);
+    el('up').disabled = current === '/';
+    render();
+    msg('', false);
+  } catch (e) {
+    if (token === generation) msg(e.message);
+  }
+}
+
+/* ---------- предпросмотр ---------- */
+function kind(name) {
+  const ext = extOf(name);
+  if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'avif', 'heic', 'heif', 'dng', 'cr2', 'nef', 'arw', 'raf', 'svg'].includes(ext)) return 'image';
+  if (['mp4', 'm4v', 'webm', 'ogv', 'mov'].includes(ext)) return 'video';
+  if (['mp3', 'm4a', 'wav', 'ogg', 'opus', 'flac'].includes(ext)) return 'audio';
+  if (ext === 'pdf') return 'pdf';
+  if (['html', 'htm'].includes(ext)) return 'html';
+  if (ext === 'docx') return 'docx';
+  if (['txt', 'md', 'csv', 'log', 'json', 'xml', 'css', 'js'].includes(ext)) return 'text';
+  return '';
+}
+
+function stopPlayback() {
+  for (const media of el('previewBody').querySelectorAll('audio,video')) {
+    media.pause();
+    media.removeAttribute('src');
+    media.load();
+  }
+}
+
+function closePreview() {
+  previewSerial++;
+  stopPlayback();
+  el('preview').classList.add('hidden');
+  el('previewBody').replaceChildren();
+  previewItem = null;
+}
+
+function playlist() {
+  if (!previewItem) return [];
+  const category = kind(previewItem.name);
+  if (category !== 'audio' && category !== 'video') return [];
+  return visible().filter(x => !x.dir && kind(x.name) === category);
+}
+
+function stepTrack(direction) {
+  const list = playlist();
+  const index = list.findIndex(x => x.path === (previewItem && previewItem.path));
+  const next = index + direction;
+  if (index >= 0 && next >= 0 && next < list.length) openPreview(list[next]);
+}
+
+function updateTrackButtons(type) {
+  const active = type === 'audio' || type === 'video';
+  const list = playlist();
+  const index = list.findIndex(x => x.path === (previewItem && previewItem.path));
+  el('previewPrev').classList.toggle('hidden', !active);
+  el('previewNext').classList.toggle('hidden', !active);
+  el('previewPrev').disabled = index <= 0;
+  el('previewNext').disabled = index < 0 || index >= list.length - 1;
+}
+
+async function openPreview(item) {
+  const type = kind(item.name);
+  if (!type) { msg(t('previewUnsupported')); return; }
+  const serial = ++previewSerial;
+  stopPlayback();
+  previewItem = item;
+  updateTrackButtons(type);
+  el('previewTitle').textContent = item.name;
+  el('previewHint').textContent = type === 'html' ? t('previewHTMLDesc') : type === 'docx' ? t('previewDocxDesc') : t('previewFromPhone') + bytes(item.size);
+  el('preview').classList.remove('hidden');
+  const body = el('previewBody');
+  body.replaceChildren();
+  const note = document.createElement('div');
+  note.className = 'viewempty';
+  note.textContent = t('previewOpening');
+  body.append(note);
+
+  try {
+    if (type === 'text' || type === 'html') {
+      const response = await api('text', { path: item.path });
+      const raw = await response.text();
+      if (serial !== previewSerial) return;
+      body.replaceChildren();
+      if (type === 'text') {
+        const pre = document.createElement('pre');
+        pre.textContent = raw;
+        body.append(pre);
+      } else {
+        const frame = document.createElement('iframe');
+        frame.setAttribute('sandbox', '');
+        frame.title = t('previewHtmlTitle');
+        frame.srcdoc = '<meta http-equiv="Content-Security-Policy" content="default-src \'none\'; style-src \'unsafe-inline\'; img-src data:; font-src data:">' + raw;
+        body.append(frame);
+      }
+    } else if (type === 'docx') {
+      const result = await (await api('docx', { path: item.path })).json();
+      if (serial !== previewSerial) return;
+      body.replaceChildren();
+      const pre = document.createElement('pre');
+      pre.textContent = result.text + (result.truncated ? '\n\n' + t('previewDocxTruncated') : '');
+      body.append(pre);
+    } else {
+      const data = await (await api('preview-ticket', { path: item.path }, { method: 'POST' })).json();
+      if (serial !== previewSerial) return;
+      body.replaceChildren();
+      let media;
+      if (type === 'image') {
+        media = document.createElement('img');
+        media.alt = item.name;
+        media.onerror = () => {
+          if (serial !== previewSerial) return;
+          body.replaceChildren();
+          const err = document.createElement('div');
+          err.className = 'viewempty error';
+          err.textContent = t('previewCodecError');
+          body.append(err);
+        };
+      } else if (type === 'video') {
+        media = document.createElement('video');
+        media.controls = true;
+        media.preload = 'metadata';
+      } else if (type === 'audio') {
+        media = document.createElement('audio');
+        media.controls = true;
+        media.preload = 'metadata';
+      } else {
+        media = document.createElement('iframe');
+        media.title = t('previewPdfTitle');
+      }
+      media.referrerPolicy = 'no-referrer';
+      if (type === 'video' || type === 'audio') {
+        media.autoplay = true;
+        media.onended = () => { if (serial === previewSerial) stepTrack(1); };
+        media.onerror = () => { if (serial === previewSerial) el('previewHint').textContent = t('previewCodecError'); };
+      }
+      media.src = data.url;
+      body.append(media);
+      if (type === 'video' || type === 'audio') {
+        el('previewHint').textContent = t('previewFromPhone') + bytes(item.size);
+        const attempt = media.play();
+        if (attempt && attempt.catch) {
+          attempt.catch(e => {
+            if (serial !== previewSerial) return;
+            el('previewHint').textContent = e.name === 'NotAllowedError' ? t('previewAutoplayBlocked') : t('previewPlaybackError');
+          });
+        }
+      }
+    }
+  } catch (e) {
+    if (serial !== previewSerial) return;
+    body.replaceChildren();
+    const err = document.createElement('div');
+    err.className = 'viewempty error';
+    err.textContent = t('previewFailed') + e.message;
+    body.append(err);
+  }
+}
+
+el('previewPrev').onclick = () => stepTrack(-1);
+el('previewNext').onclick = () => stepTrack(1);
+el('previewClose').onclick = closePreview;
+el('previewDownload').onclick = () => { if (previewItem) download(previewItem); };
+el('preview').onclick = e => { if (e.target === el('preview')) closePreview(); };
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && el('actionDialog').classList.contains('hidden') && !el('preview').classList.contains('hidden')) closePreview();
+});
+
+/* ---------- скачивание ---------- */
+function triggerDownload(url) {
+  const a = document.createElement('a');
+  a.href = url;
+  a.rel = 'noopener';
+  a.style.display = 'none';
+  document.body.append(a);
+  a.click();
+  a.remove();
+}
+
+async function downloadFolderZip(item) {
+  try {
+    msg(t('msgPreparingFolder', { name: item.name }), false);
+    const base = remoteResults ? '/' : current;
+    const ticket = await (await api('zip-ticket', { base }, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ paths: [item.path] })
+    })).json();
+    triggerDownload(ticket.url);
+    msg(t('msgDownloadStarted'), false);
+  } catch (e) {
+    msg(e.message);
+  }
+}
+
+async function download(item) {
+  try {
+    msg(t('msgPreparingDownload', { name: item.name }), false);
+    const ticket = await (await api('download-ticket', { path: item.path }, { method: 'POST' })).json();
+    triggerDownload(ticket.url);
+    msg(t('msgFileDownloadStarted'), false);
+  } catch (e) {
+    msg(e.message);
+  }
+}
+
+/* ---------- диалоги ---------- */
+let dialogResolve = null, dialogPreviousFocus = null, dialogNeedsInput = false, dialogExtraValue = null;
+
+function finishDialog(value) {
+  if (!dialogResolve) return;
+  const resolve = dialogResolve;
+  dialogResolve = null;
+  el('actionDialog').classList.add('hidden');
+  if (dialogPreviousFocus && document.contains(dialogPreviousFocus)) dialogPreviousFocus.focus();
+  resolve(value);
+}
+
+function actionDialog({ title, message, accept, danger = false, input = null, extra = null, cancel }) {
+  return new Promise(resolve => {
+    if (dialogResolve) finishDialog(null);
+    dialogResolve = resolve;
+    dialogPreviousFocus = document.activeElement;
+    dialogNeedsInput = input !== null;
+    el('dialogTitle').textContent = title;
+    el('dialogMessage').textContent = message;
+    el('dialogIcon').textContent = danger ? '!' : '✦';
+    el('dialogIcon').classList.toggle('danger', danger);
+    el('dialogAccept').textContent = accept || t('btnContinue');
+    el('dialogAccept').className = 'btn ' + (danger ? 'danger-solid' : 'primary');
+    el('dialogCancel').textContent = cancel || t('actionCancel');
+    const extraBtn = el('dialogExtra');
+    dialogExtraValue = extra ? extra.value : null;
+    extraBtn.hidden = !extra;
+    if (extra) {
+      extraBtn.textContent = extra.label;
+      extraBtn.className = 'btn ' + (extra.danger ? 'danger' : '');
+    }
+    const field = el('dialogInput');
+    field.classList.toggle('hidden', !dialogNeedsInput);
+    field.value = dialogNeedsInput ? input : '';
+    el('dialogError').classList.add('hidden');
+    el('actionDialog').classList.remove('hidden');
+    if (dialogNeedsInput) { field.focus(); field.select(); }
+    else el('dialogCancel').focus();
   });
 }
-function applyTheme(t) {
-  document.documentElement.dataset.theme = t;
-  localStorage.setItem('pb-theme', t);
-  el('theme').textContent = t === 'light' ? '☾' : '☀';
+
+el('dialogExtra').onclick = () => finishDialog(dialogExtraValue);
+el('dialogForm').onsubmit = e => {
+  e.preventDefault();
+  if (!dialogNeedsInput) { finishDialog(true); return; }
+  const value = el('dialogInput').value.trim();
+  if (!value || value === '.' || value === '..' || value.includes('/') || value.includes('\\')) {
+    el('dialogError').textContent = t('dialogInputError');
+    el('dialogError').classList.remove('hidden');
+    el('dialogInput').focus();
+    return;
+  }
+  finishDialog(value);
+};
+el('dialogCancel').onclick = () => finishDialog(null);
+el('actionDialog').onclick = e => { if (e.target === el('actionDialog')) finishDialog(null); };
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && !el('actionDialog').classList.contains('hidden')) {
+    e.preventDefault();
+    finishDialog(null);
+  }
+});
+
+/* ---------- операции с файлами ---------- */
+async function rename(item) {
+  const name = await actionDialog({ title: t('renameTitle'), message: t('renameMsg'), accept: t('renameAccept'), input: item.name });
+  if (name === null || name === item.name) return;
+  try {
+    await api('rename', { path: item.path, name }, { method: 'POST' });
+    await refreshListing();
+  } catch (e) {
+    msg(e.message);
+  }
 }
+
+async function removeItem(item) {
+  const ok = await actionDialog({
+    title: t(item.dir ? 'deleteFolderTitle' : 'deleteFileTitle'),
+    message: t(item.dir ? 'deleteFolderMsg' : 'deleteFileMsg', { name: item.name }),
+    accept: t('actionAccept'),
+    danger: true
+  });
+  if (!ok) return;
+  try {
+    msg(t('msgDeleting', { i: 1, n: 1 }), false);
+    await api('delete', { path: item.path }, { method: 'POST' });
+    await refreshListing();
+  } catch (e) {
+    await refreshListing();
+    msg(e.message);
+  }
+}
+
+el('loginForm').onsubmit = async e => {
+  e.preventDefault();
+  key = el('code').value.trim();
+  try {
+    const data = await (await api('list', { path: '/' })).json();
+    el('loginError').textContent = '';
+    el('login').classList.add('hidden');
+    el('app').classList.remove('hidden');
+    await show('/', data);
+  } catch (e) {
+    el('loginError').textContent = e.message;
+  }
+};
+
+el('up').onclick = () => show(current.substring(0, current.lastIndexOf('/')) || '/');
+el('refresh').onclick = () => show(current);
+el('logout').onclick = () => {
+  cancelAllUploads();
+  closePreview();
+  generation++;
+  key = '';
+  items = [];
+  remoteResults = null;
+  selected.clear();
+  sizes.clear();
+  sessionToken = null;
+  el('code').value = '';
+  el('loginError').textContent = '';
+  el('app').classList.add('hidden');
+  el('login').classList.remove('hidden');
+};
+
+function scheduleRemote() {
+  clearTimeout(searchTimer);
+  const q = el('search').value.trim();
+  if (el('scope').value !== 'global' || q.length < 2) {
+    remoteResults = null;
+    render();
+    return;
+  }
+  searchTimer = setTimeout(runRemoteSearch, 300);
+}
+
+async function runRemoteSearch() {
+  const q = el('search').value.trim();
+  if (q.length < 2) { remoteResults = null; render(); return; }
+  try {
+    msg(t('msgSearching'), false);
+    const data = await (await api('search', { path: current, q })).json();
+    if (el('search').value.trim() !== q) return;
+    remoteResults = data.items;
+    selected.clear();
+    sizes.clear();
+    render();
+    msg(data.truncated ? t('msgSearchTruncated') : t('msgSearchFound', { n: data.items.length }), false);
+  } catch (e) {
+    msg(e.message);
+  }
+}
+
+async function refreshListing() {
+  if (remoteResults !== null) await runRemoteSearch();
+  else await show(current);
+}
+
+el('search').oninput = () => { if (el('scope').value === 'global') scheduleRemote(); else render(); };
+el('scope').onchange = () => {
+  remoteResults = null;
+  if (el('scope').value === 'global') scheduleRemote();
+  else { el('search').value = ''; render(); }
+};
+el('sort').onchange = render;
+el('selectAll').onchange = e => {
+  for (const item of visible()) {
+    if (e.target.checked) selected.add(item.path);
+    else selected.delete(item.path);
+  }
+  render();
+};
+el('clearSelected').onclick = () => { selected.clear(); render(); };
+
+el('downloadSelected').onclick = async () => {
+  const chosen = (remoteResults || items).filter(x => selected.has(x.path));
+  if (!chosen.length) { msg(t('msgNothingSelected')); return; }
+  if (chosen.length > 500) { msg(t('msgMaxSelect')); return; }
+  try {
+    msg(t('msgPreparing'), false);
+    const base = remoteResults ? '/' : current;
+    const ticket = await (await api('zip-ticket', { base }, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ paths: chosen.map(x => x.path) })
+    })).json();
+    triggerDownload(ticket.url);
+    msg(t('msgDownloadStarted'), false);
+  } catch (e) {
+    msg(e.message);
+  }
+};
+
+el('deleteSelected').onclick = async () => {
+  const chosen = (remoteResults || items).filter(x => selected.has(x.path));
+  if (!chosen.length) return;
+  const ok = await actionDialog({
+    title: t('actionDialogTitle'),
+    message: t('actionDialogMsg', { n: chosen.length }),
+    accept: t('actionAccept'),
+    danger: true
+  });
+  if (!ok) return;
+  const errors = [];
+  let deleted = 0;
+  for (let i = 0; i < chosen.length; i++) {
+    const x = chosen[i];
+    try {
+      msg(t('msgDeleting', { i: i + 1, n: chosen.length }), false);
+      await api('delete', { path: x.path }, { method: 'POST' });
+      deleted++;
+    } catch (e) {
+      errors.push(x.name + ': ' + e.message);
+    }
+  }
+  await refreshListing();
+  msg(errors.length ? errors.join('; ') : t('msgDeleted', { n: deleted }), errors.length > 0);
+};
+
+el('sizes').onclick = () => calculateSizes(generation);
+el('mkdir').onclick = async () => {
+  const name = await actionDialog({ title: t('mkdirTitle'), message: t('mkdirMsg'), accept: t('mkdirAccept'), input: '' });
+  if (name === null) return;
+  try {
+    await api('mkdir', { path: current, name }, { method: 'POST' });
+    await show(current);
+  } catch (e) {
+    msg(e.message);
+  }
+};
+
+/* ---------- очередь загрузки с докачкой ---------- */
+const queueEl = document.createElement('div');
+queueEl.id = 'uploadQueue';
+queueEl.className = 'panel hidden';
+queueEl.style.cssText = 'padding:14px;position:fixed;bottom:16px;right:16px;width:min(430px,92vw);z-index:90';
+queueEl.innerHTML =
+  '<div style="display:flex;justify-content:space-between;align-items:center;gap:6px;margin-bottom:8px">' +
+    '<h2 data-i18n="queueTitle">Загрузка</h2>' +
+    '<div style="display:flex;gap:4px;flex-wrap:wrap">' +
+      '<button id="queuePauseAll" type="button" class="qbtn" style="font-size:10px;padding:2px 6px" data-i18n="queuePauseAll">Пауза все</button>' +
+      '<button id="queueResumeAll" type="button" class="qbtn" style="font-size:10px;padding:2px 6px" data-i18n="queueResumeAll">Продолжить</button>' +
+      '<button id="queueClear" type="button" class="qbtn" style="font-size:10px;padding:2px 6px" data-i18n="queueClear">Очистить</button>' +
+    '</div>' +
+  '</div>' +
+  '<div id="queueList"></div>' +
+  '<div id="queueEmpty" style="color:var(--muted);font-size:12px" data-i18n="queueEmpty">Очередь пуста</div>';
+el('app').appendChild(queueEl);
+
+const QMAX = 3;
+let conflictChain = Promise.resolve();
+
+function isTerminal(status) {
+  return status === 'done' || status === 'cancelled' || status === 'skipped';
+}
+
+function queueShow() {
+  uploadBusy = true;
+  queueEl.classList.remove('hidden');
+  el('progress').classList.remove('hidden');
+}
+
+function queueHide() {
+  uploadBusy = false;
+  queueEl.classList.add('hidden');
+  el('progress').classList.add('hidden');
+  el('progressFill').style.width = '0%';
+  el('progressLabel').textContent = '';
+}
+
+function abortUploadOnServer(uploadId) {
+  if (!uploadId || !key) return;
+  api('upload-abort', { id: uploadId }, { method: 'POST' }).catch(() => {});
+}
+
+function cancelQueueItem(item) {
+  item.aborted = true;
+  item.paused = false;
+  if (item.controller) { try { item.controller.abort(); } catch (e) {} }
+  const id = item.uploadId;
+  item.uploadId = null;
+  abortUploadOnServer(id);
+  if (item.status !== 'uploading') {
+    item.status = 'cancelled';
+    if (item.settle) item.settle({ status: 'cancelled' });
+  }
+  renderQueue();
+}
+
+function cancelAllUploads() {
+  globalPaused = false;
+  for (const item of queue.slice()) {
+    if (!isTerminal(item.status)) cancelQueueItem(item);
+  }
+  queue = [];
+  if (running === 0) queueHide();
+}
+
+el('progressCancel').onclick = cancelAllUploads;
+
+el('queuePauseAll').onclick = () => {
+  globalPaused = true;
+  for (const item of queue) {
+    if (item.status === 'uploading') {
+      item.paused = true;
+      if (item.controller) { try { item.controller.abort(); } catch (e) {} }
+    } else if (item.status === 'waiting') {
+      item.paused = true;
+      item.status = 'paused';
+    }
+  }
+  renderQueue();
+};
+
+el('queueResumeAll').onclick = () => {
+  globalPaused = false;
+  for (const item of queue) {
+    if (item.status === 'paused') {
+      item.paused = false;
+      item.status = 'waiting';
+    }
+  }
+  renderQueue();
+  drain();
+};
+
+el('queueClear').onclick = () => {
+  queue = queue.filter(i => !isTerminal(i.status) && i.status !== 'error');
+  renderQueue();
+  if (!queue.length && running === 0) queueHide();
+};
+
+function updateProgressBar() {
+  if (!queue.length) {
+    el('progress').classList.add('hidden');
+    return;
+  }
+  const active = queue.some(i => !isTerminal(i.status));
+  el('progress').classList.toggle('hidden', !active);
+  if (!active) return;
+  let totalBytes = 0, loadedBytes = 0, doneCount = 0, totalSpeed = 0;
+  for (const item of queue) {
+    totalBytes += item.total;
+    loadedBytes += Math.min(item.loaded, item.total);
+    if (isTerminal(item.status)) doneCount++;
+    if (item.status === 'uploading' && item.speed > 0) totalSpeed += item.speed;
+  }
+  const pct = totalBytes > 0 ? Math.min(100, Math.round((loadedBytes / totalBytes) * 100)) : Math.round((doneCount / queue.length) * 100);
+  el('progressFill').style.width = pct + '%';
+  const spd = totalSpeed > 0 ? ' · ' + humanSpeed(totalSpeed) : '';
+  el('progressLabel').textContent = t('progressUploading', { done: Math.min(doneCount + 1, queue.length), total: queue.length, pct }) + spd;
+}
+
+function stateLabel(item) {
+  if (item.status === 'waiting') return t('queueWaiting');
+  if (item.status === 'paused' || (item.status === 'uploading' && (item.paused || globalPaused))) return t('queuePaused');
+  if (item.status === 'uploading') return t('queueUploading');
+  if (item.status === 'done') return t('queueDone');
+  if (item.status === 'cancelled') return t('queueCancelled');
+  if (item.status === 'skipped') return t('queueSkipped');
+  return t('queueError');
+}
+
+function renderQueue() {
+  const list = el('queueList');
+  list.replaceChildren();
+  el('queueEmpty').style.display = queue.length ? 'none' : 'block';
+  for (const item of queue) {
+    const row = document.createElement('div');
+    row.className = 'qrow';
+    const head = document.createElement('div');
+    head.className = 'qhead';
+    const name = document.createElement('div');
+    name.className = 'qname';
+    name.textContent = item.name + (item.unique ? ' ' + t('queueUniqueSuffix') : '');
+    const state = document.createElement('div');
+    state.className = 'qstate';
+    state.textContent = stateLabel(item);
+    head.append(name, state);
+
+    const bar = document.createElement('div');
+    bar.className = 'qbar';
+    const fill = document.createElement('div');
+    fill.className = 'qfill';
+    const pct = item.total > 0 ? Math.min(100, Math.round((item.loaded / item.total) * 100)) : (item.status === 'done' ? 100 : 0);
+    fill.style.width = pct + '%';
+    bar.append(fill);
+
+    const info = document.createElement('div');
+    info.className = 'qinfo';
+    if (item.status === 'done') {
+      info.textContent = bytes(item.total) + ' · ' + t('queueDone');
+    } else if (item.error) {
+      info.textContent = bytes(item.loaded) + ' / ' + bytes(item.total) + ' — ' + item.error;
+    } else {
+      const spd = item.status === 'uploading' && item.speed > 0 ? ' · ' + humanSpeed(item.speed) : '';
+      info.textContent = bytes(item.loaded) + ' / ' + bytes(item.total) + spd;
+    }
+
+    const actions = document.createElement('div');
+    actions.className = 'qactions';
+    const addBtn = (label, cls, fn) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = label;
+      b.className = 'qbtn ' + cls;
+      b.onclick = fn;
+      actions.append(b);
+    };
+    if (item.status === 'waiting') {
+      addBtn(t('btnQueueCancel'), 'qcancel', () => cancelQueueItem(item));
+    } else if (item.status === 'uploading') {
+      addBtn(t('btnQueuePause'), 'qpause', () => {
+        item.paused = true;
+        if (item.controller) { try { item.controller.abort(); } catch (e) {} }
+        renderQueue();
+      });
+      addBtn(t('btnQueueCancel'), 'qcancel', () => cancelQueueItem(item));
+    } else if (item.status === 'paused') {
+      addBtn(t('queueResumeAll'), 'qstart', () => {
+        globalPaused = false;
+        item.paused = false;
+        item.status = 'waiting';
+        renderQueue();
+        drain();
+      });
+      addBtn(t('btnQueueCancel'), 'qcancel', () => cancelQueueItem(item));
+    } else if (item.status === 'error') {
+      addBtn(t('btnQueueRetry'), 'qstart', () => {
+        item.error = null;
+        item.retries = 0;
+        item.aborted = false;
+        item.paused = false;
+        item.status = 'waiting';
+        renderQueue();
+        drain();
+      });
+      addBtn(t('btnDelete'), 'qcancel', () => {
+        abortUploadOnServer(item.uploadId);
+        item.uploadId = null;
+        const idx = queue.indexOf(item);
+        if (idx >= 0) queue.splice(idx, 1);
+        if (item.settle) item.settle({ status: 'error', error: item.error || t('queueErrorDefault') });
+        renderQueue();
+        if (!queue.length && running === 0) queueHide();
+      });
+    }
+    row.append(head, bar, info, actions);
+    item.row = row;
+    list.append(row);
+  }
+  updateProgressBar();
+}
+
+function suggestName(name) {
+  const d = name.lastIndexOf('.');
+  const base = d > 0 ? name.slice(0, d) : name;
+  const ext = d > 0 ? name.slice(d) : '';
+  for (let i = 1; i < 1000; i++) {
+    const cand = base + ' (' + i + ')' + ext;
+    if (!items.some(x => x.name === cand)) return cand;
+  }
+  return base + t('newNameSuffix') + ext;
+}
+
+function askConflict(name) {
+  const next = conflictChain.then(() => actionDialog({
+    title: t('conflictTitle'),
+    message: t('conflictMsg', { name }),
+    accept: t('conflictAccept'),
+    input: suggestName(name),
+    cancel: t('conflictCancel'),
+    extra: { label: t('conflictOverwrite'), value: 'overwrite', danger: true }
+  }));
+  conflictChain = next.catch(() => {});
+  return next;
+}
+
+function qItem(file, parent, name, { overwrite = false, unique = false, interactive = true } = {}) {
+  let done = false, resolveRef = null;
+  const promise = new Promise(resolve => { resolveRef = resolve; });
+  return {
+    id: 'u' + Math.random().toString(36).slice(2),
+    file, parent, name, overwrite, unique, interactive,
+    uploadId: null, chunk: 4 * 1024 * 1024,
+    status: 'waiting', loaded: 0, total: file.size, speed: 0,
+    error: null, retries: 0, paused: false, aborted: false,
+    controller: null, row: null, promise,
+    settle: res => { if (!done) { done = true; resolveRef(res); } }
+  };
+}
+
+function enqueue(item) {
+  queue.push(item);
+  queueShow();
+  renderQueue();
+  drain();
+  return item.promise;
+}
+
+function drain() {
+  if (globalPaused) return;
+  while (running < QMAX) {
+    const item = queue.find(x => x.status === 'waiting' && !x.paused && !x.aborted);
+    if (!item) break;
+    item.status = 'uploading';
+    running++;
+    renderQueue();
+    runChunk(item).finally(() => {
+      running--;
+      renderQueue();
+      if (!globalPaused) drain();
+      if (running === 0 && queue.every(i => isTerminal(i.status))) {
+        queue = [];
+        queueHide();
+      }
+    });
+  }
+}
+
+async function initOrResume(item) {
+  if (item.uploadId) {
+    try {
+      const st = await (await api('upload-status', { id: item.uploadId })).json();
+      item.loaded = Number(st.received || 0);
+      item.name = st.name || item.name;
+      return true;
+    } catch (e) {
+      if (e.status === 404) {
+        item.uploadId = null;
+        item.loaded = 0;
+      } else {
+        throw e;
+      }
+    }
+  }
+  while (!item.aborted) {
+    try {
+      const init = await api('upload-init', {
+        path: item.parent,
+        name: item.name,
+        size: item.file.size,
+        overwrite: item.overwrite ? '1' : '0',
+        unique: item.unique ? '1' : '0'
+      }, { method: 'POST' });
+      const d = await init.json();
+      item.uploadId = d.uploadId;
+      item.name = d.name || item.name;
+      item.chunk = Number(d.chunk || 4 * 1024 * 1024);
+      item.loaded = Number(d.received || 0);
+      return true;
+    } catch (e) {
+      if (e.status === 409 && item.interactive && !item.overwrite && !item.unique) {
+        const choice = await askConflict(item.name);
+        if (choice === null || item.aborted) {
+          item.status = item.aborted ? 'cancelled' : 'skipped';
+          item.settle({ status: item.status });
+          return false;
+        }
+        if (choice === 'overwrite') {
+          item.overwrite = true;
+        } else {
+          item.name = choice;
+          item.overwrite = false;
+        }
+        renderQueue();
+        continue;
+      }
+      throw e;
+    }
+  }
+  return false;
+}
+
+async function runChunk(item) {
+  try {
+    const ready = await initOrResume(item);
+    if (!ready) return;
+
+    let offset = item.loaded;
+    const startBytes = offset;
+    const startTime = performance.now();
+
+    while (offset < item.file.size && !item.aborted && !item.paused && !globalPaused) {
+      const piece = item.file.slice(offset, Math.min(offset + item.chunk, item.file.size));
+      const controller = new AbortController();
+      item.controller = controller;
+      try {
+        const res = await api('upload-chunk', { id: item.uploadId, offset }, {
+          method: 'POST',
+          body: piece,
+          signal: controller.signal
+        });
+        const rd = await res.json();
+        offset = Number(rd.received);
+        item.loaded = offset;
+        item.total = Number(rd.size || item.total);
+        item.retries = 0;
+        const dt = Math.max(0.001, (performance.now() - startTime) / 1000);
+        item.speed = (offset - startBytes) / dt;
+        if (item.row) {
+          const fill = item.row.querySelector('.qfill');
+          if (fill) fill.style.width = Math.min(100, Math.round((offset / item.total) * 100)) + '%';
+          const info = item.row.querySelector('.qinfo');
+          if (info) info.textContent = bytes(offset) + ' / ' + bytes(item.total) + ' · ' + humanSpeed(item.speed);
+        }
+        updateProgressBar();
+      } catch (e) {
+        if (e.status === 409 && e.headers) {
+          const srv = Number(e.headers.get('x-upload-received'));
+          if (Number.isFinite(srv) && srv >= 0 && srv <= item.file.size) {
+            offset = srv;
+            item.loaded = srv;
+            continue;
+          }
+        }
+        throw e;
+      } finally {
+        item.controller = null;
+      }
+    }
+
+    if (item.aborted) {
+      const id = item.uploadId;
+      item.uploadId = null;
+      abortUploadOnServer(id);
+      item.speed = 0;
+      item.status = 'cancelled';
+      item.settle({ status: 'cancelled' });
+      return;
+    }
+    if (item.paused || globalPaused) {
+      item.speed = 0;
+      item.status = 'paused';
+      return;
+    }
+
+    await api('upload-finish', { id: item.uploadId }, { method: 'POST' });
+    item.uploadId = null;
+    item.loaded = item.total;
+    item.speed = 0;
+    item.status = 'done';
+    item.settle({ status: 'done', name: item.name });
+  } catch (e) {
+    item.controller = null;
+    item.speed = 0;
+    if (item.aborted) {
+      const id = item.uploadId;
+      item.uploadId = null;
+      abortUploadOnServer(id);
+      item.status = 'cancelled';
+      item.settle({ status: 'cancelled' });
+      return;
+    }
+    if (item.paused || globalPaused) {
+      item.status = 'paused';
+      return;
+    }
+    const clientErr = e.status && e.status >= 400 && e.status < 500 && e.status !== 429;
+    if (!clientErr && item.retries < 3) {
+      item.retries++;
+      item.status = 'waiting';
+      setTimeout(() => drain(), 1200 * item.retries);
+      return;
+    }
+    if (clientErr && item.uploadId) {
+      abortUploadOnServer(item.uploadId);
+      item.uploadId = null;
+    }
+    item.status = 'error';
+    item.error = e.message || t('queueErrorDefault');
+    item.settle({ status: 'error', error: item.error });
+  }
+}
+
+function summarizeBatch(results, kindKey) {
+  const errors = [];
+  let done = 0, skipped = 0, cancelled = 0;
+  for (const r of results) {
+    if (r.status === 'done') done++;
+    else if (r.status === 'skipped') skipped++;
+    else if (r.status === 'cancelled') cancelled++;
+    else if (r.status === 'error') errors.push(r.label + ': ' + r.error);
+  }
+  if (errors.length) {
+    const tail = errors.length > 3 ? t('msgAndMore', { n: errors.length - 3 }) : '';
+    msg(errors.slice(0, 3).join('; ') + tail, true);
+  } else if (done > 0) {
+    msg(t(kindKey, { n: done }), false);
+  } else if (cancelled > 0) {
+    msg(t('msgUploadCancelledAll'), false);
+  } else if (skipped > 0) {
+    msg(t('msgUploadSkippedAll'), false);
+  }
+}
+
+async function uploadFiles(list) {
+  const targetDir = current;
+  const tasks = list.map(f => {
+    const item = qItem(f, targetDir, f.name, { interactive: true });
+    return enqueue(item).then(res => ({ ...res, label: f.name }));
+  });
+  const results = await Promise.all(tasks);
+  await refreshListing();
+  summarizeBatch(results, 'msgUploadingFiles');
+}
+
+async function uploadFolder(files) {
+  const baseDir = current;
+  const dirs = new Set();
+  const results = [];
+  const tasks = [];
+  try {
+    for (const f of files) {
+      const rel = (f.webkitRelativePath || f.name).replace(/\\/g, '/');
+      const parts = rel.split('/').filter(Boolean);
+      const name = parts.pop() || f.name;
+      const dir = parts.length ? joinPath(baseDir, parts.join('/')) : baseDir;
+      if (dir !== baseDir && !dirs.has(dir)) {
+        try {
+          await api('mkdirs', { path: dir }, { method: 'POST' });
+          dirs.add(dir);
+        } catch (e) {
+          results.push({ status: 'error', label: rel, error: e.message });
+          continue;
+        }
+      }
+      const item = qItem(f, dir, name, { interactive: true });
+      tasks.push(enqueue(item).then(res => ({ ...res, label: rel })));
+    }
+    results.push(...await Promise.all(tasks));
+  } finally {
+    await refreshListing();
+    summarizeBatch(results, 'msgUploadingFolder');
+  }
+}
+
+/* ---------- виды, тема и язык ---------- */
+function setView(v) {
+  viewMode = v === 'grid' ? 'grid' : 'list';
+  safeSet('pb-view', viewMode);
+  el('view').textContent = viewMode === 'grid' ? t('viewList') : t('viewGrid');
+  render();
+}
+el('view').onclick = () => setView(viewMode === 'grid' ? 'list' : 'grid');
+el('theme').onclick = () => applyTheme(document.documentElement.dataset.theme === 'light' ? 'dark' : 'light');
+el('langBtn').onclick = () => setLang(currentLang === 'ru' ? 'en' : 'ru');
+
+(function initAppearance() {
+  const saved = safeGet('pb-theme');
+  const preferred = saved || (window.matchMedia && matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+  applyTheme(preferred);
+  populateI18n();
+})();
+
+/* ---------- загрузка кнопками и перетаскиванием ---------- */
+el('upload').onclick = () => el('fileInput').click();
+el('fileInput').onchange = async e => {
+  const files = [...e.target.files];
+  e.target.value = '';
+  if (files.length) await uploadFiles(files);
+};
+el('uploadDir').onclick = () => el('dirInput').click();
+el('dirInput').onchange = async e => {
+  const files = [...e.target.files];
+  e.target.value = '';
+  if (files.length) await uploadFolder(files);
+};
+
+(function initDragDrop() {
+  const zone = el('app');
+  if (!zone) return;
+  zone.addEventListener('dragover', e => {
+    e.preventDefault();
+    zone.classList.add('dropzone');
+  });
+  zone.addEventListener('dragleave', e => {
+    if (!e.relatedTarget || !zone.contains(e.relatedTarget)) zone.classList.remove('dropzone');
+  });
+  zone.addEventListener('drop', e => {
+    e.preventDefault();
+    zone.classList.remove('dropzone');
+    const files = e.dataTransfer && e.dataTransfer.files;
+    if (files && files.length) uploadFiles([...files]);
+  });
+})();
+
+/* ---------- ссылка с кодом: /#k=XXXX входит автоматически ---------- */
+(function initHashLogin() {
+  const match = /^#k=([0-9a-fA-F]{8,64})$/.exec(location.hash || '');
+  if (!match) return;
+  history.replaceState(null, '', location.pathname + location.search);
+  el('code').value = match[1];
+  el('loginForm').requestSubmit();
+})();
+</script>
 </body></html>

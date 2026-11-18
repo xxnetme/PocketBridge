@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-  tags: ['v*']
+    tags: ['v*']
   pull_request:
 
 permissions:
@@ -15,167 +15,206 @@ jobs:
     name: Server tests (JVM)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
-      - name: Cache Gradle
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*') }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-
-      - name: Run server tests
+      - name: Run server & WebDAV tests
         env:
           LC_ALL: C.UTF-8
         run: ./server-tests/run.sh
-
-  build:
-    name: Build Android APK
-    runs-on: ubuntu-latest
-    needs: server-tests
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '17'
-      - name: Install Android SDK
-        run: |
-          SDK_DIR=/tmp/android-sdk
-          mkdir -p "$SDK_DIR"
-          cd /tmp
-          curl -sL -o cmdline-tools.zip https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
-          unzip -qo cmdline-tools.zip -d "$SDK_DIR/"
-          mkdir -p "$SDK_DIR/cmdline-tools"
-          mv "$SDK_DIR/cmdline-tools-latest" "$SDK_DIR/cmdline-tools/latest"
-          echo "ANDROID_HOME=$SDK_DIR" >> $GITHUB_ENV
-          echo "$SDK_DIR/cmdline-tools/latest/bin" >> $GITHUB_PATH
-          yes | sdkmanager --sdk_root="$SDK_DIR" "platform-tools" "platforms;android-35" "build-tools;34.0.0" >/dev/null 2>&1
-      - name: Cache Gradle
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*') }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-
-      - name: Build debug APK
-        env:
-          ANDROID_HOME: /tmp/android-sdk
-        run: ./gradlew --no-daemon assembleDebug
-      - uses: actions/upload-artifact@v4
-        with:
-          name: PocketBridge-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
-          if-no-files-found: error
-          retention-days: 14
 
   browser-tests:
     name: Browser tests (Playwright)
     runs-on: ubuntu-latest
     needs: server-tests
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
-      - name: Cache Gradle
-        uses: actions/cache@v4
+      - uses: actions/setup-node@v6
         with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*') }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-
-      - name: Install Android SDK
+          node-version: '22'
+      - name: Install test dependencies (Pillow, python-docx, Playwright Chromium)
         run: |
-          SDK_DIR=/tmp/android-sdk
-          mkdir -p "$SDK_DIR"
-          cd /tmp
-          curl -sL -o cmdline-tools.zip https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
-          unzip -qo cmdline-tools.zip -d "$SDK_DIR/"
-          mkdir -p "$SDK_DIR/cmdline-tools"
-          mv "$SDK_DIR/cmdline-tools-latest" "$SDK_DIR/cmdline-tools/latest"
-          echo "ANDROID_HOME=$SDK_DIR" >> $GITHUB_ENV
-          echo "$SDK_DIR/cmdline-tools/latest/bin" >> $GITHUB_PATH
-          yes | sdkmanager --sdk_root="$SDK_DIR" "platform-tools" "platforms;android-35" "build-tools;34.0.0" >/dev/null 2>&1
-      - name: Build debug APK
-        env:
-          ANDROID_HOME: /tmp/android-sdk
-        run: ./gradlew --no-daemon assembleDebug
-      - name: Install Playwright
-        uses: microsoft/playwright-github-action@v1
-      - name: Run browser tests
-        run: npx playwright test
+          python3 -m venv "$RUNNER_TEMP/pyvenv"
+          "$RUNNER_TEMP/pyvenv/bin/pip" install --quiet pillow python-docx
+          echo "$RUNNER_TEMP/pyvenv/bin" >> "$GITHUB_PATH"
+
+          mkdir -p "$RUNNER_TEMP/pw"
+          npm --prefix "$RUNNER_TEMP/pw" init -y >/dev/null
+          npm --prefix "$RUNNER_TEMP/pw" install --no-save playwright
+          "$RUNNER_TEMP/pw/node_modules/.bin/playwright" install --with-deps chromium
+      - name: Run Playwright UI tests against live HTTPS FileServer
         env:
           LC_ALL: C.UTF-8
+          NODE_PATH: ${{ runner.temp }}/pw/node_modules
+          PB_WORK: ${{ runner.temp }}/ui
+          PB_BASE: https://127.0.0.1:8765
+          PB_KEY: deadbeefcafe1234
+        run: |
+          mkdir -p "$PB_WORK/root"
+          python3 server-tests/make-ui-tree.py "$PB_WORK/root"
 
-  release:
-    name: Signed release APK + GitHub Release
+          ./server-tests/run.sh --serve "$PB_WORK/root" "$PB_KEY" tls > "$PB_WORK/server.log" 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
+
+          for _ in $(seq 1 60); do
+            if grep -q '^READY$' "$PB_WORK/server.log" 2>/dev/null; then
+              break
+            fi
+            sleep 0.5
+          done
+          if ! grep -q '^READY$' "$PB_WORK/server.log"; then
+            echo "::error::Demo server failed to start"
+            cat "$PB_WORK/server.log"
+            exit 1
+          fi
+
+          node server-tests/ui-test.js
+      - name: Upload UI diagnostics on failure
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: PocketBridge-ui-diagnostics
+          path: |
+            ${{ runner.temp }}/ui/server.log
+            ${{ runner.temp }}/ui/ui-results.json
+            ${{ runner.temp }}/ui/shots/*.png
+          if-no-files-found: ignore
+          retention-days: 7
+
+  build:
+    name: Build Android APK
     runs-on: ubuntu-latest
-    needs: [build, browser-tests]
-    if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
+    needs: server-tests
+    outputs:
+      signed: ${{ steps.signcheck.outputs.signed }}
+      version: ${{ steps.meta.outputs.version }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
-      - name: Install Android SDK
-        run: |
-          SDK_DIR=/tmp/android-sdk
-          mkdir -p "$SDK_DIR"
-          cd /tmp
-          curl -sL -o cmdline-tools.zip https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
-          unzip -qo cmdline-tools.zip -d "$SDK_DIR/"
-          mkdir -p "$SDK_DIR/cmdline-tools"
-          mv "$SDK_DIR/cmdline-tools-latest" "$SDK_DIR/cmdline-tools/latest"
-          echo "ANDROID_HOME=$SDK_DIR" >> $GITHUB_ENV
-          echo "$SDK_DIR/cmdline-tools/latest/bin" >> $GITHUB_PATH
-          yes | sdkmanager --sdk_root="$SDK_DIR" "platform-tools" "platforms;android-35" "build-tools;34.0.0" >/dev/null 2>&1
       - name: Cache Gradle
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*') }}
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', 'gradle/wrapper/gradle-wrapper.properties') }}
           restore-keys: |
             ${{ runner.os }}-gradle-
-      - name: Restore keystore
+      - name: Setup Android SDK (API 36)
         run: |
-          echo "${{ secrets.PB_KEYSTORE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/pocketbridge.jks"
-      - name: Build signed release APK
+          SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          SDKM="$SDK/cmdline-tools/latest/bin/sdkmanager"
+          if [[ ! -x "$SDKM" ]]; then
+            mkdir -p "$SDK/cmdline-tools"
+            curl -fsSL -o "$RUNNER_TEMP/cmdline-tools.zip" https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+            unzip -qo "$RUNNER_TEMP/cmdline-tools.zip" -d "$RUNNER_TEMP/cmd-extract"
+            mv "$RUNNER_TEMP/cmd-extract/cmdline-tools" "$SDK/cmdline-tools/latest"
+            SDKM="$SDK/cmdline-tools/latest/bin/sdkmanager"
+          fi
+          yes | "$SDKM" --sdk_root="$SDK" --licenses >/dev/null || true
+          "$SDKM" --sdk_root="$SDK" "platform-tools" "platforms;android-36" "build-tools;36.0.0" >/dev/null
+          echo "ANDROID_HOME=$SDK" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$SDK" >> "$GITHUB_ENV"
+      - name: Read app version
+        id: meta
+        run: |
+          VER=$(sed -n "s/.*versionName '\([^']*\)'.*/\1/p" app/build.gradle | head -n1)
+          echo "version=$VER" >> "$GITHUB_OUTPUT"
+      - name: Build & verify debug APK
+        run: |
+          ./gradlew --no-daemon assembleDebug
+          APK="app/build/outputs/apk/debug/app-debug.apk"
+          "$ANDROID_HOME/build-tools/36.0.0/zipalign" -c 4 "$APK"
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose "$APK"
+          mkdir -p "$RUNNER_TEMP/debug-out"
+          cp "$APK" "$RUNNER_TEMP/debug-out/PocketBridge-v${{ steps.meta.outputs.version }}-debug.apk"
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v6
+        with:
+          name: PocketBridge-debug-apk
+          path: ${{ runner.temp }}/debug-out/*.apk
+          if-no-files-found: error
+          retention-days: 14
+      - name: Check release signing secrets
+        id: signcheck
+        env:
+          KEYSTORE_B64: ${{ secrets.PB_KEYSTORE_BASE64 }}
+          KEYSTORE_PASS: ${{ secrets.PB_KEYSTORE_PASSWORD }}
+        run: |
+          if [[ -n "$KEYSTORE_B64" && -n "$KEYSTORE_PASS" ]]; then
+            printf '%s' "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/pocketbridge.jks"
+            echo "signed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+            echo "Release signing secrets (PB_KEYSTORE_BASE64 / PB_KEYSTORE_PASSWORD) are not configured; skipping signed release build."
+          fi
+      - name: Build & verify signed release APK + AAB
+        if: steps.signcheck.outputs.signed == 'true'
         env:
           PB_KEYSTORE: ${{ runner.temp }}/pocketbridge.jks
           PB_KEYSTORE_PASSWORD: ${{ secrets.PB_KEYSTORE_PASSWORD }}
-          ANDROID_HOME: /tmp/android-sdk
-        run: ./gradlew --no-daemon assembleRelease
-      - name: Get release version
-        id: version
+          PB_KEY_ALIAS: ${{ secrets.PB_KEY_ALIAS }}
+          PB_KEY_PASSWORD: ${{ secrets.PB_KEY_PASSWORD }}
         run: |
-          TAG=${GITHUB_REF#refs/tags/}
-          echo "tag=$TAG" >> $GITHUB_OUTPUT
-          echo "version_code=$(grep -oP 'versionCode \K\d+' app/build.gradle)" >> $GITHUB_OUTPUT
-      - name: Create GitHub Release
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v2
+          ./gradlew --no-daemon assembleRelease bundleRelease
+          APK="app/build/outputs/apk/release/app-release.apk"
+          AAB="app/build/outputs/bundle/release/app-release.aab"
+          "$ANDROID_HOME/build-tools/36.0.0/zipalign" -c 4 "$APK"
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose "$APK"
+          mkdir -p "$RUNNER_TEMP/release-out"
+          cp "$APK" "$RUNNER_TEMP/release-out/PocketBridge-v${{ steps.meta.outputs.version }}.apk"
+          cp "$AAB" "$RUNNER_TEMP/release-out/PocketBridge-v${{ steps.meta.outputs.version }}.aab"
+      - name: Remove temporary keystore
+        if: always()
+        run: rm -f "$RUNNER_TEMP/pocketbridge.jks"
+      - name: Upload signed release APK + AAB
+        if: steps.signcheck.outputs.signed == 'true'
+        uses: actions/upload-artifact@v6
         with:
-          tag_name: ${{ steps.version.outputs.tag }}
-          name: ${{ steps.version.outputs.tag }}
-          generate_release_notes: true
-          files: app/build/outputs/apk/release/app-release.apk
-      - uses: actions/upload-artifact@v4
-        with:
-          name: PocketBridge-release-apk
-          path: app/build/outputs/apk/release/*.apk
+          name: PocketBridge-release
+          path: ${{ runner.temp }}/release-out/*
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 30
+
+  release:
+    name: Publish GitHub Release
+    runs-on: ubuntu-latest
+    needs: [build, browser-tests]
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+    steps:
+      - name: Download signed release assets
+        if: needs.build.outputs.signed == 'true'
+        uses: actions/download-artifact@v7
+        with:
+          name: PocketBridge-release
+          path: release-assets
+      - name: Download debug APK fallback
+        if: needs.build.outputs.signed != 'true'
+        uses: actions/download-artifact@v7
+        with:
+          name: PocketBridge-debug-apk
+          path: release-assets
+      - name: Compute SHA-256 checksums
+        run: |
+          cd release-assets
+          sha256sum * > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+      - name: Create or update GitHub Release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: PocketBridge ${{ github.ref_name }}
+          generate_release_notes: true
+          files: release-assets/*

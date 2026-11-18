@@ -5,9 +5,11 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.math.BigInteger;
+import java.nio.charset.StandardCharsets;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.KeyStore;
@@ -17,6 +19,7 @@ import java.security.cert.Certificate;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.text.SimpleDateFormat;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.Locale;
 import java.util.TimeZone;
@@ -24,13 +27,14 @@ import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 
 /**
- * Самоподписанный сертификат для HTTPS: генерируется один раз при первом запуске
- * и хранится в приватном каталоге приложения. Кодирование X.509 (DER) реализовано
- * вручную, чтобы не зависеть от BouncyCastle, которого нет в публичном SDK Android.
+ * Самоподписанный сертификат X.509 v3 для HTTPS: генерируется при первом запуске
+ * (и автоматически пересоздаётся при истечении срока) в приватном каталоге приложения.
+ * Кодирование DER реализовано без внешних библиотек по RFC 5280.
  */
 final class SelfSignedCertificate {
     private static final char[] PASSWORD = "wififiles".toCharArray();
     private static final String ALIAS = "server";
+    private static final long RENEW_BEFORE_MS = 7L * 24 * 3600 * 1000;
 
     private SelfSignedCertificate() {}
 
@@ -44,15 +48,21 @@ final class SelfSignedCertificate {
     }
 
     private static KeyStore loadOrCreate(File dir) throws Exception {
-        if (!dir.isDirectory() && !dir.mkdirs()) throw new java.io.IOException("Нет доступа к каталогу сертификата");
+        if (!dir.isDirectory() && !dir.mkdirs()) throw new IOException("Нет доступа к каталогу сертификата");
         File file = new File(dir, "server-identity.p12");
         KeyStore store = KeyStore.getInstance("PKCS12");
         if (file.isFile()) {
             try (InputStream in = new FileInputStream(file)) {
                 store.load(in, PASSWORD);
-                if (store.containsAlias(ALIAS)) return store;
+                Certificate existing = store.getCertificate(ALIAS);
+                if (store.isKeyEntry(ALIAS) && existing instanceof X509Certificate) {
+                    X509Certificate x509 = (X509Certificate) existing;
+                    x509.checkValidity();
+                    x509.checkValidity(new Date(System.currentTimeMillis() + RENEW_BEFORE_MS));
+                    return store;
+                }
             } catch (Exception ignored) {
-                // повреждённый файл — пересоздаём
+                // повреждённый или истёкший сертификат — пересоздаём
             }
             store = KeyStore.getInstance("PKCS12");
         }
@@ -68,30 +78,43 @@ final class SelfSignedCertificate {
         return store;
     }
 
-    /* ---------- X.509 v3, DER ---------- */
+    /* ---------- X.509 v3, DER (RFC 5280) ---------- */
 
     private static X509Certificate build(KeyPair pair) throws Exception {
         byte[] sha256Rsa = oid("1.2.840.113549.1.1.11");
         byte[] algId = seq(sha256Rsa, der(0x05, new byte[0])); // NULL
 
-        byte[] subject = seq(set(
-                seq(oid("2.5.4.10"), utf8("PocketBridge")),                            // O
-                seq(oid("2.5.4.3"), utf8("PocketBridge")),
-                seq(oid("2.5.4.6"), utf8("RU"))));                                     // C
+        byte[] subject = seq(
+                set(seq(oid("2.5.4.6"), printable("RU"))),           // C (PrintableString по RFC 5280)
+                set(seq(oid("2.5.4.10"), utf8("PocketBridge"))),     // O
+                set(seq(oid("2.5.4.3"), utf8("PocketBridge"))));     // CN
 
         long now = System.currentTimeMillis();
-        byte[] validity = seq(utcTime(new Date(now - 24L * 3600 * 1000)), utcTime(new Date(now + 730L * 24 * 3600 * 1000)));
+        byte[] validity = seq(
+                x509Time(new Date(now - 24L * 3600 * 1000)),
+                x509Time(new Date(now + 730L * 24 * 3600 * 1000)));
         byte[] serial = integer(new BigInteger(64, new SecureRandom()).abs().add(BigInteger.ONE));
         byte[] publicKey = pair.getPublic().getEncoded();
 
+        // X.509 v3 extensions: BasicConstraints(CA:FALSE), KeyUsage, ExtendedKeyUsage(serverAuth), SAN
+        byte[] extBasicConstraints = seq(oid("2.5.29.19"), boolTrue(), octet(seq()));
+        byte[] extKeyUsage = seq(oid("2.5.29.15"), boolTrue(), octet(der(0x03, new byte[]{0x05, (byte) 0xA0})));
+        byte[] extEku = seq(oid("2.5.29.37"), octet(seq(oid("1.3.6.1.5.5.7.3.1"))));
+        byte[] extSan = seq(oid("2.5.29.17"), octet(seq(
+                der(0x82, "pocketbridge.local".getBytes(StandardCharsets.US_ASCII)),
+                der(0x82, "localhost".getBytes(StandardCharsets.US_ASCII)),
+                der(0x87, new byte[]{127, 0, 0, 1}))));
+        byte[] extensions = der(0xA3, seq(extBasicConstraints, extKeyUsage, extEku, extSan));
+
         byte[] tbs = seq(
-                der(0xA0, integer(BigInteger.valueOf(2))),   // [0] version = v3
+                der(0xA0, integer(BigInteger.valueOf(2))),           // [0] version = v3
                 serial,
                 algId,
-                subject,                                     // issuer = subject (самоподписанный)
+                subject,                                             // issuer = subject (самоподписанный)
                 validity,
                 subject,
-                publicKey);
+                publicKey,
+                extensions);
         Signature signer = Signature.getInstance("SHA256withRSA");
         signer.initSign(pair.getPrivate());
         signer.update(tbs);
@@ -116,15 +139,20 @@ final class SelfSignedCertificate {
     }
 
     private static byte[] integer(BigInteger value) { return der(0x02, value.toByteArray()); }
-    private static byte[] utf8(String text) {
-        try { return der(0x0C, text.getBytes("UTF-8")); }
-        catch (Exception e) { throw new IllegalStateException(e); }
-    }
-    private static byte[] utcTime(Date date) {
-        SimpleDateFormat format = new SimpleDateFormat("yyMMddHHmmss'Z'", Locale.US);
-        format.setTimeZone(TimeZone.getTimeZone("UTC"));
-        try { return der(0x17, format.format(date).getBytes("US-ASCII")); }
-        catch (Exception e) { throw new IllegalStateException(e); }
+    private static byte[] boolTrue() { return der(0x01, new byte[]{(byte) 0xFF}); }
+    private static byte[] octet(byte[] value) { return der(0x04, value); }
+    private static byte[] printable(String text) { return der(0x13, text.getBytes(StandardCharsets.US_ASCII)); }
+    private static byte[] utf8(String text) { return der(0x0C, text.getBytes(StandardCharsets.UTF_8)); }
+
+    private static byte[] x509Time(Date date) {
+        TimeZone utc = TimeZone.getTimeZone("UTC");
+        Calendar cal = Calendar.getInstance(utc, Locale.US);
+        cal.setTime(date);
+        int year = cal.get(Calendar.YEAR);
+        boolean generalized = year >= 2050 || year < 1950;
+        SimpleDateFormat format = new SimpleDateFormat(generalized ? "yyyyMMddHHmmss'Z'" : "yyMMddHHmmss'Z'", Locale.US);
+        format.setTimeZone(utc);
+        return der(generalized ? 0x18 : 0x17, format.format(date).getBytes(StandardCharsets.US_ASCII));
     }
 
     private static byte[] seq(byte[]... parts) { return der(0x30, concat(parts)); }

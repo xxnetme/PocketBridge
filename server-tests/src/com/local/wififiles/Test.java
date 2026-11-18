@@ -37,17 +37,32 @@ public class Test {
     public static void main(String[] args) throws Exception {
         TMP = Files.createTempDirectory("pocketbridge-test").toFile();
         ROOT = new File(TMP, "root");
-        prepareTree();
-        Context ctx = new Context(new File(ASSETS));
-        FileServer server = new FileServer(ctx, ROOT, KEY);
-        PORT = server.start();
-        System.out.println("SERVER PORT=" + PORT + " ROOT=" + ROOT);
-        try { runTests(); } finally { server.stop(); }
-        tlsTests();
+        try {
+            prepareTree();
+            Context ctx = new Context(new File(ASSETS));
+            FileServer server = new FileServer(ctx, ROOT, KEY);
+            PORT = server.start();
+            System.out.println("SERVER PORT=" + PORT + " ROOT=" + ROOT);
+            try { runTests(); } finally { server.stop(); }
+            tlsTests();
+        } finally {
+            cleanupDir(TMP);
+        }
         System.out.println("\n=== SUMMARY: PASS=" + pass + "  FAIL=" + fail + "  NOTES=" + note);
         for (String f : failures) System.out.println("FAILED -> " + f);
         for (String n : notes) System.out.println("NOTE   -> " + n);
         if (fail > 0) System.exit(1);
+    }
+
+    static void cleanupDir(File f) {
+        if (f == null) return;
+        try {
+            if (f.isDirectory() && !Files.isSymbolicLink(f.toPath())) {
+                File[] children = f.listFiles();
+                if (children != null) for (File c : children) cleanupDir(c);
+            }
+            f.delete();
+        } catch (Exception ignored) {}
     }
 
     /* ---------------- дерево файлов ---------------- */
@@ -101,7 +116,7 @@ public class Test {
                 if (body != null) out.write(body);
                 out.flush();
             } catch (IOException ignored) { /* сервер мог ответить и закрыть соединение до конца тела */ }
-            return readResp(s.getInputStream());
+            return readResp(s.getInputStream(), "HEAD".equals(method));
         }
     }
     static Resp get(String p) throws Exception { return req("GET", p, auth(), null); }
@@ -110,7 +125,8 @@ public class Test {
         return req("POST", p, with(auth(), "Content-Type", "application/json"), json.getBytes(StandardCharsets.UTF_8));
     }
 
-    static Resp readResp(InputStream in) throws Exception {
+    static Resp readResp(InputStream in) throws Exception { return readResp(in, false); }
+    static Resp readResp(InputStream in, boolean headOnly) throws Exception {
         Resp r = new Resp();
         String sl = readLine(in);
         if (sl == null) throw new IOException("empty response");
@@ -119,6 +135,10 @@ public class Test {
         while ((l = readLine(in)) != null && !l.isEmpty()) {
             int i = l.indexOf(':');
             if (i > 0) r.h.put(l.substring(0, i).trim().toLowerCase(Locale.ROOT), l.substring(i + 1).trim());
+        }
+        if (headOnly) {
+            r.body = in.readAllBytes();
+            return r;
         }
         ByteArrayOutputStream b = new ByteArrayOutputStream();
         String te = r.h.getOrDefault("transfer-encoding", "");
@@ -173,6 +193,8 @@ public class Test {
         svgPreviewTests();
         videoFrameTests();
         thumbCacheTests();
+        regressionTests();
+        webDavTests();
         edgeTests();
         dosTest();
     }
@@ -613,6 +635,209 @@ public class Test {
         check("все 50 миниатюр отдаются без ошибок", ok == 50, "успешно=" + ok);
     }
 
+    /* ---------------- регрессии безопасности и докачки v3.5 ---------------- */
+    static void regressionTests() throws Exception {
+        Resp r = req("GET", "/", null, null);
+        check("главная страница защищена CSP", r.status == 200 && r.h.getOrDefault("content-security-policy", "").contains("default-src 'self'"),
+                "csp=" + r.h.get("content-security-policy"));
+
+        // SVG XSS sandbox на /preview и /thumb
+        String xssSvg = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"64\" height=\"64\"><script>alert(1)</script><rect width=\"64\" height=\"64\" fill=\"green\"/></svg>";
+        write("xss-icon.svg", xssSvg);
+        r = post("/api/preview-ticket?path=/xss-icon.svg");
+        String prevUrl = new JSONObject(r.text()).getString("url");
+        r = req("GET", prevUrl, null, null);
+        check("SVG /preview содержит sandbox CSP", r.status == 200
+                && r.h.getOrDefault("content-type", "").startsWith("image/svg+xml")
+                && r.h.getOrDefault("content-security-policy", "").contains("sandbox"),
+                "csp=" + r.h.get("content-security-policy"));
+
+        String sess = new JSONObject(postJson("/api/session", "{}").text()).getString("token");
+        r = req("GET", "/thumb?token=" + sess + "&path=/xss-icon.svg&w=320", null, null);
+        check("SVG /thumb отдаёт 200 image/svg+xml + sandbox CSP", r.status == 200
+                && r.h.getOrDefault("content-type", "").startsWith("image/svg+xml")
+                && r.h.getOrDefault("content-security-policy", "").contains("sandbox"),
+                "status=" + r.status + " ct=" + r.h.get("content-type"));
+
+        // Разделение типов тикетов (/preview vs /dl)
+        String dlUrl = new JSONObject(post("/api/download-ticket?path=/hello.txt").text()).getString("url");
+        String dlTicket = dlUrl.substring(dlUrl.indexOf("ticket=") + 7);
+        String prevTicket = prevUrl.substring(prevUrl.indexOf("ticket=") + 7);
+        r = req("GET", "/dl?ticket=" + prevTicket, null, null);
+        check("preview-тикет отклонён на /dl -> 403", r.status == 403, "status=" + r.status);
+        r = req("GET", "/preview?ticket=" + dlTicket, null, null);
+        check("download-тикет отклонён на /preview -> 403", r.status == 403, "status=" + r.status);
+        Files.deleteIfExists(new File(ROOT, "xss-icon.svg").toPath());
+
+        // Докачка: upload-status и X-Upload-Received при сбое смещения
+        byte[] payload = new byte[12000];
+        new Random(77).nextBytes(payload);
+        r = post("/api/upload-init?path=/&name=resume.bin&size=" + payload.length + "&overwrite=1");
+        String uid = new JSONObject(r.text()).getString("uploadId");
+        r = req("POST", "/api/upload-chunk?id=" + uid + "&offset=0", auth(), Arrays.copyOfRange(payload, 0, 5000));
+        check("докачка: первая часть принята", r.status == 200, "status=" + r.status);
+        r = get("/api/upload-status?id=" + uid);
+        JSONObject st = new JSONObject(r.text());
+        check("upload-status возвращает точное смещение (5000)", r.status == 200 && st.getLong("received") == 5000 && st.getLong("size") == payload.length, r.text());
+        r = req("POST", "/api/upload-chunk?id=" + uid + "&offset=0", auth(), Arrays.copyOfRange(payload, 0, 1000));
+        check("неверное смещение -> 409 + X-Upload-Received: 5000",
+                r.status == 409 && "5000".equals(r.h.get("x-upload-received")),
+                "status=" + r.status + " hdr=" + r.h.get("x-upload-received"));
+        long resumeAt = Long.parseLong(r.h.get("x-upload-received"));
+        r = req("POST", "/api/upload-chunk?id=" + uid + "&offset=" + resumeAt, auth(), Arrays.copyOfRange(payload, (int) resumeAt, payload.length));
+        check("докачка с X-Upload-Received -> 200", r.status == 200, "status=" + r.status);
+        r = post("/api/upload-finish?id=" + uid);
+        byte[] saved = Files.readAllBytes(new File(ROOT, "resume.bin").toPath());
+        check("докачанный файл побайтово совпадает", r.status == 200 && Arrays.equals(payload, saved), "status=" + r.status + " len=" + saved.length);
+        Files.deleteIfExists(new File(ROOT, "resume.bin").toPath());
+    }
+
+    /* ---------------- WebDAV (/dav) ---------------- */
+    static Map<String, String> davAuth() {
+        String basic = Base64.getEncoder().encodeToString(("pb:" + KEY).getBytes(StandardCharsets.UTF_8));
+        Map<String, String> m = new HashMap<>();
+        m.put("Authorization", "Basic " + basic);
+        return m;
+    }
+
+    static Resp chunkedPut(String path, Map<String, String> hdrs, byte[] part1, byte[] part2) throws Exception {
+        try (Socket s = new Socket()) {
+            s.connect(new InetSocketAddress("127.0.0.1", PORT), 3000);
+            s.setSoTimeout(30000);
+            OutputStream out = s.getOutputStream();
+            StringBuilder sb = new StringBuilder();
+            sb.append("PUT ").append(path).append(" HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\nTransfer-Encoding: chunked\r\n");
+            for (Map.Entry<String, String> e : hdrs.entrySet()) sb.append(e.getKey()).append(": ").append(e.getValue()).append("\r\n");
+            sb.append("\r\n");
+            out.write(sb.toString().getBytes(StandardCharsets.ISO_8859_1));
+            for (byte[] chunk : new byte[][]{part1, part2}) {
+                out.write((Integer.toHexString(chunk.length) + "\r\n").getBytes(StandardCharsets.US_ASCII));
+                out.write(chunk);
+                out.write("\r\n".getBytes(StandardCharsets.US_ASCII));
+            }
+            out.write("0\r\n\r\n".getBytes(StandardCharsets.US_ASCII));
+            out.flush();
+            return readResp(s.getInputStream(), false);
+        }
+    }
+
+    static void webDavTests() throws Exception {
+        Resp r = req("OPTIONS", "/dav/", null, null);
+        check("WebDAV OPTIONS без авторизации -> 200 + DAV: 1, 2",
+                r.status == 200 && r.h.getOrDefault("dav", "").contains("1, 2") && "DAV".equals(r.h.get("ms-author-via")),
+                "status=" + r.status + " dav=" + r.h.get("dav"));
+
+        r = req("PROPFIND", "/dav/", null, null);
+        check("WebDAV PROPFIND без авторизации -> 401 + WWW-Authenticate",
+                r.status == 401 && r.h.getOrDefault("www-authenticate", "").startsWith("Basic"),
+                "status=" + r.status);
+
+        String wrong = Base64.getEncoder().encodeToString("pb:wrongpass".getBytes(StandardCharsets.UTF_8));
+        r = req("PROPFIND", "/dav/", with(null, "Authorization", "Basic " + wrong), null);
+        check("WebDAV PROPFIND с неверным паролем -> 401", r.status == 401, "status=" + r.status);
+
+        File tempPart = new File(ROOT, ".wifi-upload-davtest.part");
+        Files.write(tempPart.toPath(), "partial".getBytes(StandardCharsets.UTF_8));
+        try {
+            r = req("PROPFIND", "/dav/", with(davAuth(), "Depth", "1"), null);
+            check("WebDAV PROPFIND Depth:1 -> 207, видит файлы и скрывает .part",
+                    r.status == 207 && r.text().contains("hello.txt") && !r.text().contains(".wifi-upload-davtest.part"),
+                    "status=" + r.status);
+        } finally {
+            tempPart.delete();
+        }
+
+        r = req("PROPFIND", "/dav/", with(davAuth(), "Depth", "0"), null);
+        check("WebDAV PROPFIND Depth:0 -> 207 только корень",
+                r.status == 207 && r.text().contains("PocketBridge") && !r.text().contains("hello.txt"),
+                "status=" + r.status);
+
+        r = req("PROPFIND", "/dav/", with(davAuth(), "Depth", "infinity"), null);
+        check("WebDAV PROPFIND Depth:infinity -> 403", r.status == 403, "status=" + r.status);
+
+        r = req("MKCOL", "/dav/davdir", davAuth(), null);
+        check("WebDAV MKCOL -> 201", r.status == 201 && new File(ROOT, "davdir").isDirectory(), "status=" + r.status);
+        r = req("MKCOL", "/dav/davdir", davAuth(), null);
+        check("WebDAV MKCOL дубликат -> 405", r.status == 405, "status=" + r.status);
+        r = req("MKCOL", "/dav/no-such-parent/child", davAuth(), null);
+        check("WebDAV MKCOL без родителя -> 409", r.status == 409, "status=" + r.status);
+
+        byte[] content = "Hello WebDAV World!".getBytes(StandardCharsets.UTF_8);
+        r = req("PUT", "/dav/davdir/note.txt", davAuth(), content);
+        check("WebDAV PUT новый файл -> 201", r.status == 201, "status=" + r.status);
+        r = req("PUT", "/dav/davdir/note.txt", davAuth(), content);
+        check("WebDAV PUT перезапись -> 204", r.status == 204, "status=" + r.status);
+        r = req("PUT", "/dav/no-such-parent/note.txt", davAuth(), content);
+        check("WebDAV PUT без родителя -> 409", r.status == 409, "status=" + r.status);
+
+        r = chunkedPut("/dav/davdir/chunked.txt", davAuth(),
+                "Chunk-One-".getBytes(StandardCharsets.UTF_8), "Chunk-Two!".getBytes(StandardCharsets.UTF_8));
+        check("WebDAV chunked PUT -> 201 и содержимое совпадает",
+                r.status == 201 && "Chunk-One-Chunk-Two!".equals(Files.readString(new File(ROOT, "davdir/chunked.txt").toPath())),
+                "status=" + r.status);
+
+        r = req("GET", "/dav/davdir/note.txt", davAuth(), null);
+        check("WebDAV GET файла -> 200", r.status == 200 && Arrays.equals(content, r.body), "status=" + r.status);
+        r = req("GET", "/dav/davdir/note.txt", with(davAuth(), "Range", "bytes=6-11"), null);
+        check("WebDAV GET Range -> 206 'WebDAV'", r.status == 206 && "WebDAV".equals(r.text()), "status=" + r.status + " body=" + r.text());
+        r = req("HEAD", "/dav/davdir/note.txt", davAuth(), null);
+        check("WebDAV HEAD файла -> Content-Length без тела",
+                r.status == 200 && String.valueOf(content.length).equals(r.h.get("content-length")) && r.body.length == 0,
+                "cl=" + r.h.get("content-length") + " body=" + r.body.length);
+        r = req("HEAD", "/dav/davdir/", davAuth(), null);
+        check("WebDAV HEAD папки -> ненулевой Content-Length без тела",
+                r.status == 200 && Integer.parseInt(r.h.getOrDefault("content-length", "0")) > 50 && r.body.length == 0,
+                "cl=" + r.h.get("content-length") + " body=" + r.body.length);
+
+        // HTML и SVG через WebDAV должны отдаваться с sandbox CSP
+        req("PUT", "/dav/davdir/page.html", davAuth(), "<script>alert(1)</script>".getBytes(StandardCharsets.UTF_8));
+        req("PUT", "/dav/davdir/pic.svg", davAuth(), "<svg xmlns='http://www.w3.org/2000/svg'><script>alert(1)</script></svg>".getBytes(StandardCharsets.UTF_8));
+        r = req("GET", "/dav/davdir/page.html", davAuth(), null);
+        check("WebDAV HTML защищён sandbox CSP", r.status == 200 && r.h.getOrDefault("content-security-policy", "").contains("sandbox"),
+                "csp=" + r.h.get("content-security-policy"));
+        r = req("GET", "/dav/davdir/pic.svg", davAuth(), null);
+        check("WebDAV SVG отдаёт image/svg+xml + sandbox CSP",
+                r.status == 200 && "image/svg+xml".equals(r.h.get("content-type")) && r.h.getOrDefault("content-security-policy", "").contains("sandbox"),
+                "ct=" + r.h.get("content-type") + " csp=" + r.h.get("content-security-policy"));
+
+        // MOVE и COPY с URL-encoded относительным и абсолютным кириллическим Destination
+        String relDest = "/dav/davdir/" + URLEncoder.encode("привет мир.txt", StandardCharsets.UTF_8).replace("+", "%20");
+        r = req("MOVE", "/dav/davdir/note.txt", with(davAuth(), "Destination", relDest), null);
+        check("WebDAV MOVE с относительным кириллическим Destination декодирует имя",
+                r.status == 201 && new File(ROOT, "davdir/привет мир.txt").isFile() && !new File(ROOT, "davdir/note.txt").exists(),
+                "status=" + r.status);
+
+        String absDest = "http://127.0.0.1:" + PORT + "/dav/davdir/" + URLEncoder.encode("копия файла.txt", StandardCharsets.UTF_8).replace("+", "%20");
+        r = req("COPY", relDest, with(davAuth(), "Destination", absDest), null);
+        check("WebDAV COPY с абсолютным кириллическим Destination декодирует имя",
+                r.status == 201 && new File(ROOT, "davdir/копия файла.txt").isFile(),
+                "status=" + r.status);
+
+        Map<String, String> noOw = with(with(davAuth(), "Destination", absDest), "Overwrite", "F");
+        r = req("COPY", relDest, noOw, null);
+        check("WebDAV COPY с Overwrite: F -> 412", r.status == 412, "status=" + r.status);
+
+        r = req("COPY", "/dav/davdir", with(davAuth(), "Destination", "/dav/davdir/inside"), null);
+        check("WebDAV COPY папки внутрь самой себя -> 403", r.status == 403, "status=" + r.status);
+
+        r = req("GET", "/dav/../../secret.txt", davAuth(), null);
+        check("WebDAV traversal GET -> 403", r.status == 403, "status=" + r.status);
+        r = req("MOVE", relDest, with(davAuth(), "Destination", "/dav/../../escape.txt"), null);
+        check("WebDAV traversal Destination -> 403", r.status == 403, "status=" + r.status);
+
+        r = req("PROPPATCH", relDest, davAuth(), null);
+        check("WebDAV PROPPATCH -> 207", r.status == 207, "status=" + r.status);
+        r = req("LOCK", relDest, davAuth(), null);
+        check("WebDAV LOCK -> 200 + Lock-Token", r.status == 200 && r.h.getOrDefault("lock-token", "").contains("opaquelocktoken:"), "status=" + r.status);
+        r = req("UNLOCK", relDest, davAuth(), null);
+        check("WebDAV UNLOCK -> 204", r.status == 204, "status=" + r.status);
+
+        r = req("DELETE", "/dav/", davAuth(), null);
+        check("WebDAV DELETE корня -> 403", r.status == 403, "status=" + r.status);
+        r = req("DELETE", "/dav/davdir", davAuth(), null);
+        check("WebDAV DELETE папки -> 204", r.status == 204 && !new File(ROOT, "davdir").exists(), "status=" + r.status);
+    }
+
     /* ---------------- граничные случаи ---------------- */
     static void edgeTests() throws Exception {
         Resp r = get("/api/download?path=/" + URLEncoder.encode("quote\"name.txt", StandardCharsets.UTF_8));
@@ -675,6 +900,15 @@ public class Test {
             Certificate[] chain = session.getPeerCertificates();
             X509Certificate cert = (X509Certificate) chain[0];
             check("сертификат: CN=PocketBridge", cert.getSubjectX500Principal().getName().contains("CN=PocketBridge"), cert.getSubjectX500Principal().getName());
+            check("сертификат: X.509 v3 + не CA", cert.getVersion() == 3 && cert.getBasicConstraints() == -1,
+                    "v=" + cert.getVersion() + " bc=" + cert.getBasicConstraints());
+            check("сертификат: ExtendedKeyUsage serverAuth",
+                    cert.getExtendedKeyUsage() != null && cert.getExtendedKeyUsage().contains("1.3.6.1.5.5.7.3.1"),
+                    String.valueOf(cert.getExtendedKeyUsage()));
+            Collection<List<?>> sans = cert.getSubjectAlternativeNames();
+            String sanStr = String.valueOf(sans);
+            check("сертификат: SAN содержит localhost и 127.0.0.1",
+                    sans != null && sanStr.contains("localhost") && sanStr.contains("127.0.0.1"), sanStr);
             check("сертификат: самоподписанный (issuer = subject)", cert.getIssuerX500Principal().equals(cert.getSubjectX500Principal()), "");
             check("сертификат: RSA-2048", "RSA".equals(cert.getPublicKey().getAlgorithm()) && ((java.security.interfaces.RSAPublicKey) cert.getPublicKey()).getModulus().bitLength() == 2048, cert.getPublicKey().getAlgorithm());
             check("TLS >= 1.2", session.getProtocol().compareTo("TLSv1.2") >= 0, session.getProtocol());
