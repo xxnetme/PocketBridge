@@ -59,6 +59,15 @@ public final class ServerService extends Service {
     void removeListener(Runnable r) { listeners.remove(r); }
     private void notifyListeners() { for (Runnable r : listeners) try { r.run(); } catch (Throwable ignored) {} }
 
+    private boolean isEn() {
+        String saved = getSharedPreferences(PREFS, MODE_PRIVATE).getString("ui_lang", "");
+        if ("en".equals(saved) || "ru".equals(saved)) return "en".equals(saved);
+        String sys = java.util.Locale.getDefault().getLanguage();
+        return !("ru".equals(sys) || "uk".equals(sys) || "be".equals(sys) || "kk".equals(sys));
+    }
+
+    private String tr(String ru, String en) { return isEn() ? en : ru; }
+
     @Override public int onStartCommand(Intent intent, int flags, int startId) {
         String action = intent == null ? null : intent.getAction();
         if (ACTION_STOP.equals(action)) { shutdown(); return START_NOT_STICKY; }
@@ -70,7 +79,7 @@ public final class ServerService extends Service {
         releaseWifiLock();
         key = requested;
         error = "";
-        startInForeground("Запуск доступа…");
+        startInForeground(tr("Запуск доступа…", "Starting access…"));
         try {
             SSLContext ssl = SelfSignedCertificate.createContext(getFilesDir());
             int preferredPort = getSharedPreferences(PREFS, MODE_PRIVATE).getInt(PREF_PORT, DEFAULT_PORT);
@@ -79,18 +88,19 @@ public final class ServerService extends Service {
             acquireWifiLock();
             startWatchdog();
         } catch (Exception e) {
-            error = e.getMessage() == null ? "Не удалось запустить сервер" : e.getMessage();
+            error = e.getMessage() == null ? tr("Не удалось запустить сервер", "Could not start server") : e.getMessage();
             shutdown();
             return START_NOT_STICKY;
         }
-        startInForeground("Сервер работает");
+        startInForeground(tr("PocketBridge активен · :" + port, "PocketBridge active · :" + port));
         notifyListeners();
         return START_NOT_STICKY;
     }
 
     /** Android 15+ (API 35+): корректная остановка при истечении лимита времени foregroundServiceType=dataSync. */
     @Override public void onTimeout(int startId, int fgsType) {
-        error = "Фоновый лимит Android исчерпан — запустите доступ снова";
+        error = tr("Фоновый лимит Android исчерпан — запустите доступ снова",
+                "Android background limit reached — tap Start again");
         shutdown();
     }
 
@@ -133,7 +143,8 @@ public final class ServerService extends Service {
         watchdog.scheduleWithFixedDelay(() -> {
             FileServer current = server;
             if (current != null && current.idleMillis() > limit && current.activeConnections() == 0) {
-                error = "Сервер остановлен автоматически: " + minutes + " мин без подключений";
+                error = tr("Остановлен автоматически: " + minutes + " мин без подключений",
+                        "Stopped automatically after " + minutes + " min idle");
                 shutdown();
             }
         }, 1, 1, TimeUnit.MINUTES);
@@ -175,8 +186,9 @@ public final class ServerService extends Service {
         // Публичная версия для экрана блокировки — без кода доступа
         Notification publicNotification = new Notification.Builder(this, CHANNEL_ID)
                 .setSmallIcon(android.R.drawable.stat_sys_download_done)
+                .setColor(0xff0d9473)
                 .setContentTitle(title)
-                .setContentText("Доступ к файлам по Wi-Fi активен")
+                .setContentText(tr("Доступ к файлам по Wi-Fi активен", "Wi-Fi file access is active"))
                 .setOngoing(true)
                 .setShowWhen(false)
                 .setVisibility(Notification.VISIBILITY_PUBLIC)
@@ -184,22 +196,25 @@ public final class ServerService extends Service {
 
         return new Notification.Builder(this, CHANNEL_ID)
                 .setSmallIcon(android.R.drawable.stat_sys_download_done)
+                .setColor(0xff0d9473)
                 .setContentTitle(title)
-                .setContentText("Код доступа: " + key)
+                .setContentText(tr("Код доступа: ", "Access code: ") + key)
                 .setContentIntent(content)
                 .setOngoing(true)
                 .setShowWhen(false)
                 .setVisibility(Notification.VISIBILITY_PRIVATE)
                 .setPublicVersion(publicNotification)
-                .addAction(new Notification.Action.Builder(android.R.drawable.ic_menu_close_clear_cancel, "Остановить", stopIntent).build())
+                .addAction(new Notification.Action.Builder(android.R.drawable.ic_menu_close_clear_cancel,
+                        tr("Остановить", "Stop"), stopIntent).build())
                 .build();
     }
 
     private void ensureChannel() {
         NotificationManager manager = getSystemService(NotificationManager.class);
         if (manager != null && manager.getNotificationChannel(CHANNEL_ID) == null) {
-            NotificationChannel channel = new NotificationChannel(CHANNEL_ID, "Файловый сервер", NotificationManager.IMPORTANCE_LOW);
-            channel.setDescription("Работа доступа к файлам по Wi-Fi");
+            NotificationChannel channel = new NotificationChannel(CHANNEL_ID,
+                    tr("Файловый сервер", "File server"), NotificationManager.IMPORTANCE_LOW);
+            channel.setDescription(tr("Работа доступа к файлам по Wi-Fi", "Local Wi-Fi file server status"));
             channel.setShowBadge(false);
             channel.setLockscreenVisibility(Notification.VISIBILITY_PRIVATE);
             manager.createNotificationChannel(channel);

@@ -86,6 +86,8 @@ function zipEntries(zipPath) {
   await page.waitForSelector('#app:not(.hidden)', { timeout: 15000 });
   await page.waitForTimeout(300);
   rec('Вход по верному коду, список корня', (await rowsCount(page)) >= 7, 'строк=' + (await rowsCount(page)));
+  const barBox = await page.locator('.bar').boundingBox();
+  rec('Десктоп: панель инструментов в одну строку', !!barBox && barBox.height <= 72, barBox ? ('h=' + Math.round(barBox.height) + 'px') : 'нет .bar');
   await page.screenshot({ path: path.join(shots, '03-list-desktop.png') });
 
   // переключение языка RU -> EN -> RU
@@ -146,6 +148,10 @@ function zipEntries(zipPath) {
   const imgLoaded = await page.locator('#previewBody img').evaluate(i => i.naturalWidth > 0).catch(() => false);
   rec('Превью фото в браузере', imgLoaded, (Date.now() - tPrev) + ' мс');
   await page.screenshot({ path: path.join(shots, '06-preview-photo.png') });
+  const canStepPhoto = await page.locator('#previewNext').isVisible();
+  if (canStepPhoto) { await page.click('#previewNext'); await page.waitForTimeout(500); }
+  const nextTitle = (await page.locator('#previewTitle').textContent()) || '';
+  rec('Галерея фото: переключение к следующему кадру', canStepPhoto && nextTitle.includes('IMG_2001'), nextTitle);
   await closePreview(page);
   await goRoot(page);
 
@@ -361,6 +367,10 @@ function zipEntries(zipPath) {
   await page.waitForTimeout(250);
   const sortedNames = await page.locator('#rows tr td:nth-child(2) button.filename').allTextContents();
   rec('Сортировка по размеру: первым самый большой файл', sortedNames[0] === 'большой.bin', sortedNames.slice(0, 3).join(' | '));
+  await page.click('thead th[data-sort="size"]');
+  await page.waitForTimeout(200);
+  const flippedNames = await page.locator('#rows tr td:nth-child(2) button.filename').allTextContents();
+  rec('Клик по заголовку колонки меняет порядок сортировки', flippedNames[flippedNames.length - 1] === 'большой.bin', flippedNames.slice(0, 3).join(' | '));
   await page.selectOption('#sort', 'name');
   await goRoot(page);
 
@@ -470,6 +480,12 @@ function zipEntries(zipPath) {
   await page.click('#theme');
   await page.waitForTimeout(300);
   rec('Тёмная тема возвращается', await page.evaluate(() => document.documentElement.dataset.theme === 'dark'), '');
+  await page.screenshot({ path: path.join(shots, '26-dark-theme.png') });
+  await page.click('#view');
+  await page.waitForTimeout(400);
+  await page.screenshot({ path: path.join(shots, '27-dark-grid.png') });
+  await page.click('#view');
+  await page.waitForTimeout(250);
 
   // загрузка папки с сохранением структуры
   const folderName = 'pb-up-' + Date.now();
@@ -515,6 +531,14 @@ function zipEntries(zipPath) {
   rec('Мобильная вёрстка: список без горизонтального скролла', !mOverflow, mOverflow ? 'есть overflow' : 'ok');
   const delBox = await mp.locator('#rows tr').first().getByText('Удалить').boundingBox();
   rec('Мобильная вёрстка: действия строки видны без скролла', !!delBox && delBox.x + delBox.width <= 391, delBox ? ('x=' + Math.round(delBox.x) + ' w=' + Math.round(delBox.width)) : 'нет кнопки');
+  const mSearchBox = await mp.locator('#search').boundingBox();
+  const mTopBox = await mp.locator('header.top').boundingBox();
+  rec('Мобильная вёрстка: поиск на всю ширину и шапка в одну строку',
+      !!mSearchBox && mSearchBox.width >= 180 && !!mTopBox && mTopBox.height <= 52,
+      'search=' + (mSearchBox ? Math.round(mSearchBox.width) : 0) + 'px top=' + (mTopBox ? Math.round(mTopBox.height) : 0) + 'px');
+  await mp.click('#theme');
+  await mp.waitForTimeout(250);
+  await mp.screenshot({ path: path.join(shots, '28-mobile-dark.png') });
   await mp.locator('#rows tr', { hasText: 'Фото' }).locator('button.filename').click();
   await mp.waitForTimeout(400);
   await mp.locator('#rows tr', { hasText: 'обложка' }).locator('button.filename').click();

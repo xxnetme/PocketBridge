@@ -145,17 +145,49 @@ final class WebDav {
 
     private boolean get(OutputStream out, File target, String raw, boolean headOnly, String range) throws Exception {
         if (target.isDirectory()) {
-            StringBuilder html = new StringBuilder("<!doctype html><meta charset=utf-8><title>PocketBridge WebDAV</title><h1>PocketBridge WebDAV</h1><p>Монтируйте этот адрес в Проводнике Windows или Finder. Логин любой, пароль — код доступа.</p><ul>");
+            String displayPath = (raw == null || raw.isEmpty()) ? "/dav/" : ("/dav/" + raw + "/");
+            StringBuilder html = new StringBuilder();
+            html.append("<!doctype html><html lang=\"ru\"><head><meta charset=\"utf-8\">")
+                .append("<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">")
+                .append("<title>PocketBridge WebDAV</title><style>")
+                .append(":root{--bg:#071015;--card:#0d1920;--head:#112028;--bd:#1e333b;--tx:#ecf6f4;--mu:#7e9a98;--ac:#6ee7c0;--hv:#12232c;color-scheme:dark}")
+                .append("@media(prefers-color-scheme:light){:root{--bg:#f2f7f5;--card:#fff;--head:#f7fbf9;--bd:#dce8e4;--tx:#0e221e;--mu:#58756f;--ac:#0d9473;--hv:#f3f9f7;color-scheme:light}}")
+                .append("*{box-sizing:border-box}body{margin:0;padding:28px 18px;background:var(--bg);color:var(--tx);font:14px/1.5 Inter,-apple-system,\"Segoe UI\",Roboto,sans-serif}")
+                .append(".w{max-width:860px;margin:0 auto}.top{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:6px}")
+                .append("h1{font-size:20px;letter-spacing:-.02em;margin:0}.back{color:var(--ac);text-decoration:none;font-size:13px;font-weight:600}")
+                .append("p{margin:0 0 16px;color:var(--mu);font-size:13px}.box{background:var(--card);border:1px solid var(--bd);border-radius:14px;overflow:hidden}")
+                .append(".path{padding:10px 16px;background:var(--head);border-bottom:1px solid var(--bd);font:600 12.5px ui-monospace,SFMono-Regular,Consolas,monospace;color:var(--mu)}")
+                .append("ul{list-style:none;margin:0;padding:0}li{border-bottom:1px solid var(--bd)}li:last-child{border-bottom:0}")
+                .append("li a{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 16px;color:var(--tx);text-decoration:none;font-weight:500}")
+                .append("li a:hover{background:var(--hv);color:var(--ac)}.sz{color:var(--mu);font-size:12px;font-variant-numeric:tabular-nums;white-space:nowrap}")
+                .append(".empty{padding:28px 16px;text-align:center;color:var(--mu);font-size:13px}")
+                .append("</style></head><body><main class=\"w\"><div class=\"top\"><h1>PocketBridge WebDAV</h1>")
+                .append("<a class=\"back\" href=\"/\">← Веб-интерфейс</a></div>")
+                .append("<p>Монтируйте этот адрес в Проводнике Windows, macOS Finder или файловом менеджере Linux. Логин любой, пароль — код доступа.</p>")
+                .append("<div class=\"box\"><div class=\"path\">").append(escape(displayPath)).append("</div><ul>");
+            if (raw != null && !raw.isEmpty()) {
+                int sl = raw.lastIndexOf('/');
+                String parentRaw = sl < 0 ? "" : raw.substring(0, sl);
+                html.append("<li><a href=\"").append(escape(hrefOf(parentRaw, true))).append("\"><span>..</span><span class=\"sz\">Наверх</span></a></li>");
+            }
             File[] children = target.listFiles();
+            int shown = 0;
             if (children != null) {
-                Arrays.sort(children, Comparator.comparing(File::getName));
+                Arrays.sort(children, Comparator.comparing((File f) -> !f.isDirectory())
+                    .thenComparing(f -> f.getName().toLowerCase(Locale.ROOT)));
                 for (File child : children) {
                     if (FileServer.isTempName(child.getName())) continue;
-                    String name = escape(child.getName()) + (child.isDirectory() ? "/" : "");
-                    html.append("<li><a href=\"").append(escape(hrefOf(joinRaw(raw, child.getName()), child.isDirectory()))).append("\">").append(name).append("</a></li>");
+                    boolean dir = child.isDirectory();
+                    String name = escape(child.getName()) + (dir ? "/" : "");
+                    String sz = dir ? "Папка" : humanSize(child.length());
+                    html.append("<li><a href=\"").append(escape(hrefOf(joinRaw(raw, child.getName()), dir)))
+                        .append("\"><span>").append(name).append("</span><span class=\"sz\">").append(sz).append("</span></a></li>");
+                    shown++;
                 }
             }
             html.append("</ul>");
+            if (shown == 0) html.append("<div class=\"empty\">Папка пуста</div>");
+            html.append("</div></main></body></html>");
             byte[] body = html.toString().getBytes(StandardCharsets.UTF_8);
             Map<String, String> extra = new LinkedHashMap<>();
             extra.put("Content-Security-Policy", SANDBOX_CSP);
@@ -581,6 +613,15 @@ final class WebDav {
         }
         head.append("Connection: close\r\nCache-Control: no-store\r\nX-Content-Type-Options: nosniff\r\nReferrer-Policy: no-referrer\r\n\r\n");
         out.write(head.toString().getBytes(StandardCharsets.US_ASCII));
+    }
+
+    private static String humanSize(long bytes) {
+        String[] units = { "Б", "КБ", "МБ", "ГБ", "ТБ" };
+        double v = Math.max(0, bytes);
+        int i = 0;
+        while (v >= 1024 && i < units.length - 1) { v /= 1024.0; i++; }
+        if (i == 0) return ((long) v) + " " + units[0];
+        return String.format(Locale.US, v >= 10 ? "%.1f %s" : "%.2f %s", v, units[i]);
     }
 
     private static String reason(int status) {

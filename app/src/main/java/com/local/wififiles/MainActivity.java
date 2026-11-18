@@ -11,10 +11,13 @@ import android.content.Intent;
 import android.content.ServiceConnection;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.content.res.ColorStateList;
 import android.graphics.Bitmap;
 import android.graphics.Insets;
 import android.graphics.Typeface;
+import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
+import android.graphics.drawable.RippleDrawable;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -26,6 +29,7 @@ import android.text.InputType;
 import android.view.Gravity;
 import android.view.View;
 import android.view.WindowInsets;
+import android.view.WindowInsetsController;
 import android.view.WindowManager;
 import android.widget.EditText;
 import android.widget.ImageView;
@@ -58,21 +62,58 @@ import java.util.Locale;
 import java.util.Map;
 
 public final class MainActivity extends Activity {
-    private static final int BG = 0xff0a1419, PANEL = 0xff14252b, PANEL2 = 0xff1b3035, BORDER = 0xff2a4144,
-            WHITE = 0xffecf6f2, MUTED = 0xff92aaa7, MINT = 0xff83e5c2, DARK = 0xff0d3028, RED = 0xffffb6ab;
-    private static final String APP_VERSION = "3.5";
+    private static final int BG = 0xff071015;
+    private static final int PANEL = 0xff0d1920;
+    private static final int PANEL2 = 0xff112028;
+    private static final int PANEL3 = 0xff152730;
+    private static final int BORDER = 0xff1e333b;
+    private static final int BORDER_STRONG = 0xff29454e;
+    private static final int WHITE = 0xffecf6f4;
+    private static final int SOFT = 0xffb8cecb;
+    private static final int MUTED = 0xff7e9a98;
+    private static final int MINT = 0xff6ee7c0;
+    private static final int MINT_SOFT = 0xff12322c;
+    private static final int MINT_BORDER = 0xff23584d;
+    private static final int DARK_INK = 0xff08271f;
+    private static final int RED = 0xffff9b90;
+    private static final int RED_BG = 0xff2d1d1e;
+    private static final int RED_BORDER = 0xff593334;
+    private static final int AMBER = 0xfff3c969;
+    private static final int AMBER_BG = 0xff262114;
+    private static final int AMBER_BORDER = 0xff4c3f1f;
+    private static final int RIPPLE_LIGHT = 0x26ffffff;
+    private static final int RIPPLE_DARK = 0x29071015;
 
-    private TextView statusTitle, statusDescription, addressText, codeText, permissionStatus, permissionButton, mainButton, copyAddress, copyLink;
-    private LinearLayout connectionCard, qrSection;
+    private static final String APP_VERSION = "3.6";
+    private static final String PREF_LANG = "ui_lang";
+
+    private View statusDot;
+    private TextView brandSub, liveBadge, langButton;
+    private TextView heroTitle, heroSub;
+    private TextView statusTitle, statusDescription, mainButton;
+    private LinearLayout permissionCard, permissionGrantedRow;
+    private TextView permissionTitle, permissionStatus, permissionButton, permissionOkText;
+    private LinearLayout connectionCard, qrSection, errorCard;
+    private TextView accessHeading, qrCaption, copyLink, shareLink;
+    private TextView addrCaption, addressText, copyAddress;
+    private TextView codeCaption, codeText, copyCode, newKey;
+    private TextView davCaption, davText, davHint, copyDav;
+    private TextView settingsTitle, settingsSub;
+    private TextView portName, portHint, settingsPort;
+    private TextView autoName, autoHint, settingsAutoStop;
+    private TextView keepName, keepHint, settingsKeepScreen;
+    private TextView securityTitle, securityBody;
+    private TextView crashTitle, crashBody, crashCopy, crashClear;
+
     private ImageView qrImage;
     private Bitmap currentQrBitmap;
     private String lastQrLink = "";
     private ServerService service;
     private boolean bound;
     private String key = "", firstAddress = "";
-    private TextView settingsPort, settingsAutoStop, settingsKeepScreen;
     private SharedPreferences prefs;
     private int port;
+    private boolean en;
 
     private final Runnable serverListener = () -> runOnUiThread(this::refreshView);
     private final ServiceConnection connection = new ServiceConnection() {
@@ -93,17 +134,36 @@ public final class MainActivity extends Activity {
     public void onCreate(Bundle state) {
         super.onCreate(state);
         installCrashRecorder();
+        prefs = getSharedPreferences(ServerService.PREFS, MODE_PRIVATE);
+        String savedLang = prefs.getString(PREF_LANG, "");
+        if ("en".equals(savedLang) || "ru".equals(savedLang)) {
+            en = "en".equals(savedLang);
+        } else {
+            String sys = Locale.getDefault().getLanguage();
+            en = !("ru".equals(sys) || "uk".equals(sys) || "be".equals(sys) || "kk".equals(sys));
+        }
+
         if (Build.VERSION.SDK_INT < 35) {
             getWindow().setStatusBarColor(BG);
             getWindow().setNavigationBarColor(BG);
         }
+        if (Build.VERSION.SDK_INT >= 30) {
+            WindowInsetsController ic = getWindow().getInsetsController();
+            if (ic != null) {
+                ic.setSystemBarsAppearance(0,
+                        WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
+                                | WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS);
+            }
+        }
+
         ScrollView scroller = new ScrollView(this);
         scroller.setFillViewport(true);
+        scroller.setVerticalScrollBarEnabled(false);
         scroller.setBackgroundColor(BG);
+
         LinearLayout page = column();
-        int padH = dp(22), padTop = dp(22), padBottom = dp(32);
+        int padH = dp(20), padTop = dp(18), padBottom = dp(34);
         page.setPadding(padH, padTop, padH, padBottom);
-        // Поддержка edge-to-edge на Android 15/16 (targetSdk 36)
         scroller.setOnApplyWindowInsetsListener((view, insets) -> {
             int left, top, right, bottom;
             if (Build.VERSION.SDK_INT >= 30) {
@@ -121,121 +181,266 @@ public final class MainActivity extends Activity {
         scroller.addView(page);
         setContentView(scroller);
 
-        LinearLayout brand = row(); brand.setGravity(Gravity.CENTER_VERTICAL);
-        TextView mark = label("▤", 22, DARK, true); mark.setGravity(Gravity.CENTER); mark.setBackground(shape(MINT, 14, 0));
-        brand.addView(mark, new LinearLayout.LayoutParams(dp(44), dp(44)));
-        LinearLayout brandWords = column(); brandWords.setPadding(dp(12), 0, 0, 0);
+        /* ---------- верхняя панель бренда ---------- */
+        LinearLayout top = row();
+        top.setGravity(Gravity.CENTER_VERTICAL);
+        ImageView logo = new ImageView(this);
+        logo.setImageResource(R.drawable.ic_launcher_foreground);
+        logo.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        logo.setBackground(shape(MINT_SOFT, 13, MINT_BORDER));
+        top.addView(logo, new LinearLayout.LayoutParams(dp(42), dp(42)));
+
+        LinearLayout brandWords = column();
+        brandWords.setPadding(dp(11), 0, dp(8), 0);
         brandWords.addView(label("PocketBridge", 15, WHITE, true));
-        TextView brandSub = label("WI-FI  ·  ЛОКАЛЬНО", 10, MUTED, true); brandSub.setLetterSpacing(.11f);
+        brandSub = label("", 10, MUTED, true);
+        brandSub.setLetterSpacing(.11f);
         brandWords.addView(brandSub);
-        brand.addView(brandWords, new LinearLayout.LayoutParams(0, -2, 1));
-        page.addView(brand); space(page, 35);
+        top.addView(brandWords, new LinearLayout.LayoutParams(0, -2, 1));
 
-        TextView eyebrow = label("ВАШ ТЕЛЕФОН  /  ВАШ ПК", 10, MINT, true); eyebrow.setLetterSpacing(.14f);
-        page.addView(eyebrow); space(page, 10);
-        TextView headline = label("Файлы рядом.\nБез проводов.", 32, WHITE, true); headline.setLineSpacing(dp(1), 1.0f);
-        page.addView(headline); space(page, 10);
-        TextView subtitle = label("Откройте файлы телефона в браузере компьютера через общую сеть Wi-Fi.", 15, MUTED, false); subtitle.setLineSpacing(dp(3), 1.0f);
-        page.addView(subtitle); space(page, 26);
+        liveBadge = label("", 11, MUTED, true);
+        liveBadge.setPadding(dp(10), dp(6), dp(10), dp(6));
+        liveBadge.setBackground(shape(PANEL, 999, BORDER));
+        top.addView(liveBadge);
+        spaceH(top, 8);
 
-        LinearLayout statusCard = card(); statusCard.setPadding(dp(18), dp(17), dp(18), dp(17));
-        statusTitle = label("", 14, WHITE, true);
-        statusDescription = label("", 13, MUTED, false); statusDescription.setLineSpacing(dp(2), 1.0f);
-        statusCard.addView(statusTitle); space(statusCard, 7); statusCard.addView(statusDescription);
-        page.addView(statusCard); space(page, 14);
+        langButton = label("", 11, SOFT, true);
+        langButton.setGravity(Gravity.CENTER);
+        langButton.setPadding(dp(10), dp(6), dp(10), dp(6));
+        langButton.setBackground(ripple(PANEL, 10, BORDER, RIPPLE_LIGHT));
+        langButton.setClickable(true);
+        langButton.setFocusable(true);
+        langButton.setOnClickListener(v -> {
+            en = !en;
+            prefs.edit().putString(PREF_LANG, en ? "en" : "ru").apply();
+            refreshView();
+        });
+        top.addView(langButton);
+        page.addView(top);
+        space(page, 22);
 
-        connectionCard = card(); connectionCard.setPadding(dp(18), dp(19), dp(18), dp(18));
-        TextView accessHeading = label("ДАННЫЕ ДЛЯ ПОДКЛЮЧЕНИЯ", 10, MINT, true); accessHeading.setLetterSpacing(.12f);
-        connectionCard.addView(accessHeading); space(connectionCard, 17);
-        connectionCard.addView(caption("АДРЕС В БРАУЗЕРЕ")); space(connectionCard, 6);
-        addressText = label("", 18, WHITE, true); addressText.setTextIsSelectable(true);
-        connectionCard.addView(addressText); space(connectionCard, 10);
-        copyAddress = button("Скопировать адрес", false);
-        copyAddress.setOnClickListener(v -> copyValue("Адрес", firstAddress));
-        connectionCard.addView(copyAddress, new LinearLayout.LayoutParams(-1, dp(43))); space(connectionCard, 18);
+        /* ---------- компактный заголовок ---------- */
+        heroTitle = label("", 26, WHITE, true);
+        heroTitle.setLineSpacing(dp(1), 1.0f);
+        page.addView(heroTitle);
+        space(page, 6);
+        heroSub = label("", 14, MUTED, false);
+        heroSub.setLineSpacing(dp(2), 1.0f);
+        page.addView(heroSub);
+        space(page, 18);
 
-        View divider = new View(this); divider.setBackgroundColor(BORDER);
-        connectionCard.addView(divider, new LinearLayout.LayoutParams(-1, dp(1))); space(connectionCard, 18);
+        /* ---------- карточка статуса и главной кнопки ---------- */
+        LinearLayout statusCard = card(PANEL, BORDER);
+        statusCard.setPadding(dp(18), dp(16), dp(18), dp(18));
 
-        connectionCard.addView(caption("КОД ДОСТУПА")); space(connectionCard, 6);
-        codeText = label("", 20, WHITE, true); codeText.setTypeface(Typeface.MONOSPACE, Typeface.BOLD); codeText.setTextIsSelectable(true);
-        connectionCard.addView(codeText); space(connectionCard, 10);
-        TextView copyCode = button("Скопировать код", false);
-        copyCode.setOnClickListener(v -> copyValue("Код", key));
-        connectionCard.addView(copyCode, new LinearLayout.LayoutParams(-1, dp(43))); space(connectionCard, 10);
+        LinearLayout statusHead = row();
+        statusHead.setGravity(Gravity.CENTER_VERTICAL);
+        statusDot = new View(this);
+        statusDot.setBackground(shape(MUTED, 999, 0));
+        statusHead.addView(statusDot, new LinearLayout.LayoutParams(dp(9), dp(9)));
+        spaceH(statusHead, 9);
+        statusTitle = label("", 16, WHITE, true);
+        statusHead.addView(statusTitle, new LinearLayout.LayoutParams(0, -2, 1));
+        statusCard.addView(statusHead);
 
-        LinearLayout linkRow = row();
-        copyLink = button("Ссылка с кодом", false);
-        copyLink.setOnClickListener(v -> copyValue("Ссылка", linkWithKey()));
-        linkRow.addView(copyLink, new LinearLayout.LayoutParams(0, dp(43), 1));
-        spaceH(linkRow, 10);
-        TextView newKey = button("Сменить код", false);
-        newKey.setOnClickListener(v -> changeCode());
-        linkRow.addView(newKey, new LinearLayout.LayoutParams(0, dp(43), 1));
-        connectionCard.addView(linkRow);
+        space(statusCard, 7);
+        statusDescription = label("", 13, MUTED, false);
+        statusDescription.setLineSpacing(dp(2), 1.0f);
+        statusCard.addView(statusDescription);
 
-        // Блок QR-кода создаётся один раз и обновляется в refreshView() без дублирования view
+        space(statusCard, 15);
+        mainButton = button("", true);
+        mainButton.setOnClickListener(v -> { if (!isRunning()) startServer(); else stopServer(); });
+        statusCard.addView(mainButton, new LinearLayout.LayoutParams(-1, dp(50)));
+        page.addView(statusCard);
+        space(page, 12);
+
+        /* ---------- разрешение на доступ к файлам ---------- */
+        permissionCard = card(AMBER_BG, AMBER_BORDER);
+        permissionCard.setPadding(dp(18), dp(15), dp(18), dp(16));
+        permissionTitle = label("", 15, AMBER, true);
+        permissionCard.addView(permissionTitle);
+        space(permissionCard, 5);
+        permissionStatus = label("", 13, SOFT, false);
+        permissionStatus.setLineSpacing(dp(2), 1.0f);
+        permissionCard.addView(permissionStatus);
+        space(permissionCard, 12);
+        permissionButton = button("", false);
+        permissionButton.setOnClickListener(v -> requestAccess());
+        permissionCard.addView(permissionButton, new LinearLayout.LayoutParams(-1, dp(44)));
+        page.addView(permissionCard);
+
+        permissionGrantedRow = row();
+        permissionGrantedRow.setGravity(Gravity.CENTER_VERTICAL);
+        permissionGrantedRow.setPadding(dp(14), dp(10), dp(14), dp(10));
+        permissionGrantedRow.setBackground(shape(MINT_SOFT, 14, MINT_BORDER));
+        permissionOkText = label("", 12, MINT, true);
+        permissionGrantedRow.addView(permissionOkText, new LinearLayout.LayoutParams(0, -2, 1));
+        page.addView(permissionGrantedRow);
+        space(page, 12);
+
+        /* ---------- карточка подключения (когда сервер активен) ---------- */
+        connectionCard = card(PANEL, MINT_BORDER);
+        connectionCard.setPadding(dp(16), dp(16), dp(16), dp(16));
+
+        accessHeading = caption("");
+        accessHeading.setTextColor(MINT);
+        connectionCard.addView(accessHeading);
+        space(connectionCard, 12);
+
+        // 1. Блок QR + быстрая ссылка и «Поделиться»
         qrSection = column();
-        space(qrSection, 18);
-        View qrDivider = new View(this); qrDivider.setBackgroundColor(BORDER);
-        qrSection.addView(qrDivider, new LinearLayout.LayoutParams(-1, dp(1)));
-        space(qrSection, 18);
-        qrSection.addView(caption("QR-КОД (ССЫЛКА С АВТОВХОДОМ)"));
-        space(qrSection, 10);
-        LinearLayout qrCenter = column();
-        qrCenter.setGravity(Gravity.CENTER_HORIZONTAL);
+        qrSection.setBackground(shape(PANEL2, 14, BORDER));
+        qrSection.setPadding(dp(14), dp(16), dp(14), dp(14));
+        qrSection.setGravity(Gravity.CENTER_HORIZONTAL);
         qrImage = new ImageView(this);
         qrImage.setAdjustViewBounds(true);
-        qrImage.setBackground(shape(0xffffffff, 12, 0));
+        qrImage.setBackground(shape(0xffffffff, 14, 0));
         qrImage.setPadding(dp(10), dp(10), dp(10), dp(10));
-        qrImage.setContentDescription("QR-код для подключения");
-        qrCenter.addView(qrImage, new LinearLayout.LayoutParams(dp(200), dp(200)));
-        qrSection.addView(qrCenter, new LinearLayout.LayoutParams(-1, -2));
+        qrSection.addView(qrImage, new LinearLayout.LayoutParams(dp(188), dp(188)));
+        space(qrSection, 10);
+        qrCaption = label("", 12, MUTED, false);
+        qrCaption.setGravity(Gravity.CENTER);
+        qrSection.addView(qrCaption);
+        space(qrSection, 12);
+        LinearLayout shareRow = row();
+        copyLink = chipButton("");
+        copyLink.setOnClickListener(v -> copyValue(tr("Ссылка", "Link"), linkWithKey()));
+        shareRow.addView(copyLink, new LinearLayout.LayoutParams(0, dp(40), 1));
+        spaceH(shareRow, 8);
+        shareLink = chipButton("");
+        shareLink.setOnClickListener(v -> shareLoginLink());
+        shareRow.addView(shareLink, new LinearLayout.LayoutParams(0, dp(40), 1));
+        qrSection.addView(shareRow, new LinearLayout.LayoutParams(-1, -2));
         qrSection.setVisibility(View.GONE);
         connectionCard.addView(qrSection);
+        space(connectionCard, 10);
+
+        // 2. Блок адреса в браузере
+        LinearLayout addrTile = tile();
+        addrCaption = caption("");
+        addrTile.addView(addrCaption);
+        space(addrTile, 6);
+        LinearLayout addrLine = row();
+        addrLine.setGravity(Gravity.CENTER_VERTICAL);
+        addressText = label("", 15, WHITE, true);
+        addressText.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
+        addressText.setTextIsSelectable(true);
+        addrLine.addView(addressText, new LinearLayout.LayoutParams(0, -2, 1));
+        spaceH(addrLine, 8);
+        copyAddress = smallPill("");
+        copyAddress.setOnClickListener(v -> copyValue(tr("Адрес", "Address"), firstAddress));
+        addrLine.addView(copyAddress);
+        addrTile.addView(addrLine);
+        connectionCard.addView(addrTile);
+        space(connectionCard, 10);
+
+        // 3. Блок кода доступа
+        LinearLayout codeTile = tile();
+        codeCaption = caption("");
+        codeTile.addView(codeCaption);
+        space(codeTile, 6);
+        codeText = label("", 19, MINT, true);
+        codeText.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
+        codeText.setLetterSpacing(.06f);
+        codeText.setTextIsSelectable(true);
+        codeTile.addView(codeText);
+        space(codeTile, 10);
+        LinearLayout codeBtns = row();
+        copyCode = chipButton("");
+        copyCode.setOnClickListener(v -> copyValue(tr("Код", "Code"), key));
+        codeBtns.addView(copyCode, new LinearLayout.LayoutParams(0, dp(38), 1));
+        spaceH(codeBtns, 8);
+        newKey = chipButton("");
+        newKey.setOnClickListener(v -> changeCode());
+        codeBtns.addView(newKey, new LinearLayout.LayoutParams(0, dp(38), 1));
+        codeTile.addView(codeBtns);
+        connectionCard.addView(codeTile);
+        space(connectionCard, 10);
+
+        // 4. Блок WebDAV (сетевой диск)
+        LinearLayout davTile = tile();
+        davCaption = caption("");
+        davTile.addView(davCaption);
+        space(davTile, 6);
+        LinearLayout davLine = row();
+        davLine.setGravity(Gravity.CENTER_VERTICAL);
+        LinearLayout davTexts = column();
+        davText = label("", 13, SOFT, true);
+        davText.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
+        davText.setTextIsSelectable(true);
+        davTexts.addView(davText);
+        space(davTexts, 2);
+        davHint = label("", 11, MUTED, false);
+        davTexts.addView(davHint);
+        davLine.addView(davTexts, new LinearLayout.LayoutParams(0, -2, 1));
+        spaceH(davLine, 8);
+        copyDav = smallPill("");
+        copyDav.setOnClickListener(v -> copyValue("WebDAV", davUrl()));
+        davLine.addView(copyDav);
+        davTile.addView(davLine);
+        connectionCard.addView(davTile);
 
         connectionCard.setVisibility(View.GONE);
-        page.addView(connectionCard); space(page, 14);
+        page.addView(connectionCard);
+        space(page, 12);
 
-        mainButton = button("Запустить доступ  →", true);
-        mainButton.setOnClickListener(v -> { if (!isRunning()) startServer(); else stopServer(); });
-        page.addView(mainButton, new LinearLayout.LayoutParams(-1, dp(54))); space(page, 24);
+        /* ---------- карточка настроек ---------- */
+        LinearLayout settingsCard = card(PANEL, BORDER);
+        settingsCard.setPadding(dp(18), dp(16), dp(18), dp(10));
+        settingsTitle = label("", 16, WHITE, true);
+        settingsCard.addView(settingsTitle);
+        space(settingsCard, 3);
+        settingsSub = label("", 12, MUTED, false);
+        settingsCard.addView(settingsSub);
+        space(settingsCard, 10);
 
-        LinearLayout permissionCard = card(); permissionCard.setPadding(dp(18), dp(17), dp(18), dp(17));
-        permissionCard.addView(label("Доступ к файлам", 16, WHITE, true)); space(permissionCard, 6);
-        permissionStatus = label("", 13, MUTED, false); permissionStatus.setLineSpacing(dp(2), 1.0f);
-        permissionCard.addView(permissionStatus); space(permissionCard, 14);
-        permissionButton = button("Разрешить доступ", false);
-        permissionButton.setOnClickListener(v -> requestAccess());
-        permissionCard.addView(permissionButton, new LinearLayout.LayoutParams(-1, dp(46)));
-        page.addView(permissionCard); space(page, 14);
+        TextView[] r1 = addSettingRow(settingsCard, this::editPort, true);
+        portName = r1[0]; portHint = r1[1]; settingsPort = r1[2];
 
-        prefs = getSharedPreferences(ServerService.PREFS, MODE_PRIVATE);
-        LinearLayout settingsCard = card(); settingsCard.setPadding(dp(18), dp(17), dp(18), dp(8));
-        settingsCard.addView(label("Настройки", 16, WHITE, true)); space(settingsCard, 6);
-        settingsCard.addView(label("Применяются сразу; запущенный сервер перезапустится.", 12, MUTED, false)); space(settingsCard, 12);
-        settingsPort = settingsRow(settingsCard, "Порт", this::editPort);
-        settingsAutoStop = settingsRow(settingsCard, "Автостоп", this::editAutoStop);
-        settingsKeepScreen = settingsRow(settingsCard, "Экран не гаснет", this::toggleKeepScreen);
-        page.addView(settingsCard); space(page, 20);
+        TextView[] r2 = addSettingRow(settingsCard, this::editAutoStop, true);
+        autoName = r2[0]; autoHint = r2[1]; settingsAutoStop = r2[2];
 
-        TextView security = label("БЕЗОПАСНОСТЬ", 10, MUTED, true); security.setLetterSpacing(.13f);
-        page.addView(security); space(page, 8);
-        TextView warning = label("Соединение шифруется (HTTPS) самоподписанным сертификатом: браузер один раз попросит подтвердить исключение — это нормально. Пользуйтесь доверенной сетью. Некоторые системные папки Android недоступны.", 13, MUTED, false);
-        warning.setLineSpacing(dp(3), 1.0f);
-        page.addView(warning);
+        TextView[] r3 = addSettingRow(settingsCard, this::toggleKeepScreen, false);
+        keepName = r3[0]; keepHint = r3[1]; settingsKeepScreen = r3[2];
 
-        if (new File(getFilesDir(), "last-crash.txt").exists()) {
-            space(page, 22);
-            LinearLayout errorCard = card(); errorCard.setPadding(dp(18), dp(16), dp(18), dp(16));
-            errorCard.addView(label("Журнал последнего сбоя", 15, WHITE, true)); space(errorCard, 8);
-            TextView detail = label("Скопируйте журнал, если ошибка повторилась. Он может содержать пути к файлам.", 12, MUTED, false);
-            errorCard.addView(detail); space(errorCard, 10);
-            TextView copy = button("Скопировать журнал", false);
-            copy.setOnClickListener(v -> copyCrashReport());
-            errorCard.addView(copy, new LinearLayout.LayoutParams(-1, dp(44)));
+        page.addView(settingsCard);
+        space(page, 18);
+
+        /* ---------- подвал безопасности ---------- */
+        securityTitle = caption("");
+        page.addView(securityTitle);
+        space(page, 6);
+        securityBody = label("", 12, MUTED, false);
+        securityBody.setLineSpacing(dp(2.5f), 1.0f);
+        page.addView(securityBody);
+
+        /* ---------- карточка сбоя (если был) ---------- */
+        File crashFile = new File(getFilesDir(), "last-crash.txt");
+        if (crashFile.exists()) {
+            space(page, 18);
+            errorCard = card(RED_BG, RED_BORDER);
+            errorCard.setPadding(dp(16), dp(14), dp(16), dp(14));
+            crashTitle = label("", 14, RED, true);
+            errorCard.addView(crashTitle);
+            space(errorCard, 5);
+            crashBody = label("", 12, SOFT, false);
+            errorCard.addView(crashBody);
+            space(errorCard, 10);
+            LinearLayout cBtns = row();
+            crashCopy = chipButton("");
+            crashCopy.setOnClickListener(v -> copyCrashReport());
+            cBtns.addView(crashCopy, new LinearLayout.LayoutParams(0, dp(38), 1));
+            spaceH(cBtns, 8);
+            crashClear = chipButton("");
+            crashClear.setOnClickListener(v -> {
+                if (crashFile.delete() && errorCard != null) errorCard.setVisibility(View.GONE);
+            });
+            cBtns.addView(crashClear, new LinearLayout.LayoutParams(0, dp(38), 1));
+            errorCard.addView(cBtns);
             page.addView(errorCard);
         }
+
         refreshView();
     }
 
@@ -265,7 +470,9 @@ public final class MainActivity extends Activity {
         super.onDestroy();
     }
 
+    private String tr(String ru, String eng) { return en ? eng : ru; }
     private int dp(float n) { return Math.round(n * getResources().getDisplayMetrics().density); }
+
     private GradientDrawable shape(int fill, int radius, int stroke) {
         GradientDrawable d = new GradientDrawable();
         d.setColor(fill);
@@ -273,71 +480,207 @@ public final class MainActivity extends Activity {
         if (stroke != 0) d.setStroke(dp(1), stroke);
         return d;
     }
+    private Drawable ripple(int fill, int radius, int stroke, int rippleColor) {
+        return new RippleDrawable(ColorStateList.valueOf(rippleColor), shape(fill, radius, stroke), shape(0xffffffff, radius, 0));
+    }
     private LinearLayout column() { LinearLayout l = new LinearLayout(this); l.setOrientation(LinearLayout.VERTICAL); return l; }
     private LinearLayout row() { LinearLayout l = new LinearLayout(this); l.setOrientation(LinearLayout.HORIZONTAL); return l; }
-    private LinearLayout card() { LinearLayout l = column(); l.setBackground(shape(PANEL, 18, BORDER)); return l; }
+    private LinearLayout card(int fill, int stroke) { LinearLayout l = column(); l.setBackground(shape(fill, 18, stroke)); return l; }
+    private LinearLayout tile() {
+        LinearLayout l = column();
+        l.setBackground(shape(PANEL2, 13, BORDER));
+        l.setPadding(dp(14), dp(12), dp(14), dp(12));
+        return l;
+    }
     private TextView label(String text, int size, int color, boolean bold) {
         TextView t = new TextView(this);
-        t.setText(text); t.setTextSize(size); t.setTextColor(color); t.setIncludeFontPadding(true);
+        t.setText(text);
+        t.setTextSize(size);
+        t.setTextColor(color);
+        t.setIncludeFontPadding(false);
         if (bold) t.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
         return t;
     }
-    private TextView caption(String text) { TextView t = label(text, 10, MUTED, true); t.setLetterSpacing(.11f); return t; }
+    private TextView caption(String text) {
+        TextView t = label(text, 10, MUTED, true);
+        t.setLetterSpacing(.11f);
+        return t;
+    }
     private TextView button(String text, boolean primary) {
-        TextView t = label(text, 14, primary ? DARK : WHITE, true);
+        TextView t = label(text, 14, primary ? DARK_INK : WHITE, true);
         t.setGravity(Gravity.CENTER);
-        t.setPadding(dp(12), 0, dp(12), 0);
-        t.setBackground(shape(primary ? MINT : PANEL2, 12, primary ? 0 : BORDER));
+        t.setPadding(dp(14), 0, dp(14), 0);
+        t.setBackground(ripple(primary ? MINT : PANEL3, 13, primary ? 0 : BORDER_STRONG, primary ? RIPPLE_DARK : RIPPLE_LIGHT));
         t.setClickable(true);
         t.setFocusable(true);
         return t;
     }
-    private void space(LinearLayout parent, int size) { parent.addView(new View(this), new LinearLayout.LayoutParams(1, dp(size))); }
-    private void spaceH(LinearLayout parent, int size) { parent.addView(new View(this), new LinearLayout.LayoutParams(dp(size), 1)); }
+    private TextView chipButton(String text) {
+        TextView t = label(text, 12, WHITE, true);
+        t.setGravity(Gravity.CENTER);
+        t.setPadding(dp(10), 0, dp(10), 0);
+        t.setBackground(ripple(PANEL3, 10, BORDER_STRONG, RIPPLE_LIGHT));
+        t.setClickable(true);
+        t.setFocusable(true);
+        return t;
+    }
+    private TextView smallPill(String text) {
+        TextView t = label(text, 12, MINT, true);
+        t.setGravity(Gravity.CENTER);
+        t.setPadding(dp(12), dp(8), dp(12), dp(8));
+        t.setBackground(ripple(MINT_SOFT, 10, MINT_BORDER, RIPPLE_LIGHT));
+        t.setClickable(true);
+        t.setFocusable(true);
+        return t;
+    }
+    private void space(LinearLayout parent, float size) { parent.addView(new View(this), new LinearLayout.LayoutParams(1, dp(size))); }
+    private void spaceH(LinearLayout parent, float size) { parent.addView(new View(this), new LinearLayout.LayoutParams(dp(size), 1)); }
+
+    private TextView[] addSettingRow(LinearLayout parent, Runnable action, boolean withDivider) {
+        LinearLayout r = row();
+        r.setGravity(Gravity.CENTER_VERTICAL);
+        r.setPadding(dp(6), dp(11), dp(6), dp(11));
+        r.setBackground(ripple(0x00000000, 10, 0, RIPPLE_LIGHT));
+        r.setClickable(true);
+        r.setFocusable(true);
+        r.setOnClickListener(v -> action.run());
+
+        LinearLayout texts = column();
+        TextView name = label("", 14, WHITE, true);
+        TextView hint = label("", 11, MUTED, false);
+        texts.addView(name);
+        space(texts, 2);
+        texts.addView(hint);
+        r.addView(texts, new LinearLayout.LayoutParams(0, -2, 1));
+        spaceH(r, 8);
+
+        TextView value = label("", 12, MINT, true);
+        value.setPadding(dp(10), dp(5), dp(10), dp(5));
+        value.setBackground(shape(MINT_SOFT, 8, MINT_BORDER));
+        r.addView(value);
+
+        TextView chevron = label("  ›", 16, MUTED, false);
+        r.addView(chevron);
+        parent.addView(r);
+
+        if (withDivider) {
+            View divider = new View(this);
+            divider.setBackgroundColor(BORDER);
+            parent.addView(divider, new LinearLayout.LayoutParams(-1, dp(1)));
+        }
+        return new TextView[]{ name, hint, value };
+    }
 
     private boolean isRunning() { return service != null && service.isRunning(); }
 
     private void refreshView() {
         if (statusTitle == null) return;
-        boolean running = isRunning(), allowed = hasAccess();
-        statusTitle.setText(running ? "●  Сервер запущен" : "○  Сервер остановлен");
-        statusTitle.setTextColor(running ? MINT : WHITE);
+        boolean running = isRunning();
+        boolean allowed = hasAccess();
         String lastError = service != null ? service.lastError() : "";
-        int autoStopMin = prefs != null ? prefs.getInt(ServerService.PREF_AUTOSTOP, ServerService.DEFAULT_AUTOSTOP) : ServerService.DEFAULT_AUTOSTOP;
-        String autoStopNote = autoStopMin <= 0
-                ? "Автостоп отключён."
-                : "Остановится сам после " + autoStopMin + " мин без подключений.";
+        boolean hasErr = !running && !lastError.isEmpty();
+
+        brandSub.setText(tr("WI-FI ПРОВОДНИК · v" + APP_VERSION, "WI-FI EXPLORER · v" + APP_VERSION));
+        langButton.setText(en ? "EN" : "RU");
+        liveBadge.setText(running ? tr("● В сети", "● Online") : tr("○ Пауза", "○ Idle"));
+        liveBadge.setTextColor(running ? MINT : MUTED);
+        liveBadge.setBackground(shape(running ? MINT_SOFT : PANEL, 999, running ? MINT_BORDER : BORDER));
+
+        heroTitle.setText(tr("Файлы рядом. Без проводов.", "Files at hand. Wirelessly."));
+        heroSub.setText(tr(
+                "Откройте хранилище телефона в браузере компьютера или подключите как сетевой диск.",
+                "Browse your phone storage in a desktop browser or mount it as a network drive."));
+
+        statusDot.setBackground(shape(running ? MINT : (hasErr ? RED : MUTED), 999, 0));
+        statusTitle.setText(running ? tr("Доступ открыт", "Access is active") : tr("Доступ остановлен", "Access is stopped"));
+        statusTitle.setTextColor(running ? MINT : WHITE);
+
+        int autoStopMin = prefs.getInt(ServerService.PREF_AUTOSTOP, ServerService.DEFAULT_AUTOSTOP);
+        String autoNote = autoStopMin <= 0
+                ? tr("Автостоп выключен.", "Auto-stop disabled.")
+                : tr("Автостоп через " + autoStopMin + " мин простоя.", "Auto-stops after " + autoStopMin + " min idle.");
         statusDescription.setText(running
-                ? "Шифрование включено (HTTPS). Работает, даже если свернуть приложение. " + autoStopNote
-                : (lastError.isEmpty() ? "Подключите телефон и компьютер к одной сети Wi-Fi." : lastError));
-        permissionStatus.setText(allowed
-                ? "Доступ к общему хранилищу разрешён."
-                : "Разрешение нужно, чтобы просматривать и изменять файлы.");
-        permissionButton.setText(allowed ? "✓  Доступ разрешён" : "Разрешить доступ к файлам");
-        mainButton.setText(running ? "Остановить доступ" : "Запустить доступ  →");
-        mainButton.setTextColor(running ? RED : DARK);
-        mainButton.setBackground(shape(running ? 0xff372b2c : MINT, 12, running ? 0xff694241 : 0));
+                ? tr("Защищено HTTPS · работает в фоне. ", "HTTPS encrypted · runs in background. ") + autoNote
+                : (hasErr ? lastError : tr("Подключите телефон и компьютер к одной сети Wi-Fi и нажмите кнопку ниже.",
+                        "Connect your phone and computer to the same Wi-Fi network and tap Start below.")));
+        statusDescription.setTextColor(hasErr ? RED : MUTED);
+
+        mainButton.setText(running ? tr("Остановить доступ", "Stop access") : tr("Запустить доступ  →", "Start access  →"));
+        mainButton.setTextColor(running ? RED : DARK_INK);
+        mainButton.setBackground(ripple(running ? RED_BG : MINT, 13, running ? RED_BORDER : 0, running ? RIPPLE_LIGHT : RIPPLE_DARK));
+
+        permissionCard.setVisibility(allowed ? View.GONE : View.VISIBLE);
+        permissionGrantedRow.setVisibility(allowed ? View.VISIBLE : View.GONE);
+        permissionTitle.setText(tr("Нужен доступ к файлам", "Storage access required"));
+        permissionStatus.setText(tr(
+                "Разрешите доступ к общему хранилищу, чтобы видеть и передавать файлы телефона.",
+                "Grant all-files access so PocketBridge can list, preview, and transfer your files."));
+        permissionButton.setText(tr("Открыть настройки доступа", "Grant storage access"));
+        permissionOkText.setText(tr("✓  Доступ к файлам телефона разрешён", "✓  Phone storage access granted"));
+
+        accessHeading.setText(tr("ПОДКЛЮЧЕНИЕ С КОМПЬЮТЕРА", "CONNECT FROM COMPUTER"));
+        qrImage.setContentDescription(tr("QR-код для быстрого входа", "QR code for instant login"));
+        qrCaption.setText(tr("Наведите камеру — вход без ввода кода", "Scan to open and sign in automatically"));
+        copyLink.setText(tr("Ссылка с кодом", "Copy login link"));
+        shareLink.setText(tr("Поделиться", "Share link"));
+
+        addrCaption.setText(tr("АДРЕС В БРАУЗЕРЕ", "BROWSER ADDRESS"));
+        copyAddress.setText(tr("Копировать", "Copy"));
+
+        codeCaption.setText(tr("КОД ДОСТУПА", "ACCESS CODE"));
+        copyCode.setText(tr("Скопировать код", "Copy code"));
+        newKey.setText(tr("Сменить код", "New code"));
+
+        davCaption.setText(tr("СЕТЕВОЙ ДИСК (WEBDAV)", "NETWORK DRIVE (WEBDAV)"));
+        davHint.setText(tr("Логин любой · пароль — код доступа", "Any username · password is the access code"));
+        copyDav.setText(tr("Копировать", "Copy"));
+
+        settingsTitle.setText(tr("Настройки", "Settings"));
+        settingsSub.setText(tr("Применяются сразу; активный сервер перезапустится.",
+                "Applied immediately; a running server restarts automatically."));
+        portName.setText(tr("Порт HTTPS", "HTTPS port"));
+        portHint.setText(tr("По умолчанию 8443", "Default 8443"));
+        autoName.setText(tr("Автостоп", "Auto-stop"));
+        autoHint.setText(tr("Выключать без активности", "Stop when idle"));
+        keepName.setText(tr("Не гасить экран", "Keep screen awake"));
+        keepHint.setText(tr("Пока открыто окно PocketBridge", "While PocketBridge is open"));
+
+        securityTitle.setText(tr("БЕЗОПАСНОСТЬ", "SECURITY"));
+        securityBody.setText(tr(
+                "Трафик шифруется локальным сертификатом телефона (HTTPS): при первом входе браузер попросит подтвердить исключение — это нормально. Работайте только в доверенной сети Wi-Fi.",
+                "Traffic is encrypted with a device-generated HTTPS certificate: accept the one-time browser warning on first connect. Use trusted Wi-Fi networks only."));
+
+        if (errorCard != null) {
+            crashTitle.setText(tr("Журнал последнего сбоя", "Last crash log"));
+            crashBody.setText(tr("Скопируйте журнал для диагностики (может содержать пути к файлам).",
+                    "Copy the log for troubleshooting (may include file paths)."));
+            crashCopy.setText(tr("Скопировать", "Copy log"));
+            crashClear.setText(tr("Скрыть", "Dismiss"));
+        }
+
         connectionCard.setVisibility(running ? View.VISIBLE : View.GONE);
         if (running) {
             key = service.accessKey();
             port = service.port();
             List<String> ips = ipAddresses();
-            firstAddress = ips.isEmpty() ? "" : "https://" + ips.get(0) + ":" + port;
-            if (ips.isEmpty()) {
-                addressText.setText("Нет адреса Wi-Fi. Проверьте подключение.");
+            boolean hasIp = !ips.isEmpty();
+            firstAddress = hasIp ? "https://" + ips.get(0) + ":" + port : "";
+            if (!hasIp) {
+                addressText.setText(tr("Нет Wi-Fi адреса — проверьте сеть", "No Wi-Fi IP — check connection"));
+                davText.setText("—");
             } else {
                 List<String> urls = new ArrayList<>();
                 for (String ip : ips) urls.add("https://" + ip + ":" + port);
                 addressText.setText(String.join("\n", urls));
+                davText.setText(davUrl());
             }
             codeText.setText(key);
-            boolean hasIp = !ips.isEmpty();
-            copyAddress.setAlpha(hasIp ? 1f : 0.45f);
-            copyAddress.setEnabled(hasIp);
-            copyLink.setAlpha(hasIp ? 1f : 0.45f);
-            copyLink.setEnabled(hasIp);
+            setControlEnabled(copyAddress, hasIp);
+            setControlEnabled(copyLink, hasIp);
+            setControlEnabled(shareLink, hasIp);
+            setControlEnabled(copyDav, hasIp);
             updateQrCode(hasIp ? linkWithKey() : "");
-            if (prefs == null || prefs.getBoolean(ServerService.PREF_KEEP_SCREEN, true)) {
+            if (prefs.getBoolean(ServerService.PREF_KEEP_SCREEN, true)) {
                 getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
             } else {
                 getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
@@ -347,6 +690,11 @@ public final class MainActivity extends Activity {
             getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         }
         refreshSettings();
+    }
+
+    private static void setControlEnabled(View v, boolean on) {
+        v.setEnabled(on);
+        v.setAlpha(on ? 1f : 0.42f);
     }
 
     private void updateQrCode(String link) {
@@ -383,7 +731,7 @@ public final class MainActivity extends Activity {
             for (int y = 0; y < h; y++) {
                 int rowOffset = y * w;
                 for (int x = 0; x < w; x++) {
-                    pixels[rowOffset + x] = matrix.get(x, y) ? 0xff0a1419 : 0xffffffff;
+                    pixels[rowOffset + x] = matrix.get(x, y) ? 0xff071015 : 0xffffffff;
                 }
             }
             Bitmap bitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
@@ -397,6 +745,25 @@ public final class MainActivity extends Activity {
     private String linkWithKey() {
         if (firstAddress == null || firstAddress.isEmpty()) return "";
         return firstAddress + "/#k=" + key;
+    }
+
+    private String davUrl() {
+        if (firstAddress == null || firstAddress.isEmpty()) return "";
+        return firstAddress + "/dav/";
+    }
+
+    private void shareLoginLink() {
+        String link = linkWithKey();
+        if (link.isEmpty()) return;
+        try {
+            Intent send = new Intent(Intent.ACTION_SEND);
+            send.setType("text/plain");
+            send.putExtra(Intent.EXTRA_SUBJECT, "PocketBridge");
+            send.putExtra(Intent.EXTRA_TEXT, link);
+            startActivity(Intent.createChooser(send, tr("Отправить ссылку PocketBridge", "Share PocketBridge link")));
+        } catch (Exception e) {
+            copyValue(tr("Ссылка", "Link"), link);
+        }
     }
 
     private static String randomHexKey() {
@@ -415,46 +782,42 @@ public final class MainActivity extends Activity {
     }
 
     private void changeCode() {
-        if (!isRunning()) { Toast.makeText(this, "Сначала запустите доступ", Toast.LENGTH_SHORT).show(); return; }
+        if (!isRunning()) {
+            Toast.makeText(this, tr("Сначала запустите доступ", "Start access first"), Toast.LENGTH_SHORT).show();
+            return;
+        }
         try {
             dispatchStartService(randomHexKey());
-            Toast.makeText(this, "Новый код создан. Откройте страницу заново.", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, tr("Новый код создан — войдите заново", "New code generated — sign in again"), Toast.LENGTH_LONG).show();
         } catch (Exception e) {
-            Toast.makeText(this, "Не удалось сменить код", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, tr("Не удалось сменить код", "Failed to rotate code"), Toast.LENGTH_SHORT).show();
         }
-    }
-
-    private TextView settingsRow(LinearLayout parent, String caption, Runnable action) {
-        LinearLayout row = row(); row.setGravity(Gravity.CENTER_VERTICAL); row.setPadding(0, dp(9), 0, dp(9));
-        TextView name = label(caption, 14, WHITE, false); row.addView(name, new LinearLayout.LayoutParams(0, -2, 1));
-        TextView value = label("", 14, MINT, true); value.setGravity(Gravity.END); row.addView(value);
-        TextView chevron = label("  ›", 16, MUTED, false); row.addView(chevron);
-        row.setClickable(true); row.setFocusable(true);
-        row.setOnClickListener(v -> action.run());
-        parent.addView(row);
-        View divider = new View(this); divider.setBackgroundColor(BORDER);
-        parent.addView(divider, new LinearLayout.LayoutParams(-1, dp(1)));
-        return value;
     }
 
     private void refreshSettings() {
         if (settingsPort == null) return;
         settingsPort.setText(String.valueOf(prefs.getInt(ServerService.PREF_PORT, ServerService.DEFAULT_PORT)));
         int minutes = prefs.getInt(ServerService.PREF_AUTOSTOP, ServerService.DEFAULT_AUTOSTOP);
-        settingsAutoStop.setText(minutes <= 0 ? "Никогда" : minutes + " мин");
-        settingsKeepScreen.setText(prefs.getBoolean(ServerService.PREF_KEEP_SCREEN, true) ? "Вкл" : "Выкл");
+        settingsAutoStop.setText(minutes <= 0 ? tr("Никогда", "Never") : minutes + tr(" мин", " min"));
+        settingsKeepScreen.setText(prefs.getBoolean(ServerService.PREF_KEEP_SCREEN, true) ? tr("Вкл", "On") : tr("Выкл", "Off"));
     }
 
     private void editPort() {
+        LinearLayout box = column();
+        box.setPadding(dp(22), dp(12), dp(22), dp(4));
         final EditText input = new EditText(this);
         input.setInputType(InputType.TYPE_CLASS_NUMBER);
+        input.setTextColor(WHITE);
         input.setText(String.valueOf(prefs.getInt(ServerService.PREF_PORT, ServerService.DEFAULT_PORT)));
         input.setSelection(input.getText().length());
-        new AlertDialog.Builder(this)
-                .setTitle("Порт сервера")
-                .setMessage("Введите порт от 1024 до 65000. Если он занят, используется следующий свободный.")
-                .setView(input)
-                .setPositiveButton("Сохранить", (dialog, which) -> {
+        box.addView(input, new LinearLayout.LayoutParams(-1, -2));
+
+        new AlertDialog.Builder(this, R.style.AppDialogTheme)
+                .setTitle(tr("Порт HTTPS-сервера", "HTTPS server port"))
+                .setMessage(tr("Укажите порт от 1024 до 65000. Если он занят, выберется следующий свободный.",
+                        "Enter a port between 1024 and 65000. If busy, the next free port is used."))
+                .setView(box)
+                .setPositiveButton(tr("Сохранить", "Save"), (dialog, which) -> {
                     try {
                         int value = Integer.parseInt(input.getText().toString().trim());
                         if (value < 1024 || value > 65000) throw new NumberFormatException();
@@ -462,35 +825,36 @@ public final class MainActivity extends Activity {
                         refreshSettings();
                         restartIfRunning();
                     } catch (Exception e) {
-                        Toast.makeText(this, "Некорректный порт", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(this, tr("Некорректный порт", "Invalid port"), Toast.LENGTH_SHORT).show();
                     }
                 })
-                .setNegativeButton("Отмена", null)
+                .setNegativeButton(tr("Отмена", "Cancel"), null)
                 .show();
     }
 
     private void editAutoStop() {
-        final int[] values = {15, 30, 60, 0};
-        String[] labels = {"15 минут", "30 минут", "1 час", "Никогда"};
+        final int[] values = { 15, 30, 60, 0 };
+        String[] labels = en
+                ? new String[]{ "15 minutes", "30 minutes", "1 hour", "Never" }
+                : new String[]{ "15 минут", "30 минут", "1 час", "Никогда" };
         int current = prefs.getInt(ServerService.PREF_AUTOSTOP, ServerService.DEFAULT_AUTOSTOP);
         int checked = 0;
         for (int i = 0; i < values.length; i++) if (values[i] == current) checked = i;
-        new AlertDialog.Builder(this)
-                .setTitle("Останавливать сервер без подключений")
+        new AlertDialog.Builder(this, R.style.AppDialogTheme)
+                .setTitle(tr("Автостоп без подключений", "Idle auto-stop"))
                 .setSingleChoiceItems(labels, checked, (dialog, which) -> {
                     prefs.edit().putInt(ServerService.PREF_AUTOSTOP, values[which]).apply();
                     dialog.dismiss();
-                    refreshSettings();
+                    refreshView();
                     restartIfRunning();
                 })
-                .setNegativeButton("Отмена", null)
+                .setNegativeButton(tr("Отмена", "Cancel"), null)
                 .show();
     }
 
     private void toggleKeepScreen() {
         boolean value = !prefs.getBoolean(ServerService.PREF_KEEP_SCREEN, true);
         prefs.edit().putBoolean(ServerService.PREF_KEEP_SCREEN, value).apply();
-        refreshSettings();
         refreshView();
     }
 
@@ -503,11 +867,11 @@ public final class MainActivity extends Activity {
         }, 400);
     }
 
-    private void copyValue(String label, String value) {
+    private void copyValue(String labelText, String value) {
         if (value == null || value.isEmpty()) return;
         ClipboardManager clip = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
-        if (clip != null) clip.setPrimaryClip(ClipData.newPlainText(label, value));
-        Toast.makeText(this, label + " скопирован", Toast.LENGTH_SHORT).show();
+        if (clip != null) clip.setPrimaryClip(ClipData.newPlainText(labelText, value));
+        Toast.makeText(this, en ? (labelText + " copied") : ("Скопировано: " + labelText), Toast.LENGTH_SHORT).show();
     }
 
     private boolean hasAccess() {
@@ -516,28 +880,33 @@ public final class MainActivity extends Activity {
     }
 
     private void requestAccess() {
-        if (hasAccess()) { Toast.makeText(this, "Доступ уже разрешён", Toast.LENGTH_SHORT).show(); return; }
+        if (hasAccess()) {
+            Toast.makeText(this, tr("Доступ уже разрешён", "Access already granted"), Toast.LENGTH_SHORT).show();
+            return;
+        }
         if (Build.VERSION.SDK_INT >= 30) {
             try {
                 startActivity(new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION, Uri.parse("package:" + getPackageName())));
             } catch (Exception e) {
                 try { startActivity(new Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)); }
-                catch (Exception ex) { Toast.makeText(this, "Откройте настройки доступа ко всем файлам", Toast.LENGTH_LONG).show(); }
+                catch (Exception ex) {
+                    Toast.makeText(this, tr("Откройте настройки доступа ко всем файлам", "Open All files access in Settings"), Toast.LENGTH_LONG).show();
+                }
             }
         } else {
-            requestPermissions(new String[]{Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE}, 4);
+            requestPermissions(new String[]{ Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE }, 4);
         }
     }
 
     private void startServer() {
         if (!hasAccess()) {
-            Toast.makeText(this, "Сначала разрешите доступ к файлам", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, tr("Сначала разрешите доступ к файлам", "Grant storage access first"), Toast.LENGTH_LONG).show();
             requestAccess();
             return;
         }
         if (isRunning()) { refreshView(); return; }
         if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-            requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 5);
+            requestPermissions(new String[]{ Manifest.permission.POST_NOTIFICATIONS }, 5);
         }
         key = randomHexKey();
         dispatchStartService(key);
@@ -545,7 +914,7 @@ public final class MainActivity extends Activity {
 
     private void stopServer() {
         startService(new Intent(this, ServerService.class).setAction(ServerService.ACTION_STOP));
-        Toast.makeText(this, "Доступ остановлен", Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, tr("Доступ остановлен", "Access stopped"), Toast.LENGTH_SHORT).show();
     }
 
     private List<String> ipAddresses() {
@@ -594,10 +963,10 @@ public final class MainActivity extends Activity {
             int n;
             while ((n = in.read(b)) != -1 && bytes.size() < 32000) bytes.write(b, 0, n);
             ClipboardManager clip = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
-            if (clip != null) clip.setPrimaryClip(ClipData.newPlainText("Журнал ошибки", bytes.toString("UTF-8")));
-            Toast.makeText(this, "Журнал скопирован", Toast.LENGTH_LONG).show();
+            if (clip != null) clip.setPrimaryClip(ClipData.newPlainText("Crash log", bytes.toString("UTF-8")));
+            Toast.makeText(this, tr("Журнал скопирован", "Crash log copied"), Toast.LENGTH_LONG).show();
         } catch (Exception e) {
-            Toast.makeText(this, "Не удалось прочитать журнал", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, tr("Не удалось прочитать журнал", "Could not read crash log"), Toast.LENGTH_LONG).show();
         }
     }
 }

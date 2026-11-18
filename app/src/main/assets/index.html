@@ -1,358 +1,753 @@
-<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>PocketBridge · Файлы телефона</title><style>
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>PocketBridge · Файлы телефона</title><link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='15' fill='%230a171c'/%3E%3Crect x='13' y='13' width='17' height='38' rx='4' fill='%236ee7c0'/%3E%3Crect x='16' y='17' width='11' height='27' rx='2' fill='%230f2928'/%3E%3Cpath d='M35 25a3 3 0 0 1 3-3h5l2 2.5h6a3 3 0 0 1 3 3V42a3 3 0 0 1-3 3H38a3 3 0 0 1-3-3V25Z' fill='%236ee7c0'/%3E%3Cpath d='M32 32c3-3.5 6-5 9-5' fill='none' stroke='%23c4fbe5' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E"><script>(function(){try{var s=localStorage.getItem('pb-theme'),l=localStorage.getItem('pb-lang');var th=s||(window.matchMedia&&matchMedia('(prefers-color-scheme: light)').matches?'light':'dark');document.documentElement.dataset.theme=th;if(l==='en')document.documentElement.lang='en'}catch(e){document.documentElement.dataset.theme='dark'}})();</script><style>
 :root{
-  --panel:#111f25;
-  --panel2:#0f1d22;
-  --border:#25383d;
-  --text:#e9f2f2;
-  --muted:#8ea7a5;
-  --row-hover:#172a30;
-  --accent:#75e3bd;
-  --thumbbg:#0d1a20;
+  --bg:#071015;
+  --bg-glow1:#0e2b31;
+  --bg-glow2:#0b2129;
+  --panel:#0d1920;
+  --panel2:#112028;
+  --panel3:#152730;
+  --border:#1e333b;
+  --border-strong:#29454e;
+  --text:#ecf6f4;
+  --text-soft:#b8cecb;
+  --muted:#7e9a98;
+  --faint:#587473;
+  --row-hover:#12232c;
+  --row-sel:#122f2b;
+  --row-sel-border:#23584d;
+  --accent:#6ee7c0;
+  --accent-hover:#8ef0cf;
+  --accent-ink:#08271f;
+  --accent-soft:#12322c;
+  --accent-text:#8ef0cf;
+  --ring:rgba(110,231,192,.22);
+  --danger:#ff9b90;
+  --danger-bg:#2d1d1e;
+  --danger-border:#593334;
+  --danger-solid:#e05a4f;
+  --danger-solid-hover:#eb6d62;
+  --danger-ink:#fff;
+  --ok:#7ce8c3;
+  --ok-bg:#0f2a24;
+  --thumbbg:#09141a;
+  --input-bg:#09141a;
+  --shadow:0 1px 2px rgba(0,0,0,.35),0 24px 64px -16px rgba(0,0,0,.55);
+  --shadow-sm:0 8px 24px -6px rgba(0,0,0,.45);
+  --overlay:rgba(3,9,12,.82);
+  --code-bg:#091318;
+  --code-ink:#d9ece9;
+  --ic-folder-bg:#2b2716;--ic-folder:#f3c969;
+  --ic-img-bg:#122d27;--ic-img:#6ee7c0;
+  --ic-vid-bg:#231d33;--ic-vid:#b69df8;
+  --ic-aud-bg:#2f1b26;--ic-aud:#f593b8;
+  --ic-pdf-bg:#311c1c;--ic-pdf:#f88b82;
+  --ic-doc-bg:#152636;--ic-doc:#7cc0f8;
+  --ic-txt-bg:#18272e;--ic-txt:#9cc0c9;
+  --ic-zip-bg:#2a2317;--ic-zip:#eab368;
+  --ic-bin-bg:#18262c;--ic-bin:#84a3a6;
+  --chevron:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238aa5a3' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
   color-scheme:dark;
-  font-family:Inter,Segoe UI,Arial,sans-serif;
+  font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
   color:var(--text);
-  background:#0a1218;
-  font-synthesis:none
+  background:var(--bg);
+  font-synthesis:none;
+  -webkit-font-smoothing:antialiased
 }
-*{box-sizing:border-box}
-body{margin:0;min-height:100vh;background:radial-gradient(ellipse at 5% 0%,#123138 0,transparent 40%),#0a1218;color:var(--text)}
-button,input,select{font:inherit}
-button{cursor:pointer}
-button:disabled{cursor:not-allowed;opacity:.38}
-.hidden,[hidden]{display:none!important}
-.shell{max-width:1420px;margin:auto;padding:28px 32px 60px}
-.top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:36px}
-.brand{display:flex;align-items:center;gap:11px;font-weight:700;letter-spacing:-.03em}
-.brandicon{display:grid;place-items:center;width:39px;height:39px;border-radius:12px;background:#75e3bd;color:#102c27;font-size:20px;font-weight:800;flex:none}
-.brand small{display:block;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#779598;margin-top:3px;font-weight:700}
-.topright{font-size:12px;color:#a5c0bb;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.dot{width:7px;height:7px;border-radius:50%;background:#75e3bd;box-shadow:0 0 12px #75e3bd}
-.hero{display:flex;align-items:end;justify-content:space-between;gap:20px;margin-bottom:26px}
-.eyebrow{font-size:11px;letter-spacing:.17em;text-transform:uppercase;color:#75e3bd;font-weight:700}
-.hero h1{font-size:clamp(28px,4vw,42px);letter-spacing:-.045em;margin:9px 0 8px}
-.sub{font-size:14px;color:#91a7aa;margin:0;line-height:1.6}
-.badge{padding:10px 14px;border:1px solid #294044;border-radius:100px;color:#9db6b4;font-size:12px;white-space:nowrap}
-.panel{background:var(--panel);border:1px solid var(--border);border-radius:18px;box-shadow:0 24px 80px #0003;overflow:hidden}
-.bar{padding:20px 22px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;border-bottom:1px solid var(--border)}
-.btn{border:1px solid #30474b;border-radius:10px;background:#1a2c32;color:#e5f1ee;padding:10px 14px;font-size:13px;font-weight:600;transition:background .15s}
-.btn:hover:not(:disabled){background:#254047}
-.btn.primary{background:#83e5c2;color:#102c25;border-color:#83e5c2}
-.btn.primary:hover:not(:disabled){background:#a5efd5}
-.btn.danger{color:#ffaea4;border-color:#62413f;background:#352c2e}
-.themeBtn{padding:8px 11px;font-size:12px}
-.spacer{flex:1}
-.search{background:#0d1a20;border:1px solid #30464b;border-radius:10px;color:#eaf5f1;padding:10px 14px;min-width:200px;outline:none}
-.search:focus{border-color:#75e3bd}
-.pathbar{padding:17px 22px;display:flex;justify-content:space-between;gap:16px;align-items:center;border-bottom:1px solid var(--border)}
-.pathline{min-width:0}
-.caption{color:#789393;font-size:10px;text-transform:uppercase;letter-spacing:.14em;font-weight:700;margin-bottom:7px}
-.path{color:#d3e9e1;font-family:Consolas,monospace;overflow-wrap:anywhere;font-size:13px}
-.count{color:var(--muted);font-size:12px;white-space:nowrap}
-.selection{background:#18352f;display:flex;align-items:center;gap:9px;padding:12px 22px;border-bottom:1px solid #2b5147;flex-wrap:wrap}
-.selection strong{font-size:13px;color:#b8edd9;margin-right:8px}
-.selection .btn{padding:8px 11px;font-size:12px}
-.tablewrap{overflow-x:auto}
-table{width:100%;border-collapse:collapse;min-width:620px}
-th{text-align:left;color:#779393;text-transform:uppercase;letter-spacing:.12em;font-size:10px;font-weight:700;padding:15px 14px;border-bottom:1px solid var(--border)}
-td{padding:13px 14px;border-bottom:1px solid #1d3035;color:#c8d9d7;font-size:13px}
-tbody tr:hover{background:var(--row-hover)}
-tbody tr.selected{background:#1a3732}
-.checkcol{width:47px;text-align:center;padding-left:22px}
-input[type=checkbox]{width:16px;height:16px;accent-color:#75e3bd;cursor:pointer}
-.filecell{display:flex;align-items:center;gap:12px;min-width:180px}
-.icon{width:36px;height:36px;display:grid;place-items:center;border-radius:10px;font-size:16px;flex:none}
-.icon.folder{background:#314132;color:#cce49a}
-.icon.file{background:#24383e;color:#8fd4d0}
-.filename{border:0;background:none;padding:0;color:#eef7f3;text-align:left;font-weight:600;word-break:break-all}
-.filename:hover{color:#8cebc8;text-decoration:underline}
-.detail{color:#819c9a;font-size:12px}
-.size{white-space:nowrap}
-.rowactions{text-align:right;white-space:nowrap}
-.iconbtn{border:0;background:transparent;color:#94b0ad;border-radius:7px;padding:7px;font-size:12px}
-.iconbtn:hover{background:#294047;color:#fff}
-.empty{text-align:center;padding:55px 20px;color:#90aaa7}
-.empty .empty-icon{display:block;font-size:28px;margin-bottom:14px}
-.message{padding:0 22px;font-size:13px;min-height:0;color:#ffb2a7}
-.message.ok{color:#9be5ca}
-.message:not(:empty){padding:14px 22px;border-bottom:1px solid var(--border)}
-.foot{padding:19px 4px;color:#708e8b;font-size:12px;line-height:1.6}
-.loginbox{max-width:475px;margin:12vh auto 0;padding:36px}
-.loginbox h1{font-size:30px;letter-spacing:-.04em;margin:22px 0 9px}
-.loginbox .sub{margin-bottom:25px}
-.label{display:block;font-size:11px;letter-spacing:.12em;color:#9cb7b2;text-transform:uppercase;margin-bottom:9px;font-weight:700}
-.loginbox .search{width:100%;font-size:15px;padding:14px}
-.loginbox .primary{width:100%;margin-top:14px;padding:14px}
-.loginbox .message{padding:0;margin-top:14px;border:0}
-.loginhelp{border-top:1px solid #294044;margin-top:24px;padding-top:18px;color:#91a7a5;font-size:12px;line-height:1.6}
-
-.overlay{position:fixed;inset:0;background:#030a0de6;backdrop-filter:blur(7px);z-index:50;display:flex;align-items:center;justify-content:center;padding:28px}
-.viewer{width:min(1120px,100%);height:min(850px,90vh);background:#122127;border:1px solid #355052;border-radius:20px;box-shadow:0 25px 90px #000b;display:flex;flex-direction:column;overflow:hidden}
-.viewtop{display:flex;align-items:center;gap:14px;padding:17px 20px;border-bottom:1px solid #2b4246}
-.viewtitle{min-width:0;flex:1}
-.viewtitle strong{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.viewtitle small{color:#8daaa6;display:block;margin-top:5px}
-.viewbody{flex:1;min-height:0;overflow:auto;display:flex;align-items:center;justify-content:center;padding:20px;background:#0b161b}
-.viewbody img{max-width:100%;max-height:100%;object-fit:contain}
-.viewbody video{max-width:100%;max-height:100%;background:#000}
-.viewbody audio{width:min(600px,100%)}
-.viewbody iframe{width:100%;height:100%;border:0;background:#fff;border-radius:8px}
-.viewbody pre{align-self:stretch;width:min(950px,100%);margin:0;padding:25px;background:#f5f5ef;color:#283533;border-radius:8px;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.6;font:14px/1.6 Consolas,monospace}
-.viewempty{color:#a9c2bd;text-align:center;line-height:1.6}
-.viewbody .error{color:#ffaea4}
-
-.dialog-overlay{position:fixed;inset:0;z-index:120;background:#02090ce6;backdrop-filter:blur(7px);display:flex;justify-content:center;align-items:center;padding:20px}
-.action-dialog{width:min(455px,100%);background:#14262b;border:1px solid #34504e;border-radius:20px;box-shadow:0 24px 90px #000a;padding:26px}
-.dialog-symbol{display:flex;align-items:center;justify-content:center;width:42px;height:42px;border-radius:13px;background:#27473e;color:#95eccb;font-size:20px;font-weight:bold}
-.dialog-symbol.danger{background:#4a302e;color:#ffb6a9}
-.action-dialog h2{font-size:21px;letter-spacing:-.025em;margin:19px 0 9px;color:#eef8f3}
-.dialog-message{color:#a6bbb7;line-height:1.55;font-size:14px;overflow-wrap:anywhere;margin:0}
-.dialog-input{width:100%;margin-top:19px;padding:13px;background:#0e1c20;border:1px solid #3b5956;border-radius:10px;color:#eef8f3;outline:none;font:inherit}
-.dialog-input:focus{border-color:#83e5c2;box-shadow:0 0 0 3px #83e5c226}
-.dialog-error{font-size:12px;color:#ffb6a9;margin-top:8px}
-.dialog-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:24px;flex-wrap:wrap}
-.dialog-actions .btn{padding:11px 16px}
-.dialog-actions .danger-solid{background:#df6e62;border-color:#df6e62;color:#1e1010}
-.dialog-actions .danger-solid:hover{background:#ee887b}
-
-.progress{display:flex;align-items:center;gap:12px;padding:12px 22px;border-bottom:1px solid var(--border);background:var(--panel2);flex-wrap:wrap}
-.progress .plabel{font-size:12px;color:#a9c4bf;min-width:200px;flex:1;font-variant-numeric:tabular-nums}
-.progress .ptrack{flex:1;min-width:140px;height:6px;border-radius:3px;background:#22383d;overflow:hidden}
-.progress .pfill{height:100%;width:0;background:var(--accent);transition:width .15s}
-.crumbs{display:flex;flex-wrap:wrap;gap:2px;align-items:center;font-family:Consolas,monospace;font-size:13px}
-.crumbs button{border:0;background:none;color:#d3e9e1;padding:2px 5px;border-radius:6px;font:inherit;cursor:pointer}
-.crumbs button:hover{background:#22383d;color:#8cebc8}
-.crumbs span{color:#5f7b7a}
-.sortsel{background:#0d1a20;border:1px solid #30464b;border-radius:10px;color:#eaf5f1;padding:10px 8px;font-size:13px;outline:none}
-
-.dropzone{outline:3px dashed var(--accent);outline-offset:-6px;border-radius:18px}
-.subpath{color:#6f8f8c;font-size:11px;margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.namewrap{min-width:0;display:flex;flex-direction:column}
-
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:12px;padding:16px 22px 22px}
-.card{position:relative;border:1px solid var(--border);border-radius:14px;background:var(--panel2);overflow:hidden;display:flex;flex-direction:column;min-width:0;transition:transform .12s,box-shadow .12s}
-.card:hover{transform:translateY(-1px);box-shadow:0 10px 24px #0004}
-.card.selected{outline:2px solid var(--accent);outline-offset:-2px}
-.card .thumb{position:relative;aspect-ratio:4/3;background:var(--thumbbg);display:grid;place-items:center;overflow:hidden;cursor:pointer}
-.card .thumb img{width:100%;height:100%;object-fit:cover;display:block}
-.card .thumb .ic{font-size:34px;color:#8fd4d0;opacity:.85}
-.card .pick{position:absolute;top:8px;left:8px;z-index:2;background:#0a1218a8;border-radius:6px;padding:4px;display:grid;place-items:center}
-.card .pick input{width:16px;height:16px;margin:0}
-.card .cap{padding:8px 10px 0;font-size:12px;font-weight:600;color:var(--text);word-break:break-all;line-height:1.35;max-height:2.8em;overflow:hidden;cursor:pointer}
-.card .sub{padding:2px 10px 8px;font-size:11px;color:var(--muted);display:flex;justify-content:space-between;gap:8px;align-items:center}
-.card .acts{display:flex;gap:2px;border-top:1px solid var(--border);margin-top:auto}
-.card .acts button{flex:1;border:0;background:transparent;color:var(--muted);padding:8px 0;font-size:12px;cursor:pointer}
-.card .acts button:hover{background:var(--row-hover);color:var(--text)}
-
-#uploadQueue{background:var(--panel2);border:1px solid var(--border);border-radius:14px;box-shadow:0 20px 60px #0006;color:var(--text);max-height:55vh;overflow-y:auto}
-#uploadQueue h2{margin:0;font-size:14px;color:var(--text)}
-.qrow{border-bottom:1px solid var(--border);padding:8px 0;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.qrow:last-child{border-bottom:0}
-.qhead{flex:1;min-width:120px}
-.qname{font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.qstate{font-size:11px;color:var(--muted)}
-.qbar{width:96px;height:7px;background:#1a2a2d;border-radius:4px;overflow:hidden;flex:none}
-.qfill{height:100%;background:var(--accent);width:0%;transition:width .2s}
-.qinfo{font-size:11px;color:var(--muted);min-width:96px;text-align:right;font-variant-numeric:tabular-nums}
-.qactions{display:flex;gap:5px}
-.qbtn{font-size:11px;padding:3px 8px;border:1px solid var(--border);background:transparent;color:var(--text);border-radius:6px;cursor:pointer}
-.qbtn:hover{background:var(--row-hover)}
-.qstart{background:var(--accent);color:#0b3d2b;border-color:var(--accent);font-weight:600}
-.qstart:hover{opacity:.9}
-.qpause,.qcancel{background:transparent}
-.qpause:hover,.qcancel:hover{border-color:#f87171;color:#f87171}
-
-@media(max-width:700px){
-  .shell{padding:18px 14px 40px}
-  .top{margin-bottom:24px}
-  #netText,.dot{display:none}
-  .hero{align-items:start}
-  .badge{display:none}
-  .bar,.pathbar{padding:15px}
-  .search{min-width:0;flex:1}
-  .selection{padding:12px 15px}
-  .loginbox{padding:24px;margin-top:8vh}
-  .overlay{padding:8px}
-  .viewer{height:95vh}
-  .viewtop{padding:12px}
-  .viewbody{padding:8px}
-  .viewbody pre{padding:16px}
-  .tablewrap{overflow-x:visible}
-  table{min-width:0;display:block}
-  thead{display:none}
-  tbody{display:block}
-  tbody tr{display:grid;grid-template-columns:36px 1fr auto;grid-template-areas:"check name size" "check meta actions";column-gap:10px;align-items:center;padding:12px 14px;border-bottom:1px solid #1d3035}
-  td{padding:0;border:0;display:block}
-  .checkcol{grid-area:check;width:auto;padding:0;align-self:center;text-align:left}
-  td:nth-child(2){grid-area:name;min-width:0}
-  td:nth-child(3){grid-area:size;justify-self:end;white-space:nowrap}
-  td:nth-child(4){grid-area:meta;font-size:11px!important;margin-top:2px}
-  td:nth-child(4):before{content:"изменён ";color:#5f7b7a}
-  html[lang=en] td:nth-child(4):before{content:"modified "}
-  .rowactions{grid-area:actions;display:flex;gap:2px;justify-content:flex-end;flex-wrap:wrap;margin-top:2px}
-  .iconbtn{padding:8px 7px}
-  .filecell{min-width:0}
-  .grid{grid-template-columns:repeat(auto-fill,minmax(108px,1fr));gap:8px;padding:12px 14px 16px}
-  .card .cap{font-size:11px}
-  .card .acts button{padding:9px 0}
-}
-@media(max-width:500px){.action-dialog{padding:21px}.dialog-actions .btn{flex:1}}
-
 [data-theme=light]{
+  --bg:#f2f7f5;
+  --bg-glow1:#d7efe7;
+  --bg-glow2:#e2eff4;
   --panel:#ffffff;
   --panel2:#f7fbf9;
-  --border:#d9e7e3;
-  --text:#10231f;
-  --muted:#5f7f79;
-  --row-hover:#f1f8f5;
-  --accent:#0f9f7a;
-  --thumbbg:#e9f2ef;
+  --panel3:#eef5f2;
+  --border:#dce8e4;
+  --border-strong:#c5d9d3;
+  --text:#0e221e;
+  --text-soft:#2c4741;
+  --muted:#58756f;
+  --faint:#7f9b95;
+  --row-hover:#f3f9f7;
+  --row-sel:#e5f6f0;
+  --row-sel-border:#b4e3d3;
+  --accent:#0d9473;
+  --accent-hover:#0a7e62;
+  --accent-ink:#ffffff;
+  --accent-soft:#e3f6ef;
+  --accent-text:#0a755b;
+  --ring:rgba(13,148,115,.18);
+  --danger:#b83227;
+  --danger-bg:#fef1ef;
+  --danger-border:#f4c7c2;
+  --danger-solid:#c93b2f;
+  --danger-solid-hover:#b33126;
+  --danger-ink:#ffffff;
+  --ok:#0a755b;
+  --ok-bg:#e6f7f1;
+  --thumbbg:#eaf2ef;
+  --input-bg:#ffffff;
+  --shadow:0 1px 3px rgba(12,42,34,.05),0 18px 48px -14px rgba(12,42,34,.09);
+  --shadow-sm:0 10px 26px -8px rgba(12,42,34,.14);
+  --overlay:rgba(10,28,24,.52);
+  --code-bg:#fbfdfc;
+  --code-ink:#18302b;
+  --ic-folder-bg:#fef3d6;--ic-folder:#b77912;
+  --ic-img-bg:#dff6ee;--ic-img:#0d8a6a;
+  --ic-vid-bg:#efeafd;--ic-vid:#6d47d9;
+  --ic-aud-bg:#fde8f0;--ic-aud:#c43670;
+  --ic-pdf-bg:#fee8e6;--ic-pdf:#c9382c;
+  --ic-doc-bg:#e4f1fe;--ic-doc:#1d6ec9;
+  --ic-txt-bg:#eaf1f4;--ic-txt:#486975;
+  --ic-zip-bg:#fdf0dc;--ic-zip:#b56b14;
+  --ic-bin-bg:#ebf1f0;--ic-bin:#567370;
+  --chevron:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2358756f' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
   color-scheme:light
 }
-[data-theme=light] body{background:radial-gradient(ellipse at 5% 0%,#d8efe8 0,transparent 42%),#f4f8f7;color:#10231f}
-[data-theme=light] .brand small,[data-theme=light] .topright{color:#5c7a74}
-[data-theme=light] .hero .sub,[data-theme=light] .sub{color:#526f6a}
-[data-theme=light] .badge{border-color:#cfe3de;color:#3f5f59}
-[data-theme=light] .panel{background:#ffffff;border-color:#d9e7e3;box-shadow:0 18px 50px #0c2c2412}
-[data-theme=light] .bar,[data-theme=light] .pathbar,[data-theme=light] .message:not(:empty){border-color:#e2eeea}
-[data-theme=light] .btn{background:#eef5f2;border-color:#cfe0db;color:#15322b}
-[data-theme=light] .btn:hover:not(:disabled){background:#e3efeb}
-[data-theme=light] .btn.primary{background:#0f9f7a;border-color:#0f9f7a;color:#fff}
-[data-theme=light] .btn.primary:hover:not(:disabled){background:#0d8b6b}
-[data-theme=light] .btn.danger{background:#fdeeec;border-color:#f0c9c3;color:#b23b2c}
-[data-theme=light] .search,[data-theme=light] .sortsel,[data-theme=light] .dialog-input{background:#ffffff;border-color:#cfe0db;color:#132c26}
-[data-theme=light] .search:focus{border-color:#0f9f7a}
-[data-theme=light] input[type=checkbox]{accent-color:#0f9f7a}
-[data-theme=light] .eyebrow{color:#0f9f7a}
-[data-theme=light] .caption,[data-theme=light] th{color:#5f7f79}
-[data-theme=light] th,[data-theme=light] .pathline,[data-theme=light] .tablewrap{border-color:#e2eeea}
-[data-theme=light] td,[data-theme=light] tbody tr{color:#2b463f;border-color:#e8f1ee}
-[data-theme=light] tbody tr:hover{background:#f1f8f5}
-[data-theme=light] tbody tr.selected{background:#e2f5ee}
-[data-theme=light] .filename{color:#10231f}
-[data-theme=light] .filename:hover{color:#0f9f7a}
-[data-theme=light] .detail,[data-theme=light] .subpath{color:#5f7f79}
-[data-theme=light] .icon.folder{background:#e8f1d8;color:#5d7a22}
-[data-theme=light] .icon.file{background:#e3efee;color:#2f7a72}
-[data-theme=light] .iconbtn{color:#47655f}
-[data-theme=light] .iconbtn:hover{background:#e3efeb;color:#10231f}
-[data-theme=light] .selection{background:#e2f5ee;border-color:#bfe6d9}
-[data-theme=light] .selection strong{color:#0b6b53}
-[data-theme=light] .message{color:#b23b2c}
-[data-theme=light] .message.ok{color:#0b6b53}
-[data-theme=light] .empty,[data-theme=light] .foot{color:#5f7f79}
-[data-theme=light] .crumbs button{color:#17332c}
-[data-theme=light] .crumbs button:hover{background:#e3efeb;color:#0f9f7a}
-[data-theme=light] .crumbs span{color:#93b0a9}
-[data-theme=light] .progress{background:#f4faf8;border-color:#e2eeea}
-[data-theme=light] .progress .plabel{color:#3d5c56}
-[data-theme=light] .progress .ptrack,[data-theme=light] .qbar{background:#dcebe6}
-[data-theme=light] .progress .pfill,[data-theme=light] .qfill{background:#0f9f7a}
-[data-theme=light] .qstart{color:#fff}
-[data-theme=light] .overlay{background:#0c211c66}
-[data-theme=light] .viewer{background:#ffffff;border-color:#cfe0db;box-shadow:0 22px 70px #0c2c2426}
-[data-theme=light] .viewtop{border-color:#e2eeea}
-[data-theme=light] .viewtitle small{color:#5f7f79}
-[data-theme=light] .viewbody{background:#f5faf8}
-[data-theme=light] .viewempty{color:#3f5f59}
-[data-theme=light] .viewbody .error{color:#b23b2c}
-[data-theme=light] .dialog-overlay{background:#0c211c55}
-[data-theme=light] .action-dialog{background:#ffffff;border-color:#cfe0db;box-shadow:0 22px 70px #0c2c2426}
-[data-theme=light] .action-dialog h2{color:#10231f}
-[data-theme=light] .dialog-message{color:#4d6b65}
-[data-theme=light] .dialog-symbol{background:#e2f5ee;color:#0f9f7a}
-[data-theme=light] .dialog-symbol.danger{background:#fdeeec;color:#b23b2c}
-[data-theme=light] .dialog-error{color:#b23b2c}
-[data-theme=light] .dialog-actions .danger-solid{background:#c4453a;border-color:#c4453a;color:#fff}
-[data-theme=light] .loginhelp{color:#4d6b65;border-color:#e2eeea}
-[data-theme=light] .label{color:#4d6b65}
-[data-theme=light] .card .thumb .ic{color:#2f7a72}
-[data-theme=light] .card .pick{background:#ffffffcc}
-[data-theme=light] .themeBtn{background:#eef5f2;border-color:#cfe0db;color:#15322b}
+
+*{box-sizing:border-box}
+body{
+  margin:0;
+  min-height:100vh;
+  background:
+    radial-gradient(900px 500px at 8% -6%,var(--bg-glow1) 0,transparent 62%),
+    radial-gradient(760px 440px at 95% -8%,var(--bg-glow2) 0,transparent 58%),
+    var(--bg);
+  color:var(--text)
+}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+button:disabled{cursor:not-allowed;opacity:.42}
+:focus-visible{outline:none;box-shadow:0 0 0 3px var(--ring)}
+.hidden,[hidden]{display:none!important}
+.svg{width:16px;height:16px;flex:none;display:block}
+.svg-sm{width:14px;height:14px;flex:none;display:block}
+.svg-lg{width:20px;height:20px;flex:none;display:block}
+
+/* ---------- каркас и шапка ---------- */
+.shell{max-width:1380px;margin:0 auto;padding:20px 28px 52px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:24px}
+.brand{display:flex;align-items:center;gap:12px;min-width:0}
+.brandicon{
+  width:40px;height:40px;border-radius:12px;flex:none;
+  display:grid;place-items:center;
+  background:linear-gradient(145deg,var(--accent),var(--accent-hover));
+  color:var(--accent-ink);
+  box-shadow:0 4px 14px -4px var(--ring)
+}
+.brandicon svg{width:24px;height:24px}
+.brandtext{min-width:0}
+.brandtitle{display:block;font-size:15px;font-weight:700;letter-spacing:-.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.brand small{display:block;font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-top:2px;font-weight:600}
+.topright{display:flex;align-items:center;gap:8px;flex:none}
+.netpill{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:7px 12px;border-radius:999px;
+  background:var(--panel);border:1px solid var(--border);
+  font-size:12px;color:var(--muted);font-weight:500;margin-right:2px
+}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 3px var(--ring);flex:none}
+
+/* ---------- кнопки и поля ---------- */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:7px;
+  height:36px;padding:0 12px;
+  border:1px solid var(--border);border-radius:10px;
+  background:var(--panel3);color:var(--text);
+  font-size:13px;font-weight:600;line-height:1;white-space:nowrap
+}
+html.ready .btn{transition:background .14s,border-color .14s,color .14s,transform .08s}
+.btn:hover:not(:disabled){background:var(--row-hover);border-color:var(--border-strong)}
+.btn:active:not(:disabled){transform:translateY(.5px)}
+.btn.icon-only{width:36px;padding:0}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.primary:hover:not(:disabled){background:var(--accent-hover);border-color:var(--accent-hover)}
+.btn.danger{color:var(--danger);border-color:var(--danger-border);background:var(--danger-bg)}
+.btn.danger:hover:not(:disabled){border-color:var(--danger)}
+.btn.ghost{background:var(--panel);border-color:var(--border)}
+.btn.ghost:hover:not(:disabled){background:var(--panel3)}
+.themeBtn{height:36px;min-width:36px;padding:0 10px;font-size:12px;font-weight:700;letter-spacing:.02em;background:var(--panel)}
+
+.panel{background:var(--panel);border:1px solid var(--border);border-radius:18px;box-shadow:var(--shadow);overflow:hidden}
+
+/* ---------- экран входа ---------- */
+.loginwrap{display:flex;align-items:center;justify-content:center;min-height:calc(100vh - 130px);padding:12px 0 28px}
+.loginbox{width:min(450px,100%);padding:34px 32px 30px}
+.loginbadge{
+  display:inline-flex;align-items:center;gap:7px;
+  padding:5px 11px;border-radius:999px;
+  background:var(--accent-soft);color:var(--accent-text);
+  font-size:11px;font-weight:700;letter-spacing:.04em
+}
+.loginbox h1{font-size:28px;letter-spacing:-.035em;margin:16px 0 8px;line-height:1.15}
+.sub{font-size:14px;color:var(--muted);margin:0;line-height:1.55}
+.loginbox .sub{margin-bottom:24px}
+.label{display:block;font-size:11px;letter-spacing:.09em;color:var(--muted);text-transform:uppercase;margin-bottom:8px;font-weight:700}
+.codefield{position:relative;display:flex;align-items:center}
+.codefield .fieldicon{position:absolute;left:14px;color:var(--faint);pointer-events:none}
+.codefield input{
+  width:100%;height:46px;padding:0 14px 0 42px;
+  background:var(--input-bg);border:1px solid var(--border-strong);border-radius:12px;
+  color:var(--text);font-size:15px;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;
+  letter-spacing:.02em;outline:none
+}
+.codefield input::placeholder{font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;letter-spacing:0;color:var(--faint)}
+.codefield input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--ring)}
+.loginbox .primary{width:100%;height:46px;margin-top:12px;border-radius:12px;font-size:14px}
+#loginError{margin-top:12px;padding:10px 12px;border-radius:10px;background:var(--danger-bg);border:1px solid var(--danger-border);color:var(--danger);font-size:13px;font-weight:500}
+#loginError:empty{display:none}
+.loginhelp{
+  display:flex;gap:10px;align-items:flex-start;
+  border-top:1px solid var(--border);margin-top:22px;padding-top:16px;
+  color:var(--muted);font-size:12px;line-height:1.55
+}
+.loginhelp svg{color:var(--accent-text);margin-top:2px;flex:none}
+
+/* ---------- заголовок рабочей области ---------- */
+.hero{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:16px;flex-wrap:wrap}
+.heromain{min-width:0}
+.hero h1{font-size:24px;letter-spacing:-.035em;margin:0 0 3px;line-height:1.2}
+.hero .sub{font-size:13.5px}
+.davpill{
+  display:inline-flex;align-items:center;gap:8px;
+  height:34px;padding:0 13px;border-radius:999px;
+  background:var(--panel);border:1px solid var(--border);
+  color:var(--text-soft);font-size:12px;font-weight:500
+}
+.davpill:hover{border-color:var(--accent);color:var(--text);background:var(--panel2)}
+.davpill code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:11.5px;color:var(--accent-text);font-weight:600}
+
+/* ---------- панель инструментов ---------- */
+.bar{
+  padding:14px 18px;
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+  border-bottom:1px solid var(--border);
+  background:var(--panel2)
+}
+.bargroup{display:flex;align-items:center;gap:6px}
+.vsep{width:1px;height:22px;background:var(--border);margin:0 2px;flex:none}
+.spacer{flex:1;min-width:4px}
+.searchgroup{display:flex;align-items:center;gap:8px;flex:0 1 auto}
+.searchbox{
+  display:flex;align-items:center;height:36px;
+  background:var(--input-bg);border:1px solid var(--border);border-radius:10px;
+  padding-left:10px;overflow:hidden;min-width:0
+}
+.searchbox:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px var(--ring)}
+.searchbox .sicon{color:var(--faint);flex:none}
+.searchbox input{
+  border:0;background:transparent;color:var(--text);
+  height:100%;padding:0 8px;width:175px;min-width:80px;
+  font-size:13px;outline:none;box-shadow:none
+}
+.searchbox input::placeholder{color:var(--faint)}
+.searchbox select{
+  border:0;border-left:1px solid var(--border);
+  background:var(--panel2) var(--chevron) no-repeat right 8px center;
+  color:var(--muted);height:100%;padding:0 24px 0 9px;
+  font-size:12px;font-weight:600;outline:none;cursor:pointer;
+  appearance:none;-webkit-appearance:none;box-shadow:none
+}
+.searchbox select:hover{color:var(--text)}
+.sortsel{
+  height:36px;padding:0 28px 0 11px;
+  background:var(--input-bg) var(--chevron) no-repeat right 9px center;
+  border:1px solid var(--border);border-radius:10px;
+  color:var(--text-soft);font-size:12.5px;font-weight:600;
+  outline:none;cursor:pointer;appearance:none;-webkit-appearance:none
+}
+.sortsel:hover{border-color:var(--border-strong);color:var(--text)}
+.sortsel:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--ring)}
+
+/* ---------- хлебные крошки и статусы ---------- */
+.pathbar{
+  padding:10px 18px;
+  display:flex;justify-content:space-between;gap:12px;align-items:center;
+  border-bottom:1px solid var(--border);
+  background:var(--panel)
+}
+.pathline{display:flex;align-items:center;gap:8px;min-width:0;flex:1}
+.crumbs{display:flex;flex-wrap:wrap;gap:2px;align-items:center;font-size:13px;min-width:0}
+.crumbs button{
+  display:inline-flex;align-items:center;gap:5px;
+  border:0;background:transparent;color:var(--muted);
+  padding:4px 8px;border-radius:7px;font-size:13px;font-weight:600;
+  max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap
+}
+.crumbs button:hover{background:var(--panel3);color:var(--text)}
+.crumbs button:last-child{color:var(--text);background:var(--panel2)}
+.crumbs .csep{color:var(--faint);font-size:12px;user-select:none;padding:0 1px}
+.count{
+  color:var(--muted);font-size:12px;font-weight:600;white-space:nowrap;
+  font-variant-numeric:tabular-nums;
+  padding:3px 9px;border-radius:999px;background:var(--panel2);border:1px solid var(--border)
+}
+
+.selection{
+  background:var(--accent-soft);
+  display:flex;align-items:center;gap:8px;padding:10px 18px;
+  border-bottom:1px solid var(--row-sel-border);flex-wrap:wrap
+}
+.selection strong{font-size:13px;color:var(--accent-text);margin-right:6px;font-variant-numeric:tabular-nums}
+.selection .btn{height:32px;padding:0 11px;font-size:12px}
+
+.message{padding:0 18px;font-size:13px;font-weight:500;color:var(--danger);background:var(--danger-bg)}
+.message.ok{color:var(--ok);background:var(--ok-bg)}
+.message:not(:empty){padding:10px 18px;border-bottom:1px solid var(--border)}
+
+.progress{
+  display:flex;align-items:center;gap:12px;padding:10px 18px;
+  border-bottom:1px solid var(--border);background:var(--panel2);flex-wrap:wrap
+}
+.progress .plabel{font-size:12.5px;font-weight:500;color:var(--text-soft);min-width:190px;flex:1;font-variant-numeric:tabular-nums}
+.progress .ptrack{flex:1.2;min-width:140px;height:7px;border-radius:999px;background:var(--panel3);overflow:hidden;border:1px solid var(--border)}
+.progress .pfill{height:100%;width:0;background:var(--accent);border-radius:999px;transition:width .18s ease}
+.progress .btn{height:30px;padding:0 10px;font-size:12px}
+
+/* ---------- таблица файлов ---------- */
+.tablewrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;min-width:600px}
+thead th{
+  text-align:left;color:var(--muted);text-transform:uppercase;
+  letter-spacing:.08em;font-size:10.5px;font-weight:700;
+  padding:11px 12px;border-bottom:1px solid var(--border);
+  background:var(--panel2);user-select:none;white-space:nowrap
+}
+thead th.sortable{cursor:pointer}
+thead th.sortable:hover{color:var(--text)}
+thead th .sortmark{display:inline-block;margin-left:4px;color:var(--accent-text);font-size:11px}
+tbody td{padding:10px 12px;border-bottom:1px solid var(--border);color:var(--text-soft);font-size:13px;vertical-align:middle}
+tbody tr:last-child td{border-bottom:0}
+html.ready tbody tr{transition:background .1s}
+tbody tr:hover{background:var(--row-hover)}
+tbody tr.selected{background:var(--row-sel)}
+.checkcol{width:46px;text-align:center;padding-left:18px;padding-right:6px}
+input[type=checkbox]{width:16px;height:16px;accent-color:var(--accent);cursor:pointer;vertical-align:middle;margin:0}
+.filecell{display:flex;align-items:center;gap:12px;min-width:180px}
+.icon{width:36px;height:36px;display:grid;place-items:center;border-radius:10px;flex:none}
+.icon svg{width:18px;height:18px}
+.ic-folder{background:var(--ic-folder-bg);color:var(--ic-folder)}
+.ic-image{background:var(--ic-img-bg);color:var(--ic-img)}
+.ic-video{background:var(--ic-vid-bg);color:var(--ic-vid)}
+.ic-audio{background:var(--ic-aud-bg);color:var(--ic-aud)}
+.ic-pdf{background:var(--ic-pdf-bg);color:var(--ic-pdf)}
+.ic-docx{background:var(--ic-doc-bg);color:var(--ic-doc)}
+.ic-text,.ic-html{background:var(--ic-txt-bg);color:var(--ic-txt)}
+.ic-zip{background:var(--ic-zip-bg);color:var(--ic-zip)}
+.ic-bin{background:var(--ic-bin-bg);color:var(--ic-bin)}
+.namewrap{min-width:0;display:flex;flex-direction:column}
+.filename{
+  border:0;background:none;padding:0;color:var(--text);
+  text-align:left;font-weight:600;font-size:13.5px;line-height:1.35;
+  word-break:break-word;overflow-wrap:anywhere
+}
+.filename:hover{color:var(--accent-text);text-decoration:underline;text-underline-offset:3px}
+.subpath{color:var(--faint);font-size:11.5px;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:ui-monospace,SFMono-Regular,Consolas,monospace}
+.detail{color:var(--muted);font-size:12.5px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.size{white-space:nowrap;width:120px}
+.datecol{width:130px}
+.rowactions{text-align:right;white-space:nowrap;padding-right:16px;width:1%}
+.iconbtn{
+  border:1px solid transparent;background:transparent;color:var(--muted);
+  border-radius:7px;padding:5px 8px;font-size:12px;font-weight:600;margin-left:2px
+}
+.iconbtn:hover{background:var(--panel3);border-color:var(--border);color:var(--text)}
+.iconbtn.del:hover{background:var(--danger-bg);border-color:var(--danger-border);color:var(--danger)}
+
+.empty{text-align:center;padding:56px 20px;color:var(--muted);font-size:14px}
+.empty-badge{
+  width:52px;height:52px;margin:0 auto 14px;border-radius:16px;
+  display:grid;place-items:center;background:var(--panel2);border:1px solid var(--border);color:var(--faint)
+}
+.empty-badge svg{width:24px;height:24px}
+.foot{padding:14px 4px 0;color:var(--faint);font-size:12px;line-height:1.55}
+
+/* ---------- плитка (галерея) ---------- */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:14px;padding:18px}
+.card{
+  position:relative;border:1px solid var(--border);border-radius:14px;
+  background:var(--panel2);overflow:hidden;display:flex;flex-direction:column;min-width:0
+}
+html.ready .card{transition:transform .14s ease,box-shadow .14s ease,border-color .14s ease}
+.card:hover{transform:translateY(-2px);box-shadow:var(--shadow-sm);border-color:var(--border-strong)}
+.card.selected{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent)}
+.card .thumb{position:relative;aspect-ratio:4/3;background:var(--thumbbg);display:grid;place-items:center;overflow:hidden;cursor:pointer}
+.card .thumb img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .22s ease}
+.card:hover .thumb img{transform:scale(1.03)}
+.card .thumb .cardicon{width:52px;height:52px;border-radius:15px;display:grid;place-items:center}
+.card .thumb .cardicon svg{width:26px;height:26px}
+.card .pick{
+  position:absolute;top:8px;left:8px;z-index:2;
+  background:rgba(9,20,26,.65);backdrop-filter:blur(4px);
+  border:1px solid rgba(255,255,255,.15);border-radius:8px;
+  padding:5px;display:grid;place-items:center;
+  opacity:.78;transition:opacity .12s
+}
+[data-theme=light] .card .pick{background:rgba(255,255,255,.88);border-color:rgba(14,34,30,.12)}
+.card:hover .pick,.card.selected .pick{opacity:1}
+.card .exttag{
+  position:absolute;top:8px;right:8px;z-index:2;
+  padding:2px 6px;border-radius:6px;
+  background:rgba(9,20,26,.66);backdrop-filter:blur(4px);
+  color:#eef7f5;font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;
+  pointer-events:none
+}
+.card .cap{
+  padding:10px 11px 2px;font-size:12.5px;font-weight:600;color:var(--text);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer
+}
+.card .cap:hover{color:var(--accent-text)}
+.card .sub{
+  padding:0 11px 9px;font-size:11.5px;color:var(--muted);
+  display:flex;justify-content:space-between;gap:8px;align-items:center;
+  font-variant-numeric:tabular-nums
+}
+.card .acts{display:flex;border-top:1px solid var(--border);margin-top:auto;background:var(--panel)}
+.card .acts button{
+  flex:1;height:32px;border:0;border-right:1px solid var(--border);
+  background:transparent;color:var(--muted);display:grid;place-items:center;
+  font-size:11px;font-weight:700
+}
+.card .acts button:last-child{border-right:0}
+.card .acts button:hover{background:var(--row-hover);color:var(--text)}
+.card .acts button.del:hover{background:var(--danger-bg);color:var(--danger)}
+
+/* ---------- drag & drop оверлей ---------- */
+.drop-overlay{
+  position:fixed;inset:14px;z-index:80;pointer-events:none;
+  border:2.5px dashed var(--accent);border-radius:22px;
+  background:var(--overlay);backdrop-filter:blur(5px);
+  display:grid;place-items:center;text-align:center;padding:24px
+}
+.drop-box{display:flex;flex-direction:column;align-items:center;gap:10px;color:var(--text)}
+.drop-box .drop-ic{width:58px;height:58px;border-radius:18px;display:grid;place-items:center;background:var(--accent-soft);color:var(--accent-text)}
+.drop-box .drop-ic svg{width:28px;height:28px}
+.drop-box strong{font-size:18px;letter-spacing:-.02em}
+.drop-box span{font-size:13px;color:var(--muted)}
+
+/* ---------- просмотрщик файлов ---------- */
+.overlay{
+  position:fixed;inset:0;background:var(--overlay);backdrop-filter:blur(8px);
+  z-index:100;display:flex;align-items:center;justify-content:center;padding:22px
+}
+.viewer{
+  width:min(1140px,100%);height:min(860px,91vh);
+  background:var(--panel);border:1px solid var(--border-strong);border-radius:20px;
+  box-shadow:var(--shadow);display:flex;flex-direction:column;overflow:hidden
+}
+.viewtop{
+  display:flex;align-items:center;gap:10px;padding:13px 16px;
+  border-bottom:1px solid var(--border);background:var(--panel2)
+}
+.viewtitle{min-width:0;flex:1}
+.viewtitle strong{display:block;font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.viewtitle small{color:var(--muted);display:block;margin-top:3px;font-size:12px;font-variant-numeric:tabular-nums}
+.viewbody{
+  position:relative;flex:1;min-height:0;overflow:auto;
+  display:flex;align-items:center;justify-content:center;
+  padding:20px;background:var(--thumbbg)
+}
+.viewbody img{max-width:100%;max-height:100%;object-fit:contain;border-radius:6px;cursor:zoom-in;user-select:none}
+.viewbody img.zoomed{max-width:none;max-height:none;cursor:zoom-out}
+.viewbody video{max-width:100%;max-height:100%;background:#000;border-radius:10px}
+.audiocard{
+  width:min(520px,100%);padding:28px 24px;border-radius:18px;
+  background:var(--panel);border:1px solid var(--border);box-shadow:var(--shadow-sm);
+  display:flex;flex-direction:column;align-items:center;gap:16px;text-align:center
+}
+.audiocard .audioart{width:64px;height:64px;border-radius:20px;display:grid;place-items:center;background:var(--ic-aud-bg);color:var(--ic-aud)}
+.audiocard .audioart svg{width:30px;height:30px}
+.audiocard .audioname{font-size:15px;font-weight:700;word-break:break-word;max-width:100%}
+.audiocard audio{width:100%}
+.viewbody iframe{width:100%;height:100%;border:1px solid var(--border);background:#fff;border-radius:10px}
+.viewbody pre{
+  align-self:stretch;width:min(960px,100%);margin:0;padding:24px 26px;
+  background:var(--code-bg);color:var(--code-ink);border:1px solid var(--border);
+  border-radius:12px;white-space:pre-wrap;overflow-wrap:anywhere;
+  font:13.5px/1.65 ui-monospace,SFMono-Regular,Consolas,monospace
+}
+.viewbody pre.docview{font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;font-size:14.5px;line-height:1.7}
+.viewempty{color:var(--muted);text-align:center;line-height:1.6;max-width:440px;padding:16px}
+.viewbody .error{color:var(--danger)}
+
+/* ---------- диалоги ---------- */
+.dialog-overlay{
+  position:fixed;inset:0;z-index:130;background:var(--overlay);backdrop-filter:blur(7px);
+  display:flex;justify-content:center;align-items:center;padding:18px
+}
+.action-dialog{
+  width:min(440px,100%);background:var(--panel);border:1px solid var(--border-strong);
+  border-radius:20px;box-shadow:var(--shadow);padding:24px
+}
+.dialog-symbol{
+  display:grid;place-items:center;width:42px;height:42px;border-radius:12px;
+  background:var(--accent-soft);color:var(--accent-text);font-size:18px;font-weight:700
+}
+.dialog-symbol.danger{background:var(--danger-bg);color:var(--danger);border:1px solid var(--danger-border)}
+.action-dialog h2{font-size:19px;letter-spacing:-.025em;margin:16px 0 7px;color:var(--text)}
+.dialog-message{color:var(--muted);line-height:1.55;font-size:13.5px;overflow-wrap:anywhere;margin:0}
+.dialog-input{
+  width:100%;height:42px;margin-top:16px;padding:0 13px;
+  background:var(--input-bg);border:1px solid var(--border-strong);border-radius:10px;
+  color:var(--text);outline:none;font-size:14px
+}
+.dialog-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--ring)}
+.dialog-error{font-size:12.5px;color:var(--danger);margin-top:8px;font-weight:500}
+.dialog-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:22px;flex-wrap:wrap}
+.dialog-actions .btn{height:38px;padding:0 15px}
+.dialog-actions .danger-solid{background:var(--danger-solid);border-color:var(--danger-solid);color:var(--danger-ink)}
+.dialog-actions .danger-solid:hover{background:var(--danger-solid-hover);border-color:var(--danger-solid-hover)}
+
+/* ---------- плавающая очередь загрузок ---------- */
+#uploadQueue{
+  position:fixed;bottom:18px;right:18px;width:min(430px,calc(100vw - 28px));z-index:90;
+  background:var(--panel);border:1px solid var(--border-strong);border-radius:16px;
+  box-shadow:var(--shadow);color:var(--text);overflow:hidden
+}
+.qtop{
+  display:flex;justify-content:space-between;align-items:center;gap:8px;
+  padding:11px 14px;background:var(--panel2);border-bottom:1px solid var(--border)
+}
+#uploadQueue h2{margin:0;font-size:13px;font-weight:700;color:var(--text)}
+.qtop-acts{display:flex;gap:4px;flex-wrap:wrap}
+#queueList{padding:4px 14px;max-height:42vh;overflow-y:auto}
+#queueEmpty{padding:14px;color:var(--muted);font-size:12px;text-align:center}
+.qrow{border-bottom:1px solid var(--border);padding:9px 0;display:grid;grid-template-columns:1fr auto;gap:6px 10px;align-items:center}
+.qrow:last-child{border-bottom:0}
+.qhead{min-width:0;display:flex;align-items:baseline;gap:7px}
+.qname{font-size:12.5px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.qstate{font-size:11px;color:var(--muted);white-space:nowrap;flex:none}
+.qactions{display:flex;gap:4px;justify-self:end}
+.qmeta{grid-column:1/-1;display:flex;align-items:center;gap:10px}
+.qbar{flex:1;height:6px;background:var(--panel3);border-radius:999px;overflow:hidden}
+.qfill{height:100%;background:var(--accent);width:0%;border-radius:999px;transition:width .2s}
+.qinfo{font-size:11px;color:var(--muted);white-space:nowrap;font-variant-numeric:tabular-nums}
+.qbtn{height:24px;font-size:11px;font-weight:600;padding:0 8px;border:1px solid var(--border);background:var(--panel);color:var(--text-soft);border-radius:6px}
+.qbtn:hover{background:var(--row-hover);color:var(--text)}
+.qstart{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.qpause:hover,.qcancel:hover{border-color:var(--danger-border);color:var(--danger);background:var(--danger-bg)}
+
+/* ---------- адаптив: планшеты и телефоны ---------- */
+@media(max-width:1180px){
+  .spacer{display:none}
+  .searchgroup{flex:1 1 100%;order:10}
+  .searchbox{flex:1}
+  .searchbox input{width:100%;flex:1}
+}
+@media(max-width:740px){
+  .shell{padding:14px 12px 36px}
+  .top{margin-bottom:16px;gap:8px}
+  .brandicon{width:36px;height:36px;border-radius:10px}
+  .brandicon svg{width:21px;height:21px}
+  .brandtitle{font-size:14px}
+  .brand small{font-size:9.5px}
+  .netpill,.davpill,.vsep{display:none}
+  .btn.logout-btn .btnlabel{display:none}
+  .btn.logout-btn{width:34px;padding:0}
+  .themeBtn{height:34px;min-width:34px;padding:0 8px}
+  .hero{margin-bottom:12px}
+  .hero h1{font-size:21px}
+  .hero .sub{font-size:12.5px}
+  .loginwrap{min-height:auto;padding-top:6vh}
+  .loginbox{padding:24px 20px}
+  .loginbox h1{font-size:24px}
+
+  .bar{padding:12px;gap:7px}
+  .bargroup.upload-grp{flex:1 1 100%;order:1}
+  .bargroup.upload-grp #upload{flex:1}
+  .bargroup.nav-grp{order:2}
+  .bargroup.nav-grp #up .btnlabel{display:none}
+  .bargroup.nav-grp #up{width:36px;padding:0}
+  .bargroup.util-grp{order:3;margin-left:auto}
+  .searchgroup{flex:1 1 100%;order:4;flex-wrap:wrap;gap:7px}
+  .searchbox{flex:1 1 100%;width:100%}
+  .searchbox input{flex:1;width:auto;min-width:0;font-size:14px}
+  .sortsel{flex:1 1 100%;width:100%}
+
+  .pathbar{padding:9px 12px}
+  .selection{padding:9px 12px}
+  .tablewrap{overflow-x:visible}
+  table,tbody{min-width:0;display:block}
+  thead{display:none}
+  tbody tr{
+    display:grid;
+    grid-template-columns:30px minmax(0,1fr) auto;
+    grid-template-areas:"check name size" "check meta actions";
+    column-gap:10px;row-gap:4px;align-items:center;
+    padding:11px 12px;border-bottom:1px solid var(--border)
+  }
+  tbody tr:last-child{border-bottom:0}
+  tbody td{padding:0;border:0;display:block;width:auto}
+  .checkcol{grid-area:check;width:auto;padding:0;text-align:left}
+  tbody td:nth-child(2){grid-area:name;min-width:0}
+  tbody td:nth-child(3){grid-area:size;justify-self:end;font-size:12px}
+  tbody td:nth-child(4){grid-area:meta;font-size:11px;color:var(--faint)}
+  .rowactions{grid-area:actions;padding:0;display:flex;gap:1px;justify-content:flex-end;flex-wrap:wrap}
+  .iconbtn{padding:5px 6px;font-size:11.5px;margin:0}
+  .filecell{min-width:0;gap:10px}
+  .icon{width:34px;height:34px;border-radius:9px}
+
+  .grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;padding:12px}
+  .overlay{padding:8px}
+  .viewer{height:94vh;border-radius:16px}
+  .viewtop{padding:10px 12px;gap:6px}
+  .viewtop #previewDownload .btnlabel{display:none}
+  .viewtop #previewDownload{width:36px;padding:0}
+  .viewbody{padding:10px}
+  .viewbody pre{padding:14px;font-size:12.5px}
+}
+@media(max-width:480px){
+  .action-dialog{padding:20px}
+  .dialog-actions .btn{flex:1}
+}
 </style></head><body>
 <main class="shell">
-  <div class="top">
+  <header class="top">
     <div class="brand">
-      <div class="brandicon">▤</div>
-      <div><span data-i18n="appTitle">PocketBridge · Файлы телефона</span><small data-i18n="wifiProvider">Wi-Fi ПРОВОДНИК</small></div>
+      <div class="brandicon" aria-hidden="true">
+        <svg viewBox="0 0 32 32" fill="none"><rect x="4" y="4" width="11" height="24" rx="2.6" stroke="currentColor" stroke-width="2.2"/><line x1="8" y1="24.5" x2="11" y2="24.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M18 13.5A2 2 0 0 1 20 11.5h2.6l1.5 1.8H27a2 2 0 0 1 2 2V24a2 2 0 0 1-2 2h-7a2 2 0 0 1-2-2V13.5Z" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/><path d="M15 16.5c1.3-1.2 2.2-1.2 3 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </div>
+      <div class="brandtext">
+        <span class="brandtitle" data-i18n="brandShort">PocketBridge</span>
+        <small data-i18n="wifiProvider">Wi-Fi ПРОВОДНИК</small>
+      </div>
     </div>
     <div class="topright">
-      <button id="theme" class="btn themeBtn" type="button" data-i18n-title="themeTitle" data-i18n-aria="themeTitle" title="Светлая/тёмная тема" aria-label="Светлая/тёмная тема">☀</button>
+      <span class="netpill"><span class="dot"></span><span id="netText" data-i18n="accessSubtitle">Локальная сеть · HTTPS</span></span>
+      <button id="theme" class="btn themeBtn icon-only" type="button" data-i18n-title="themeTitle" data-i18n-aria="themeTitle" title="Светлая/тёмная тема" aria-label="Светлая/тёмная тема"></button>
       <button id="langBtn" class="btn themeBtn" type="button" data-i18n-title="langSwitchTitle" data-i18n-aria="langSwitchTitle" title="Язык / Language" aria-label="Язык / Language">RU</button>
-      <span class="dot"></span>
-      <span id="netText" data-i18n="accessSubtitle">Доступ по коду в локальной сети</span>
+      <button class="btn ghost logout-btn hidden" id="logout" type="button" data-i18n-title="headerLogout" title="Выйти">
+        <svg class="svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        <span class="btnlabel" data-i18n="headerLogout">Выйти</span>
+      </button>
     </div>
-  </div>
+  </header>
 
-  <section id="login" class="panel loginbox">
-    <div class="eyebrow" data-i18n="accessSubtitle">Доступ по коду в локальной сети</div>
-    <h1 data-i18n="deviceDesc">Ваш телефон рядом.</h1>
-    <p class="sub" data-i18n="descPc">Работайте с файлами телефона прямо в браузере компьютера.</p>
-    <form id="loginForm">
-      <label class="label" for="code" data-i18n="loginCodeLabel">Код с экрана телефона</label>
-      <input class="search" id="code" type="text" data-i18n-placeholder="loginCodePlaceholder" placeholder="Например, 1a2b3c4d…" autocomplete="off" spellcheck="false" required>
-      <button class="btn primary" data-i18n="loginSubmit" type="submit">Подключиться →</button>
-    </form>
-    <div id="loginError" class="message"></div>
-    <div class="loginhelp" data-i18n="accessHelp">Оба устройства должны быть в одной сети Wi-Fi. Соединение шифруется самоподписанным сертификатом: при первом открытии браузер попросит подтвердить исключение («Дополнительно» → «Перейти на сайт»). Ссылку с кодом можно скопировать на телефоне — она входит автоматически.</div>
-  </section>
+  <div id="loginWrap" class="loginwrap">
+    <section id="login" class="panel loginbox">
+      <div class="loginbadge">
+        <svg class="svg-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        <span data-i18n="loginBadge">Доступ по коду в локальной сети</span>
+      </div>
+      <h1 data-i18n="deviceDesc">Ваш телефон рядом.</h1>
+      <p class="sub" data-i18n="descPc">Работайте с файлами телефона прямо в браузере компьютера — без проводов и облаков.</p>
+      <form id="loginForm">
+        <label class="label" for="code" data-i18n="loginCodeLabel">Код с экрана телефона</label>
+        <div class="codefield">
+          <svg class="svg fieldicon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21 2-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0 3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+          <input id="code" type="text" data-i18n-placeholder="loginCodePlaceholder" placeholder="Например, 1a2b3c4d…" autocomplete="off" autocapitalize="off" spellcheck="false" required>
+        </div>
+        <button class="btn primary" type="submit">
+          <span data-i18n="loginSubmit">Подключиться</span>
+          <svg class="svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+        </button>
+      </form>
+      <div id="loginError" role="alert"></div>
+      <div class="loginhelp">
+        <svg class="svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        <span data-i18n="accessHelp">Оба устройства должны быть в одной сети Wi-Fi. Трафик зашифрован сертификатом телефона; для мгновенного входа отсканируйте QR-код или откройте «Ссылку с кодом».</span>
+      </div>
+    </section>
+  </div>
 
   <section id="app" class="hidden">
     <div class="hero">
-      <div>
-        <div class="eyebrow" data-i18n="deviceNearby">Ваше устройство · файлы</div>
+      <div class="heromain">
         <h1 data-i18n="heroTitle">Всё под рукой.</h1>
-        <p class="sub" data-i18n="heroSub">Просматривайте файлы и управляйте ими без проводов.</p>
+        <p class="sub" data-i18n="heroSub">Просматривайте, скачивайте и загружайте файлы без проводов — или просто перетащите их в окно.</p>
       </div>
-      <div class="badge" data-i18n="deviceBadge">● Ваше устройство · файлы</div>
+      <button id="copyDav" type="button" class="davpill" data-i18n-title="davCopyTitle" title="Скопировать адрес WebDAV для Проводника / Finder">
+        <svg class="svg-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M6 8h.01M10 8h.01M2 12h20"/></svg>
+        <span data-i18n="davLabel">Сетевой диск</span>
+        <code>/dav/</code>
+      </button>
     </div>
 
     <div class="panel">
       <div class="bar">
-        <button class="btn" id="up" type="button" data-i18n="headerBack" data-i18n-title="headerBackTitle" title="На уровень выше">← Назад</button>
-        <button class="btn" id="refresh" type="button" data-i18n-title="headerRefreshTitle" data-i18n-aria="headerRefreshTitle" title="Обновить" aria-label="Обновить">↻</button>
-        <button class="btn" id="mkdir" type="button" data-i18n="headerMkdir">＋ Папка</button>
-        <button class="btn" id="sizes" type="button" data-i18n="headerSizes">◫ Размеры папок</button>
-        <button class="btn" id="view" type="button" data-i18n-title="viewTitle" title="Вид: плитка или список">▦ Плитка</button>
-        <button class="btn primary" id="upload" type="button" data-i18n="headerUpload">↑ Загрузить файлы</button>
-        <button class="btn" id="uploadDir" type="button" data-i18n="headerUploadDir">⇪ Загрузить папку</button>
-        <input id="fileInput" type="file" multiple hidden>
-        <input id="dirInput" type="file" webkitdirectory multiple hidden>
+        <div class="bargroup nav-grp">
+          <button class="btn ghost" id="up" type="button" data-i18n-title="headerBackTitle" title="На уровень выше">
+            <svg class="svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+            <span class="btnlabel" data-i18n="headerBack">Назад</span>
+          </button>
+          <button class="btn ghost icon-only" id="refresh" type="button" data-i18n-title="headerRefreshTitle" data-i18n-aria="headerRefreshTitle" title="Обновить" aria-label="Обновить">
+            <svg class="svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36L21 8"/><polyline points="21 3 21 8 16 8"/></svg>
+          </button>
+        </div>
+
+        <span class="vsep" aria-hidden="true"></span>
+
+        <div class="bargroup upload-grp">
+          <button class="btn primary" id="upload" type="button">
+            <svg class="svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            <span data-i18n="headerUpload">Загрузить</span>
+          </button>
+          <button class="btn" id="uploadDir" type="button" data-i18n-title="headerUploadDirTitle" title="Загрузить папку целиком со структурой">
+            <svg class="svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><path d="M12 11v6"/><path d="m9.5 13.5 2.5-2.5 2.5 2.5"/></svg>
+            <span data-i18n="headerUploadDir">Папку</span>
+          </button>
+          <button class="btn" id="mkdir" type="button" data-i18n-title="mkdirTitle" title="Новая папка">
+            <svg class="svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>
+            <span data-i18n="headerMkdir">Создать</span>
+          </button>
+          <input id="fileInput" type="file" multiple hidden>
+          <input id="dirInput" type="file" webkitdirectory multiple hidden>
+        </div>
+
+        <span class="vsep" aria-hidden="true"></span>
+
+        <div class="bargroup util-grp">
+          <button class="btn ghost" id="sizes" type="button" data-i18n-title="sizesBtnTitle" title="Посчитать размеры папок">
+            <svg class="svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>
+            <span data-i18n="headerSizes">Размеры</span>
+          </button>
+          <button class="btn ghost" id="view" type="button" data-i18n-title="viewTitle" title="Вид: плитка или список"></button>
+        </div>
+
         <span class="spacer"></span>
-        <input class="search" type="search" id="search" data-i18n-placeholder="searchPlaceholder" data-i18n-aria="searchPlaceholder" placeholder="Поиск в этой папке" aria-label="Поиск в этой папке">
-        <select id="scope" class="sortsel" data-i18n-aria="scopeAria" aria-label="Где искать">
-          <option value="local" data-i18n="searchLocal">искать здесь</option>
-          <option value="global" data-i18n="searchGlobal">искать везде</option>
-        </select>
-        <select id="sort" class="sortsel" data-i18n-aria="sortAria" aria-label="Сортировка">
-          <option value="name" data-i18n="sortName">Сортировка: имя</option>
-          <option value="size" data-i18n="sortSize">размер</option>
-          <option value="date" data-i18n="sortDate">дата</option>
-          <option value="type" data-i18n="sortType">тип</option>
-        </select>
-        <button class="btn" id="logout" type="button" data-i18n="headerLogout">Выйти</button>
+
+        <div class="searchgroup">
+          <div class="searchbox">
+            <svg class="svg sicon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="search" id="search" data-i18n-placeholder="searchPlaceholder" data-i18n-aria="searchPlaceholder" placeholder="Поиск в этой папке" aria-label="Поиск в этой папке">
+            <select id="scope" data-i18n-aria="scopeAria" aria-label="Где искать">
+              <option value="local" data-i18n="searchLocal">здесь</option>
+              <option value="global" data-i18n="searchGlobal">везде</option>
+            </select>
+          </div>
+          <select id="sort" class="sortsel" data-i18n-aria="sortAria" aria-label="Сортировка">
+            <option value="name" data-i18n="sortName">По имени</option>
+            <option value="size" data-i18n="sortSize">По размеру</option>
+            <option value="date" data-i18n="sortDate">По дате</option>
+            <option value="type" data-i18n="sortType">По типу</option>
+          </select>
+        </div>
       </div>
 
       <div class="pathbar">
         <div class="pathline">
-          <div class="caption" data-i18n="currentFolder">Текущая папка</div>
-          <div id="path" class="path">/</div>
+          <nav id="path" class="crumbs" data-i18n-aria="currentFolder" aria-label="Текущая папка">/</nav>
         </div>
         <div id="itemCount" class="count"></div>
       </div>
 
       <div id="selection" class="selection hidden">
         <strong id="selectedCount"></strong>
-        <button id="downloadSelected" class="btn primary" type="button" data-i18n="btnDownloadSelected">↓ Скачать выбранные файлы ZIP</button>
-        <button id="deleteSelected" class="btn danger" type="button" data-i18n="btnDeleteSelected">Удалить выбранное</button>
-        <button id="clearSelected" class="btn" type="button" data-i18n="btnClearSelected">Снять выделение</button>
+        <button id="downloadSelected" class="btn primary" type="button">
+          <svg class="svg-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          <span data-i18n="btnDownloadSelected">Скачать ZIP</span>
+        </button>
+        <button id="deleteSelected" class="btn danger" type="button">
+          <svg class="svg-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+          <span data-i18n="btnDeleteSelected">Удалить</span>
+        </button>
+        <button id="clearSelected" class="btn ghost" type="button" data-i18n="btnClearSelected">Снять выделение</button>
       </div>
 
-      <div id="message" class="message"></div>
+      <div id="message" class="message" role="status" aria-live="polite"></div>
 
       <div id="progress" class="progress hidden">
         <span class="plabel" id="progressLabel"></span>
         <div class="ptrack"><div class="pfill" id="progressFill"></div></div>
-        <button class="btn" id="progressCancel" data-i18n="btnQueueCancel" type="button">Отмена</button>
+        <button class="btn ghost" id="progressCancel" data-i18n="btnQueueCancel" type="button">Отмена</button>
       </div>
 
       <div id="grid" class="grid hidden"></div>
@@ -361,30 +756,47 @@ input[type=checkbox]{width:16px;height:16px;accent-color:#75e3bd;cursor:pointer}
           <thead>
             <tr>
               <th class="checkcol"><input type="checkbox" id="selectAll" data-i18n-title="btnSelectAll" data-i18n-aria="btnSelectAll" title="Выделить все видимые" aria-label="Выделить все видимые"></th>
-              <th data-i18n="colName">Название</th>
-              <th data-i18n="colSize">Размер</th>
-              <th data-i18n="colDate">Изменён</th>
-              <th data-i18n="colActions"></th>
+              <th class="sortable" data-sort="name"><span data-i18n="colName">Название</span><span class="sortmark"></span></th>
+              <th class="sortable size" data-sort="size"><span data-i18n="colSize">Размер</span><span class="sortmark"></span></th>
+              <th class="sortable datecol" data-sort="date"><span data-i18n="colDate">Изменён</span><span class="sortmark"></span></th>
+              <th class="rowactions"></th>
             </tr>
           </thead>
           <tbody id="rows"></tbody>
         </table>
-        <div id="empty" class="empty hidden"><span class="empty-icon">◌</span><span data-i18n="emptyFolder">Здесь пока ничего нет</span></div>
+        <div id="empty" class="empty hidden"></div>
       </div>
     </div>
 
-    <div class="foot" data-i18n="sizesDisabled">Для подсчёта размеров нажмите «Размеры папок». Подсчёт может быть неполным из-за ограничений Android. Не закрывайте приложение на телефоне во время передачи.</div>
+    <div class="foot" data-i18n="sizesDisabled">Нажмите «Размеры», чтобы посчитать объём папок (часть системных каталогов Android может быть скрыта). Не закрывайте доступ на телефоне до завершения передачи.</div>
   </section>
 </main>
+
+<div id="dropOverlay" class="drop-overlay hidden" aria-hidden="true">
+  <div class="drop-box">
+    <div class="drop-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div>
+    <strong data-i18n="dropTitle">Отпустите файлы для загрузки</strong>
+    <span data-i18n="dropSub">Они сохранятся в открытую папку телефона</span>
+  </div>
+</div>
 
 <div id="preview" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="previewTitle">
   <div class="viewer">
     <div class="viewtop">
       <div class="viewtitle"><strong id="previewTitle"></strong><small id="previewHint"></small></div>
-      <button id="previewPrev" class="btn hidden" type="button" data-i18n-title="previewPrev" data-i18n-aria="previewPrev" title="Предыдущий файл" aria-label="Предыдущий файл">⏮</button>
-      <button id="previewNext" class="btn hidden" type="button" data-i18n-title="previewNext" data-i18n-aria="previewNext" title="Следующий файл" aria-label="Следующий файл">⏭</button>
-      <button id="previewDownload" type="button" data-i18n="previewDownload" class="btn">↓ Скачать</button>
-      <button id="previewClose" type="button" class="btn" data-i18n-title="previewCloseTitle" data-i18n-aria="previewCloseTitle" title="Закрыть" aria-label="Закрыть">✕</button>
+      <button id="previewPrev" class="btn ghost icon-only hidden" type="button" data-i18n-title="previewPrev" data-i18n-aria="previewPrev" title="Предыдущий файл (←)" aria-label="Предыдущий файл">
+        <svg class="svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+      </button>
+      <button id="previewNext" class="btn ghost icon-only hidden" type="button" data-i18n-title="previewNext" data-i18n-aria="previewNext" title="Следующий файл (→)" aria-label="Следующий файл">
+        <svg class="svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+      </button>
+      <button id="previewDownload" type="button" class="btn primary">
+        <svg class="svg-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        <span class="btnlabel" data-i18n="previewDownload">Скачать</span>
+      </button>
+      <button id="previewClose" type="button" class="btn ghost icon-only" data-i18n-title="previewCloseTitle" data-i18n-aria="previewCloseTitle" title="Закрыть (Esc)" aria-label="Закрыть">
+        <svg class="svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
     </div>
     <div id="previewBody" class="viewbody"></div>
   </div>
@@ -392,14 +804,14 @@ input[type=checkbox]{width:16px;height:16px;accent-color:#75e3bd;cursor:pointer}
 
 <div id="actionDialog" class="dialog-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="dialogTitle" aria-describedby="dialogMessage">
   <form class="action-dialog" id="dialogForm">
-    <div id="dialogIcon" class="dialog-symbol">✦</div>
+    <div id="dialogIcon" class="dialog-symbol"></div>
     <h2 id="dialogTitle"></h2>
     <p id="dialogMessage" class="dialog-message"></p>
     <input id="dialogInput" class="dialog-input hidden" maxlength="200" autocomplete="off" data-i18n-aria="colName" aria-label="Название">
     <div id="dialogError" class="dialog-error hidden"></div>
     <div class="dialog-actions">
       <button id="dialogExtra" class="btn" type="button" hidden></button>
-      <button id="dialogCancel" data-i18n="actionCancel" class="btn" type="button">Отмена</button>
+      <button id="dialogCancel" data-i18n="actionCancel" class="btn ghost" type="button">Отмена</button>
       <button id="dialogAccept" data-i18n="btnContinue" class="btn primary" type="submit">Продолжить</button>
     </div>
   </form>
@@ -408,39 +820,71 @@ input[type=checkbox]{width:16px;height:16px;accent-color:#75e3bd;cursor:pointer}
 <script>
 'use strict';
 
-/* ---------- локализация RU/EN ---------- */
+const ICONS = {
+  sun: '<svg class="svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2m-7.07-14.93 1.41 1.41m11.32 11.32 1.41 1.41M2 12h2m16 0h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>',
+  moon: '<svg class="svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>',
+  grid: '<svg class="svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/></svg>',
+  list: '<svg class="svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="4" cy="6" r="1" fill="currentColor"/><circle cx="4" cy="12" r="1" fill="currentColor"/><circle cx="4" cy="18" r="1" fill="currentColor"/></svg>',
+  phone: '<svg class="svg-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>',
+  folder: '<svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"><path d="M3 6.5A2.5 2.5 0 0 1 5.5 4h3.9a2 2 0 0 1 1.6.8l1.2 1.6a1 1 0 0 0 .8.4h5.5A2.5 2.5 0 0 1 21 9.3v8.2a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 17.5v-11Z" fill-opacity=".22"/></svg>',
+  image: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2.5"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>',
+  video: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="4" width="19" height="16" rx="2.5"/><polygon points="10 8.5 16 12 10 15.5 10 8.5" fill="currentColor" fill-opacity=".25"/></svg>',
+  audio: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>',
+  pdf: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M9 15h6M9 11h2"/></svg>',
+  docx: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></svg>',
+  text: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/></svg>',
+  html: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>',
+  zip: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8"/><rect x="1" y="3" width="22" height="5" rx="1.5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>',
+  bin: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>',
+  eye: '<svg class="svg-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>',
+  dl: '<svg class="svg-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>',
+  edit: '<svg class="svg-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>',
+  trash: '<svg class="svg-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>',
+  search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>',
+  alert: '<svg class="svg-lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+  plus: '<svg class="svg-lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>',
+  pencil: '<svg class="svg-lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>',
+  copy: '<svg class="svg-lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>'
+};
+
 const LANG = {
   ru: {
     appTitle: 'PocketBridge · Файлы телефона',
+    brandShort: 'PocketBridge',
     wifiProvider: 'Wi-Fi ПРОВОДНИК',
     heroTitle: 'Всё под рукой.',
-    heroSub: 'Просматривайте файлы и управляйте ими без проводов.',
-    deviceNearby: 'Ваше устройство · файлы',
-    deviceBadge: '● Ваше устройство · файлы',
+    heroSub: 'Просматривайте, скачивайте и загружайте файлы без проводов — или просто перетащите их в окно.',
+    davLabel: 'Сетевой диск',
+    davCopyTitle: 'Скопировать адрес WebDAV для Проводника Windows / macOS Finder',
+    msgDavCopied: 'Адрес WebDAV скопирован: {url}',
     deviceDesc: 'Ваш телефон рядом.',
-    descPc: 'Работайте с файлами телефона прямо в браузере компьютера.',
-    accessSubtitle: 'Доступ по коду в локальной сети',
-    accessHelp: 'Оба устройства должны быть в одной сети Wi-Fi. Соединение шифруется самоподписанным сертификатом: при первом открытии браузер попросит подтвердить исключение («Дополнительно» → «Перейти на сайт»). Ссылку с кодом можно скопировать на телефоне — она входит автоматически.',
+    descPc: 'Работайте с файлами телефона прямо в браузере компьютера — без проводов и облаков.',
+    accessSubtitle: 'Локальная сеть · HTTPS',
+    loginBadge: 'Доступ по коду в локальной сети',
+    accessHelp: 'Оба устройства должны быть в одной сети Wi-Fi. Трафик зашифрован сертификатом телефона; для мгновенного входа отсканируйте QR-код или откройте «Ссылку с кодом».',
     loginCodeLabel: 'Код с экрана телефона',
     loginCodePlaceholder: 'Например, 1a2b3c4d…',
-    loginSubmit: 'Подключиться →',
-    headerBack: '← Назад',
+    loginSubmit: 'Подключиться',
+    headerBack: 'Назад',
     headerBackTitle: 'На уровень выше',
-    headerRefreshTitle: 'Обновить',
-    headerMkdir: '＋ Папка',
-    headerSizes: '◫ Размеры папок',
-    headerUpload: '↑ Загрузить файлы',
-    headerUploadDir: '⇪ Загрузить папку',
+    headerRefreshTitle: 'Обновить список',
+    headerMkdir: 'Создать',
+    headerSizes: 'Размеры',
+    sizesBtnTitle: 'Посчитать размеры папок',
+    headerUpload: 'Загрузить',
+    headerUploadDir: 'Папку',
+    headerUploadDirTitle: 'Загрузить папку целиком со структурой',
     headerLogout: 'Выйти',
+    dropTitle: 'Отпустите файлы для загрузки',
+    dropSub: 'Они сохранятся в открытую папку телефона',
     colName: 'Название',
     colSize: 'Размер',
     colDate: 'Изменён',
-    colActions: '',
     rootName: 'Телефон',
     rootTitle: 'Корень хранилища',
     currentFolder: 'Текущая папка',
-    emptyFolder: 'Здесь пока ничего нет',
-    emptySearch: 'Ничего не найдено',
+    emptyFolder: 'В этой папке пока пусто',
+    emptySearch: 'По вашему запросу ничего не найдено',
     itemCount: 'Элементов: ',
     btnPreview: 'Просмотр',
     btnDownload: 'Скачать',
@@ -450,8 +894,8 @@ const LANG = {
     btnDelete: 'Удалить',
     btnSelectAll: 'Выделить все видимые',
     btnClearSelected: 'Снять выделение',
-    btnDownloadSelected: '↓ Скачать выбранные файлы ZIP',
-    btnDeleteSelected: 'Удалить выбранное',
+    btnDownloadSelected: 'Скачать ZIP',
+    btnDeleteSelected: 'Удалить',
     actionDialogTitle: 'Удалить выбранное?',
     actionDialogMsg: 'Будет удалено элементов: {n}. Папки удалятся со всем содержимым. Отменить это действие нельзя.',
     actionAccept: 'Удалить',
@@ -474,23 +918,23 @@ const LANG = {
     conflictCancel: 'Пропустить',
     conflictOverwrite: 'Перезаписать',
     newNameSuffix: '-новый',
-    previewPrev: 'Предыдущий файл',
-    previewNext: 'Следующий файл',
-    previewDownload: '↓ Скачать',
-    previewCloseTitle: 'Закрыть',
+    previewPrev: 'Предыдущий файл (←)',
+    previewNext: 'Следующий файл (→)',
+    previewDownload: 'Скачать',
+    previewCloseTitle: 'Закрыть (Esc)',
     previewHtmlTitle: 'Просмотр HTML',
     previewPdfTitle: 'Просмотр PDF',
     previewDocxTruncated: '[Показана только часть документа]',
     previewUnsupported: 'Просмотр этого формата не поддерживается. Скачайте файл для открытия.',
     previewHTMLDesc: 'HTML без скриптов и внешних ресурсов',
-    previewDocxDesc: 'DOCX: только текст, без оформления и изображений',
+    previewDocxDesc: 'DOCX · только текст, без оформления',
     previewFromPhone: 'Просмотр с телефона · ',
     previewOpening: 'Открываем файл…',
     previewFailed: 'Не удалось открыть: ',
     previewCodecError: 'Браузер не смог воспроизвести этот файл или не поддерживает кодек.',
     previewAutoplayBlocked: 'Нажмите ▶ в плеере: браузер заблокировал автозапуск.',
     previewPlaybackError: 'Не удалось запустить файл. Нажмите ▶ или проверьте поддержку кодека.',
-    queueTitle: 'Загрузка',
+    queueTitle: 'Передачи',
     queueEmpty: 'Очередь пуста',
     queueWaiting: 'в очереди',
     queueUploading: 'загрузка',
@@ -500,36 +944,35 @@ const LANG = {
     queueSkipped: 'пропущен',
     queueError: 'ошибка',
     queueErrorDefault: 'ошибка загрузки',
-    queueUniqueSuffix: '(с сохранением имени)',
-    btnQueueStart: 'Старт',
+    queueUniqueSuffix: '(новое имя)',
     btnQueuePause: 'Пауза',
     btnQueueCancel: 'Отмена',
     btnQueueRetry: 'Повтор',
-    queuePauseAll: 'Пауза все',
+    queuePauseAll: 'Пауза',
     queueResumeAll: 'Продолжить',
-    queueClear: 'Очистить',
+    queueClear: 'Скрыть',
     progressUploading: 'Загрузка {done} из {total} · {pct}%',
     selectedCount: 'Выбрано: {n}',
     selectItem: 'Выбрать {name}',
-    themeTitle: 'Светлая/тёмная тема',
+    themeTitle: 'Светлая / тёмная тема',
     langSwitchTitle: 'Язык / Language',
     viewTitle: 'Вид: плитка или список',
-    viewList: '☰ Список',
-    viewGrid: '▦ Плитка',
+    viewList: 'Список',
+    viewGrid: 'Плитка',
     searchPlaceholder: 'Поиск в этой папке',
     scopeAria: 'Где искать',
     sortAria: 'Сортировка',
-    searchLocal: 'искать здесь',
-    searchGlobal: 'искать везде',
-    sortName: 'Сортировка: имя',
-    sortSize: 'размер',
-    sortDate: 'дата',
-    sortType: 'тип',
+    searchLocal: 'здесь',
+    searchGlobal: 'везде',
+    sortName: 'По имени',
+    sortSize: 'По размеру',
+    sortDate: 'По дате',
+    sortType: 'По типу',
     folderSizeTitle: 'Размер вложенных доступных файлов',
     sizeLoading: 'Подсчёт…',
     sizeError: 'Недоступно',
     sizePartialTitle: 'Часть файлов недоступна или подсчёт занял слишком много времени',
-    sizesDisabled: 'Для подсчёта размеров нажмите «Размеры папок». Подсчёт может быть неполным из-за ограничений Android. Не закрывайте приложение на телефоне во время передачи.',
+    sizesDisabled: 'Нажмите «Размеры», чтобы посчитать объём папок (часть системных каталогов Android может быть скрыта). Не закрывайте доступ на телефоне до завершения передачи.',
     msgPreparingFolder: 'Готовим архив папки {name}…',
     msgPreparingDownload: 'Готовим скачивание: {name}',
     msgPreparing: 'Готовим ZIP-архив…',
@@ -539,7 +982,7 @@ const LANG = {
     msgMaxSelect: 'За один раз можно выбрать не более 500 объектов.',
     msgOpening: 'Открываем папку…',
     msgSearching: 'Ищем во всех папках…',
-    msgSearchTruncated: 'Показаны первые результаты — уточните запрос',
+    msgSearchTruncated: 'Показаны первые 200 результатов — уточните запрос',
     msgSearchFound: 'Найдено: {n}',
     msgDeleting: 'Удаление {i} из {n}…',
     msgDeleted: 'Удалено: {n}',
@@ -553,35 +996,41 @@ const LANG = {
   },
   en: {
     appTitle: 'PocketBridge · Phone Files',
+    brandShort: 'PocketBridge',
     wifiProvider: 'Wi-Fi EXPLORER',
     heroTitle: 'Everything at hand.',
-    heroSub: 'Browse and manage your phone files without cables.',
-    deviceNearby: 'Your device · files',
-    deviceBadge: '● Your device · files',
+    heroSub: 'Browse, download, and upload files wirelessly — or simply drop them anywhere on the page.',
+    davLabel: 'Network drive',
+    davCopyTitle: 'Copy WebDAV address for Windows Explorer / macOS Finder',
+    msgDavCopied: 'WebDAV URL copied: {url}',
     deviceDesc: 'Your phone is right here.',
-    descPc: 'Work with phone files right in your computer browser.',
-    accessSubtitle: 'Access by code on local network',
-    accessHelp: 'Both devices must be on the same Wi-Fi network. Connection is encrypted with a self-signed certificate: on first open the browser will ask to confirm the exception (Advanced → Proceed). You can copy the link with code on the phone — it signs in automatically.',
+    descPc: 'Manage your phone files right in your desktop browser — no cables, no cloud.',
+    accessSubtitle: 'Local network · HTTPS',
+    loginBadge: 'Code-protected local access',
+    accessHelp: 'Both devices must share the same Wi-Fi network. Traffic is encrypted with your phone’s certificate; scan the QR code or open the login link to sign in instantly.',
     loginCodeLabel: 'Code from phone screen',
     loginCodePlaceholder: 'e.g. 1a2b3c4d…',
-    loginSubmit: 'Connect →',
-    headerBack: '← Back',
+    loginSubmit: 'Connect',
+    headerBack: 'Back',
     headerBackTitle: 'Up one level',
-    headerRefreshTitle: 'Refresh',
-    headerMkdir: '＋ Folder',
-    headerSizes: '◫ Folder sizes',
-    headerUpload: '↑ Upload files',
-    headerUploadDir: '⇪ Upload folder',
+    headerRefreshTitle: 'Refresh folder',
+    headerMkdir: 'New folder',
+    headerSizes: 'Sizes',
+    sizesBtnTitle: 'Calculate folder sizes',
+    headerUpload: 'Upload',
+    headerUploadDir: 'Folder',
+    headerUploadDirTitle: 'Upload an entire folder with subfolders',
     headerLogout: 'Log out',
+    dropTitle: 'Drop files to upload',
+    dropSub: 'They will be saved into the current folder on your phone',
     colName: 'Name',
     colSize: 'Size',
     colDate: 'Modified',
-    colActions: '',
     rootName: 'Phone',
     rootTitle: 'Root of storage',
     currentFolder: 'Current folder',
-    emptyFolder: 'Nothing here yet',
-    emptySearch: 'Nothing found',
+    emptyFolder: 'This folder is empty',
+    emptySearch: 'No matching files found',
     itemCount: 'Items: ',
     btnPreview: 'Preview',
     btnDownload: 'Download',
@@ -591,10 +1040,10 @@ const LANG = {
     btnDelete: 'Delete',
     btnSelectAll: 'Select all visible',
     btnClearSelected: 'Clear selection',
-    btnDownloadSelected: '↓ Download selected as ZIP',
-    btnDeleteSelected: 'Delete selected',
+    btnDownloadSelected: 'Download ZIP',
+    btnDeleteSelected: 'Delete',
     actionDialogTitle: 'Delete selected?',
-    actionDialogMsg: '{n} items will be deleted. Folders are deleted with all contents. This cannot be undone.',
+    actionDialogMsg: '{n} items will be deleted. Folders are removed with all contents. This cannot be undone.',
     actionAccept: 'Delete',
     actionCancel: 'Cancel',
     btnContinue: 'Continue',
@@ -615,25 +1064,25 @@ const LANG = {
     conflictCancel: 'Skip',
     conflictOverwrite: 'Overwrite',
     newNameSuffix: '-new',
-    previewPrev: 'Previous file',
-    previewNext: 'Next file',
-    previewDownload: '↓ Download',
-    previewCloseTitle: 'Close',
+    previewPrev: 'Previous file (←)',
+    previewNext: 'Next file (→)',
+    previewDownload: 'Download',
+    previewCloseTitle: 'Close (Esc)',
     previewHtmlTitle: 'HTML preview',
     previewPdfTitle: 'PDF preview',
     previewDocxTruncated: '[Showing part of the document]',
     previewUnsupported: 'Preview is not supported for this format. Download the file to open it.',
-    previewHTMLDesc: 'HTML without scripts or external resources',
-    previewDocxDesc: 'DOCX: plain text only, without layout or images',
+    previewHTMLDesc: 'HTML sandboxed without scripts or external resources',
+    previewDocxDesc: 'DOCX · plain text, without formatting',
     previewFromPhone: 'Preview from phone · ',
     previewOpening: 'Opening file…',
     previewFailed: 'Failed to open: ',
     previewCodecError: 'The browser could not play this file or does not support its codec.',
     previewAutoplayBlocked: 'Press ▶ in the player: the browser blocked autoplay.',
     previewPlaybackError: 'Failed to play file. Press ▶ or check codec support.',
-    queueTitle: 'Uploads',
+    queueTitle: 'Transfers',
     queueEmpty: 'Queue is empty',
-    queueWaiting: 'waiting',
+    queueWaiting: 'queued',
     queueUploading: 'uploading',
     queuePaused: 'paused',
     queueDone: 'done',
@@ -642,35 +1091,34 @@ const LANG = {
     queueError: 'error',
     queueErrorDefault: 'upload error',
     queueUniqueSuffix: '(renamed)',
-    btnQueueStart: 'Start',
     btnQueuePause: 'Pause',
     btnQueueCancel: 'Cancel',
     btnQueueRetry: 'Retry',
-    queuePauseAll: 'Pause all',
+    queuePauseAll: 'Pause',
     queueResumeAll: 'Resume',
-    queueClear: 'Clear',
+    queueClear: 'Hide',
     progressUploading: 'Uploading {done} of {total} · {pct}%',
     selectedCount: 'Selected: {n}',
     selectItem: 'Select {name}',
     themeTitle: 'Light / dark theme',
     langSwitchTitle: 'Language / Язык',
     viewTitle: 'View: tiles or list',
-    viewList: '☰ List',
-    viewGrid: '▦ Tiles',
+    viewList: 'List',
+    viewGrid: 'Tiles',
     searchPlaceholder: 'Search in this folder',
     scopeAria: 'Search scope',
     sortAria: 'Sort order',
-    searchLocal: 'search here',
-    searchGlobal: 'search everywhere',
-    sortName: 'Sort: name',
-    sortSize: 'size',
-    sortDate: 'date',
-    sortType: 'type',
+    searchLocal: 'here',
+    searchGlobal: 'everywhere',
+    sortName: 'By name',
+    sortSize: 'By size',
+    sortDate: 'By date',
+    sortType: 'By type',
     folderSizeTitle: 'Size of nested accessible files',
     sizeLoading: 'Calculating…',
     sizeError: 'Unavailable',
     sizePartialTitle: 'Some files are inaccessible or calculation took too long',
-    sizesDisabled: 'Click “Folder sizes” to calculate. Results may be partial due to Android restrictions. Keep the app open during transfers.',
+    sizesDisabled: 'Click “Sizes” to calculate folder sizes (some Android system directories may be hidden). Keep access active on your phone until transfers finish.',
     msgPreparingFolder: 'Preparing ZIP for folder {name}…',
     msgPreparingDownload: 'Preparing download: {name}',
     msgPreparing: 'Preparing ZIP archive…',
@@ -680,7 +1128,7 @@ const LANG = {
     msgMaxSelect: 'You can select at most 500 items at once.',
     msgOpening: 'Opening folder…',
     msgSearching: 'Searching all folders…',
-    msgSearchTruncated: 'Showing first results — refine your query',
+    msgSearchTruncated: 'Showing first 200 results — refine your query',
     msgSearchFound: 'Found: {n}',
     msgDeleting: 'Deleting {i} of {n}…',
     msgDeleted: 'Deleted: {n}',
@@ -694,72 +1142,100 @@ const LANG = {
   }
 };
 
-const el = id => document.getElementById(id);
-function safeGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
-function safeSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+function safeGet(k) { try { return localStorage.getItem(k); } catch (_) { return null; } }
+function safeSet(k, v) { try { localStorage.setItem(k, v); } catch (_) {} }
 
 let currentLang = safeGet('pb-lang') === 'en' ? 'en' : 'ru';
+let key = '', sessionToken = null, current = '/', items = [], remoteResults = null;
+const selected = new Set(), sizes = new Map();
 let viewMode = safeGet('pb-view') === 'grid' ? 'grid' : 'list';
-let key = '', current = '/', items = [], selected = new Set(), sizes = new Map();
-let generation = 0, scanning = false, sessionToken = null;
-let remoteResults = null, searchTimer = null;
-let previewSerial = 0, previewItem = null;
+let sortFlip = false, scanning = false, generation = 0, previewSerial = 0, previewItem = null;
+let searchTimer = null, dragDepth = 0;
 let queue = [], running = 0, globalPaused = false, uploadBusy = false;
 
+const el = id => document.getElementById(id);
+
 function t(id, params) {
-  const dict = LANG[currentLang] || LANG.ru;
-  let val = dict[id] !== undefined ? dict[id] : (LANG.ru[id] !== undefined ? LANG.ru[id] : id);
-  if (typeof val !== 'string') return val;
-  if (params) {
-    for (const [k, v] of Object.entries(params)) {
-      val = val.split('{' + k + '}').join(String(v));
-    }
+  let s = (LANG[currentLang] && LANG[currentLang][id] !== undefined) ? LANG[currentLang][id]
+    : (LANG.ru[id] !== undefined ? LANG.ru[id] : id);
+  if (params && typeof s === 'string') {
+    for (const [k, v] of Object.entries(params)) s = s.replaceAll('{' + k + '}', String(v));
   }
-  return val;
+  return s;
+}
+
+function updateThemeBtn() {
+  const cur = document.documentElement.dataset.theme === 'light' ? 'light' : 'dark';
+  el('theme').innerHTML = cur === 'light' ? ICONS.moon : ICONS.sun;
+}
+function applyTheme(theme) {
+  const next = theme === 'light' ? 'light' : 'dark';
+  document.documentElement.dataset.theme = next;
+  safeSet('pb-theme', next);
+  updateThemeBtn();
+}
+
+function updateViewBtn() {
+  el('view').innerHTML = (viewMode === 'grid' ? ICONS.list : ICONS.grid)
+    + '<span>' + (viewMode === 'grid' ? t('viewList') : t('viewGrid')) + '</span>';
+}
+
+function updateSortHeaders() {
+  const mode = el('sort') ? el('sort').value : 'name';
+  const defDesc = (mode === 'size' || mode === 'date');
+  const desc = sortFlip ? !defDesc : defDesc;
+  document.querySelectorAll('thead th.sortable').forEach(th => {
+    const mark = th.querySelector('.sortmark');
+    if (mark) mark.textContent = th.dataset.sort === mode ? (desc ? '↓' : '↑') : '';
+  });
 }
 
 function populateI18n() {
   document.documentElement.lang = currentLang;
   document.title = t('appTitle');
-  document.querySelectorAll('[data-i18n]').forEach(node => {
-    node.textContent = t(node.getAttribute('data-i18n'));
-  });
-  document.querySelectorAll('[data-i18n-placeholder]').forEach(node => {
-    node.setAttribute('placeholder', t(node.getAttribute('data-i18n-placeholder')));
-  });
-  document.querySelectorAll('[data-i18n-title]').forEach(node => {
-    node.setAttribute('title', t(node.getAttribute('data-i18n-title')));
-  });
-  document.querySelectorAll('[data-i18n-aria]').forEach(node => {
-    node.setAttribute('aria-label', t(node.getAttribute('data-i18n-aria')));
-  });
-  const viewBtn = el('view');
-  if (viewBtn) viewBtn.textContent = viewMode === 'grid' ? t('viewList') : t('viewGrid');
-  const langBtn = el('langBtn');
-  if (langBtn) langBtn.textContent = currentLang === 'ru' ? 'RU' : 'EN';
+  const lb = el('langBtn');
+  if (lb) lb.textContent = currentLang.toUpperCase();
+  document.querySelectorAll('[data-i18n]').forEach(n => { n.textContent = t(n.dataset.i18n); });
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(n => { n.placeholder = t(n.dataset.i18nPlaceholder); });
+  document.querySelectorAll('[data-i18n-title]').forEach(n => { n.title = t(n.dataset.i18nTitle); });
+  document.querySelectorAll('[data-i18n-aria]').forEach(n => { n.setAttribute('aria-label', t(n.dataset.i18nAria)); });
+  updateThemeBtn();
+  updateViewBtn();
+  updateSortHeaders();
 }
 
-function setLang(lang) {
-  currentLang = lang === 'en' ? 'en' : 'ru';
+function setLang(next) {
+  currentLang = next === 'en' ? 'en' : 'ru';
   safeSet('pb-lang', currentLang);
-  updateLangUI();
-}
-
-function updateLangUI() {
   populateI18n();
-  if (key && !el('app').classList.contains('hidden')) {
+  if (!el('app').classList.contains('hidden')) {
     renderPath(current);
     render();
-    renderQueue();
   }
+  if (queue.length) renderQueue();
 }
 
-function applyTheme(theme) {
-  const next = theme === 'light' ? 'light' : 'dark';
-  document.documentElement.dataset.theme = next;
-  safeSet('pb-theme', next);
-  el('theme').textContent = next === 'light' ? '☾' : '☀';
-}
+document.querySelectorAll('thead th.sortable').forEach(th => {
+  th.onclick = () => {
+    const k = th.dataset.sort;
+    if (el('sort').value === k) sortFlip = !sortFlip;
+    else { el('sort').value = k; sortFlip = false; }
+    updateSortHeaders();
+    render();
+  };
+});
+
+el('copyDav').onclick = async () => {
+  const url = location.origin + '/dav/';
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(url);
+      msg(t('msgDavCopied', { url }), false);
+      return;
+    }
+  } catch (_) {}
+  msg('WebDAV: ' + url, false);
+};
 
 async function api(route, params = {}, options = {}) {
   const q = new URLSearchParams();
@@ -815,17 +1291,46 @@ function joinPath(base, rel) {
   return a + '/' + b;
 }
 
+function kind(name) {
+  const ext = extOf(name);
+  if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'avif', 'heic', 'heif', 'dng', 'cr2', 'nef', 'arw', 'raf', 'svg'].includes(ext)) return 'image';
+  if (['mp4', 'm4v', 'webm', 'ogv', 'mov', 'mkv', '3gp'].includes(ext)) return 'video';
+  if (['mp3', 'm4a', 'aac', 'wav', 'ogg', 'opus', 'flac'].includes(ext)) return 'audio';
+  if (ext === 'pdf') return 'pdf';
+  if (['html', 'htm'].includes(ext)) return 'html';
+  if (ext === 'docx') return 'docx';
+  if (['txt', 'md', 'csv', 'log', 'json', 'xml', 'css', 'js', 'ts', 'yml', 'yaml', 'ini', 'conf', 'properties', 'java', 'kt', 'py', 'sh', 'sql', 'gradle'].includes(ext)) return 'text';
+  return '';
+}
+
+function visualKind(item) {
+  if (item.dir) return 'folder';
+  const k = kind(item.name);
+  if (k) return k;
+  if (['zip', 'rar', '7z', 'tar', 'gz', 'bz2', 'xz', 'apk'].includes(extOf(item.name))) return 'zip';
+  return 'bin';
+}
+
+function itemSizeForSort(x) {
+  if (!x.dir) return Number(x.size) || 0;
+  const v = sizes.get(x.path);
+  return (v && typeof v.bytes === 'number') ? v.bytes : -1;
+}
+
 function visible() {
   const s = el('search').value.trim().toLocaleLowerCase();
   const arr = remoteResults ? remoteResults.slice() : items.filter(x => x.name.toLocaleLowerCase().includes(s));
   const mode = el('sort') ? el('sort').value : 'name';
   const loc = currentLang === 'en' ? 'en' : 'ru';
+  const defDesc = (mode === 'size' || mode === 'date');
+  const mul = (sortFlip ? !defDesc : defDesc) ? -1 : 1;
   const cmp = (a, b) => {
     if (a.dir !== b.dir) return a.dir ? -1 : 1;
-    if (mode === 'size') return b.size - a.size;
-    if (mode === 'date') return (b.modified || 0) - (a.modified || 0);
-    if (mode === 'type') return extOf(a.name).localeCompare(extOf(b.name), loc) || a.name.localeCompare(b.name, loc, { numeric: true, sensitivity: 'base' });
-    return a.name.localeCompare(b.name, loc, { numeric: true, sensitivity: 'base' });
+    if (mode === 'size') { const d = itemSizeForSort(a) - itemSizeForSort(b); if (d) return d * mul; }
+    if (mode === 'date') { const d = (a.modified || 0) - (b.modified || 0); if (d) return d * mul; }
+    if (mode === 'type') { const d = extOf(a.name).localeCompare(extOf(b.name), loc); if (d) return d * mul; }
+    const nd = a.name.localeCompare(b.name, loc, { numeric: true, sensitivity: 'base' });
+    return mode === 'name' ? nd * mul : nd;
   };
   return arr.slice().sort(cmp);
 }
@@ -852,19 +1357,24 @@ function thumbUrl(item) {
   return '/thumb?token=' + encodeURIComponent(sessionToken || '') + '&path=' + encodeURIComponent(item.path) + '&w=320';
 }
 
+function makeEmptyNode() {
+  const searching = remoteResults !== null || !!el('search').value.trim();
+  const frag = document.createDocumentFragment();
+  const badge = document.createElement('div');
+  badge.className = 'empty-badge';
+  badge.innerHTML = searching ? ICONS.search : ICONS.folder;
+  const txt = document.createElement('div');
+  txt.textContent = (items.length || searching) ? t('emptySearch') : t('emptyFolder');
+  frag.append(badge, txt);
+  return frag;
+}
+
 function renderCounters(view) {
   el('itemCount').textContent = t('itemCount') + view.length;
   const empty = el('empty');
   empty.classList.toggle('hidden', view.length > 0);
   empty.replaceChildren();
-  if (!view.length) {
-    const ic = document.createElement('span');
-    ic.className = 'empty-icon';
-    ic.textContent = '◌';
-    const txt = document.createElement('span');
-    txt.textContent = items.length ? t('emptySearch') : t('emptyFolder');
-    empty.append(ic, txt);
-  }
+  if (!view.length) empty.append(makeEmptyNode());
 }
 
 function render() {
@@ -882,26 +1392,24 @@ function renderGrid() {
     const emptyCard = document.createElement('div');
     emptyCard.className = 'empty';
     emptyCard.style.gridColumn = '1 / -1';
-    const ic = document.createElement('span');
-    ic.className = 'empty-icon';
-    ic.textContent = '◌';
-    emptyCard.append(ic, document.createTextNode(items.length ? t('emptySearch') : t('emptyFolder')));
+    emptyCard.append(makeEmptyNode());
     grid.append(emptyCard);
   }
   for (const item of view) {
+    const vk = visualKind(item);
     const card = document.createElement('div');
     card.className = 'card' + (selected.has(item.path) ? ' selected' : '');
     const thumb = document.createElement('div');
     thumb.className = 'thumb';
     const showIcon = () => {
-      const ic = document.createElement('span');
-      ic.className = 'ic';
-      ic.textContent = item.dir ? '▰' : '▤';
+      const ic = document.createElement('div');
+      ic.className = 'cardicon ic-' + vk;
+      ic.innerHTML = ICONS[vk] || ICONS.bin;
       thumb.prepend(ic);
     };
     if (!item.dir && kind(item.name) === 'image') {
       const img = document.createElement('img');
-      img.alt = '';
+      img.alt = item.name;
       img.loading = 'lazy';
       img.onerror = async () => {
         if (!img.dataset.retried && key) {
@@ -910,7 +1418,7 @@ function renderGrid() {
             await ensureSession(true);
             img.src = thumbUrl(item);
             return;
-          } catch (e) {}
+          } catch (_) {}
         }
         img.remove();
         showIcon();
@@ -920,7 +1428,7 @@ function renderGrid() {
     } else {
       showIcon();
     }
-    thumb.onclick = () => item.dir ? show(item.path) : openPreview(item);
+    thumb.onclick = () => item.dir ? show(item.path) : (kind(item.name) ? openPreview(item) : download(item));
 
     const pick = document.createElement('label');
     pick.className = 'pick';
@@ -937,6 +1445,14 @@ function renderGrid() {
     };
     pick.append(check);
     thumb.append(pick);
+
+    const ext = extOf(item.name);
+    if (!item.dir && ext && ext.length <= 5) {
+      const tag = document.createElement('span');
+      tag.className = 'exttag';
+      tag.textContent = ext;
+      thumb.append(tag);
+    }
 
     const cap = document.createElement('div');
     cap.className = 'cap';
@@ -960,23 +1476,24 @@ function renderGrid() {
 
     const acts = document.createElement('div');
     acts.className = 'acts';
-    const act = (label, title, fn) => {
+    const act = (html, text, title, cls, fn) => {
       const b = document.createElement('button');
       b.type = 'button';
-      b.textContent = label;
+      if (cls) b.className = cls;
+      if (html) b.innerHTML = html; else b.textContent = text;
       b.title = title;
       b.setAttribute('aria-label', title);
-      b.onclick = fn;
+      b.onclick = e => { e.stopPropagation(); fn(); };
       acts.append(b);
     };
     if (item.dir) {
-      act(t('btnZip'), t('btnZipFolder'), () => downloadFolderZip(item));
+      act('', t('btnZip'), t('btnZipFolder'), '', () => downloadFolderZip(item));
     } else {
-      if (kind(item.name)) act('◉', t('btnPreview'), () => openPreview(item));
-      act('↓', t('btnDownload'), () => download(item));
+      if (kind(item.name)) act(ICONS.eye, '', t('btnPreview'), '', () => openPreview(item));
+      act(ICONS.dl, '', t('btnDownload'), '', () => download(item));
     }
-    act('✎', t('btnRename'), () => rename(item));
-    act('✕', t('btnDelete'), () => removeItem(item));
+    act(ICONS.edit, '', t('btnRename'), '', () => rename(item));
+    act(ICONS.trash, '', t('btnDelete'), 'del', () => removeItem(item));
     card.append(thumb, cap, sub, acts);
     grid.append(card);
   }
@@ -991,6 +1508,7 @@ function renderList() {
   renderCounters(view);
   const dateLocale = currentLang === 'en' ? 'en-GB' : 'ru-RU';
   for (const item of view) {
+    const vk = visualKind(item);
     const tr = document.createElement('tr');
     tr.classList.toggle('selected', selected.has(item.path));
 
@@ -1012,13 +1530,13 @@ function renderList() {
     const box = document.createElement('div');
     box.className = 'filecell';
     const icon = document.createElement('span');
-    icon.className = 'icon ' + (item.dir ? 'folder' : 'file');
-    icon.textContent = item.dir ? '▰' : '▤';
+    icon.className = 'icon ic-' + vk;
+    icon.innerHTML = ICONS[vk] || ICONS.bin;
     const name = document.createElement('button');
     name.type = 'button';
     name.className = 'filename';
     name.textContent = item.name;
-    name.onclick = () => item.dir ? show(item.path) : openPreview(item);
+    name.onclick = () => item.dir ? show(item.path) : (kind(item.name) ? openPreview(item) : download(item));
     const nameWrap = document.createElement('div');
     nameWrap.className = 'namewrap';
     nameWrap.append(name);
@@ -1038,28 +1556,29 @@ function renderList() {
     setSize(size, item);
 
     const date = document.createElement('td');
-    date.className = 'detail';
+    date.className = 'detail datecol';
     date.textContent = item.modified ? new Date(item.modified).toLocaleDateString(dateLocale) : '—';
+    if (item.modified) date.title = new Date(item.modified).toLocaleString(dateLocale);
 
     const a = document.createElement('td');
     a.className = 'rowactions';
-    const button = (label, fn, title = '') => {
+    const addBtn = (label, fn, title = '', cls = 'iconbtn') => {
       const b = document.createElement('button');
       b.type = 'button';
-      b.className = 'iconbtn';
+      b.className = cls;
       b.textContent = label;
       if (title) b.title = title;
       b.onclick = fn;
       a.append(b);
     };
     if (!item.dir) {
-      if (kind(item.name)) button(t('btnPreview'), () => openPreview(item));
-      button(t('btnDownload'), () => download(item));
+      if (kind(item.name)) addBtn(t('btnPreview'), () => openPreview(item));
+      addBtn(t('btnDownload'), () => download(item));
     } else {
-      button(t('btnZip'), () => downloadFolderZip(item), t('btnZipFolder'));
+      addBtn(t('btnZip'), () => downloadFolderZip(item), t('btnZipFolder'));
     }
-    button(t('btnRename'), () => rename(item));
-    button(t('btnDelete'), () => removeItem(item));
+    addBtn(t('btnRename'), () => rename(item));
+    addBtn(t('btnDelete'), () => removeItem(item), '', 'iconbtn del');
 
     tr.append(checkcell, n, size, date, a);
     rows.append(tr);
@@ -1094,7 +1613,7 @@ async function calculateSizes(token) {
         const result = await (await api('size', { path: item.path })).json();
         if (token !== generation) break;
         sizes.set(item.path, result);
-      } catch (e) {
+      } catch (_) {
         if (token !== generation) break;
         sizes.set(item.path, { error: true });
       }
@@ -1108,11 +1627,11 @@ async function calculateSizes(token) {
 
 function renderPath(path) {
   const box = el('path');
-  box.classList.add('crumbs');
   box.replaceChildren();
   const root = document.createElement('button');
   root.type = 'button';
-  root.textContent = t('rootName');
+  root.innerHTML = ICONS.phone + '<span></span>';
+  root.querySelector('span').textContent = t('rootName');
   root.title = t('rootTitle');
   root.onclick = () => show('/');
   box.append(root);
@@ -1120,6 +1639,7 @@ function renderPath(path) {
   for (const seg of path.split('/').filter(Boolean)) {
     acc += '/' + seg;
     const sep = document.createElement('span');
+    sep.className = 'csep';
     sep.textContent = '/';
     const b = document.createElement('button');
     b.type = 'button';
@@ -1152,17 +1672,9 @@ async function show(path, preloaded = null) {
   }
 }
 
-/* ---------- предпросмотр ---------- */
-function kind(name) {
-  const ext = extOf(name);
-  if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'avif', 'heic', 'heif', 'dng', 'cr2', 'nef', 'arw', 'raf', 'svg'].includes(ext)) return 'image';
-  if (['mp4', 'm4v', 'webm', 'ogv', 'mov'].includes(ext)) return 'video';
-  if (['mp3', 'm4a', 'wav', 'ogg', 'opus', 'flac'].includes(ext)) return 'audio';
-  if (ext === 'pdf') return 'pdf';
-  if (['html', 'htm'].includes(ext)) return 'html';
-  if (ext === 'docx') return 'docx';
-  if (['txt', 'md', 'csv', 'log', 'json', 'xml', 'css', 'js'].includes(ext)) return 'text';
-  return '';
+/* ---------- просмотрщик файлов ---------- */
+function isGalleryType(type) {
+  return type === 'image' || type === 'audio' || type === 'video';
 }
 
 function stopPlayback() {
@@ -1184,25 +1696,27 @@ function closePreview() {
 function playlist() {
   if (!previewItem) return [];
   const category = kind(previewItem.name);
-  if (category !== 'audio' && category !== 'video') return [];
+  if (!isGalleryType(category)) return [];
   return visible().filter(x => !x.dir && kind(x.name) === category);
 }
 
 function stepTrack(direction) {
   const list = playlist();
+  if (list.length < 2) return;
   const index = list.findIndex(x => x.path === (previewItem && previewItem.path));
   const next = index + direction;
   if (index >= 0 && next >= 0 && next < list.length) openPreview(list[next]);
 }
 
 function updateTrackButtons(type) {
-  const active = type === 'audio' || type === 'video';
-  const list = playlist();
+  const list = isGalleryType(type) ? playlist() : [];
+  const show = list.length > 1;
   const index = list.findIndex(x => x.path === (previewItem && previewItem.path));
-  el('previewPrev').classList.toggle('hidden', !active);
-  el('previewNext').classList.toggle('hidden', !active);
+  el('previewPrev').classList.toggle('hidden', !show);
+  el('previewNext').classList.toggle('hidden', !show);
   el('previewPrev').disabled = index <= 0;
   el('previewNext').disabled = index < 0 || index >= list.length - 1;
+  return show && index >= 0 ? (index + 1) + ' / ' + list.length + ' · ' : '';
 }
 
 async function openPreview(item) {
@@ -1211,9 +1725,13 @@ async function openPreview(item) {
   const serial = ++previewSerial;
   stopPlayback();
   previewItem = item;
-  updateTrackButtons(type);
+  const posPrefix = updateTrackButtons(type);
   el('previewTitle').textContent = item.name;
-  el('previewHint').textContent = type === 'html' ? t('previewHTMLDesc') : type === 'docx' ? t('previewDocxDesc') : t('previewFromPhone') + bytes(item.size);
+  el('previewHint').textContent = type === 'html'
+    ? t('previewHTMLDesc') + ' · ' + bytes(item.size)
+    : type === 'docx'
+      ? t('previewDocxDesc') + ' · ' + bytes(item.size)
+      : posPrefix + t('previewFromPhone') + bytes(item.size);
   el('preview').classList.remove('hidden');
   const body = el('previewBody');
   body.replaceChildren();
@@ -1244,6 +1762,7 @@ async function openPreview(item) {
       if (serial !== previewSerial) return;
       body.replaceChildren();
       const pre = document.createElement('pre');
+      pre.className = 'docview';
       pre.textContent = result.text + (result.truncated ? '\n\n' + t('previewDocxTruncated') : '');
       body.append(pre);
     } else {
@@ -1254,6 +1773,7 @@ async function openPreview(item) {
       if (type === 'image') {
         media = document.createElement('img');
         media.alt = item.name;
+        media.onclick = () => media.classList.toggle('zoomed');
         media.onerror = () => {
           if (serial !== previewSerial) return;
           body.replaceChildren();
@@ -1265,6 +1785,7 @@ async function openPreview(item) {
       } else if (type === 'video') {
         media = document.createElement('video');
         media.controls = true;
+        media.playsInline = true;
         media.preload = 'metadata';
       } else if (type === 'audio') {
         media = document.createElement('audio');
@@ -1281,9 +1802,22 @@ async function openPreview(item) {
         media.onerror = () => { if (serial === previewSerial) el('previewHint').textContent = t('previewCodecError'); };
       }
       media.src = data.url;
-      body.append(media);
+      if (type === 'audio') {
+        const card = document.createElement('div');
+        card.className = 'audiocard';
+        const art = document.createElement('div');
+        art.className = 'audioart';
+        art.innerHTML = ICONS.audio;
+        const nm = document.createElement('div');
+        nm.className = 'audioname';
+        nm.textContent = item.name;
+        card.append(art, nm, media);
+        body.append(card);
+      } else {
+        body.append(media);
+      }
       if (type === 'video' || type === 'audio') {
-        el('previewHint').textContent = t('previewFromPhone') + bytes(item.size);
+        el('previewHint').textContent = posPrefix + t('previewFromPhone') + bytes(item.size);
         const attempt = media.play();
         if (attempt && attempt.catch) {
           attempt.catch(e => {
@@ -1309,7 +1843,11 @@ el('previewClose').onclick = closePreview;
 el('previewDownload').onclick = () => { if (previewItem) download(previewItem); };
 el('preview').onclick = e => { if (e.target === el('preview')) closePreview(); };
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape' && el('actionDialog').classList.contains('hidden') && !el('preview').classList.contains('hidden')) closePreview();
+  if (!el('actionDialog').classList.contains('hidden')) return;
+  if (el('preview').classList.contains('hidden')) return;
+  if (e.key === 'Escape') closePreview();
+  else if (e.key === 'ArrowLeft') { e.preventDefault(); stepTrack(-1); }
+  else if (e.key === 'ArrowRight') { e.preventDefault(); stepTrack(1); }
 });
 
 /* ---------- скачивание ---------- */
@@ -1362,7 +1900,7 @@ function finishDialog(value) {
   resolve(value);
 }
 
-function actionDialog({ title, message, accept, danger = false, input = null, extra = null, cancel }) {
+function actionDialog({ title, message, accept, danger = false, input = null, extra = null, cancel, iconHtml = null, selectStem = false }) {
   return new Promise(resolve => {
     if (dialogResolve) finishDialog(null);
     dialogResolve = resolve;
@@ -1370,7 +1908,7 @@ function actionDialog({ title, message, accept, danger = false, input = null, ex
     dialogNeedsInput = input !== null;
     el('dialogTitle').textContent = title;
     el('dialogMessage').textContent = message;
-    el('dialogIcon').textContent = danger ? '!' : '✦';
+    el('dialogIcon').innerHTML = iconHtml || (danger ? ICONS.alert : ICONS.plus);
     el('dialogIcon').classList.toggle('danger', danger);
     el('dialogAccept').textContent = accept || t('btnContinue');
     el('dialogAccept').className = 'btn ' + (danger ? 'danger-solid' : 'primary');
@@ -1387,17 +1925,21 @@ function actionDialog({ title, message, accept, danger = false, input = null, ex
     field.value = dialogNeedsInput ? input : '';
     el('dialogError').classList.add('hidden');
     el('actionDialog').classList.remove('hidden');
-    if (dialogNeedsInput) { field.focus(); field.select(); }
-    else el('dialogCancel').focus();
+    if (dialogNeedsInput) {
+      field.focus();
+      const dot = selectStem ? field.value.lastIndexOf('.') : -1;
+      if (dot > 0) field.setSelectionRange(0, dot); else field.select();
+    } else el('dialogCancel').focus();
   });
 }
 
 el('dialogExtra').onclick = () => finishDialog(dialogExtraValue);
+el('dialogInput').oninput = () => el('dialogError').classList.add('hidden');
 el('dialogForm').onsubmit = e => {
   e.preventDefault();
   if (!dialogNeedsInput) { finishDialog(true); return; }
   const value = el('dialogInput').value.trim();
-  if (!value || value === '.' || value === '..' || value.includes('/') || value.includes('\\')) {
+  if (!value || value === '.' || value === '..' || value.includes('/') || value.includes('\\') || /[\x00-\x1f\x7f]/.test(value)) {
     el('dialogError').textContent = t('dialogInputError');
     el('dialogError').classList.remove('hidden');
     el('dialogInput').focus();
@@ -1414,9 +1956,12 @@ document.addEventListener('keydown', e => {
   }
 });
 
-/* ---------- операции с файлами ---------- */
+/* ---------- операции с файлами и вход ---------- */
 async function rename(item) {
-  const name = await actionDialog({ title: t('renameTitle'), message: t('renameMsg'), accept: t('renameAccept'), input: item.name });
+  const name = await actionDialog({
+    title: t('renameTitle'), message: t('renameMsg'), accept: t('renameAccept'),
+    input: item.name, iconHtml: ICONS.pencil, selectStem: !item.dir
+  });
   if (name === null || name === item.name) return;
   try {
     await api('rename', { path: item.path, name }, { method: 'POST' });
@@ -1450,8 +1995,9 @@ el('loginForm').onsubmit = async e => {
   try {
     const data = await (await api('list', { path: '/' })).json();
     el('loginError').textContent = '';
-    el('login').classList.add('hidden');
+    el('loginWrap').classList.add('hidden');
     el('app').classList.remove('hidden');
+    el('logout').classList.remove('hidden');
     await show('/', data);
   } catch (e) {
     el('loginError').textContent = e.message;
@@ -1463,6 +2009,7 @@ el('refresh').onclick = () => show(current);
 el('logout').onclick = () => {
   cancelAllUploads();
   closePreview();
+  finishDialog(null);
   generation++;
   key = '';
   items = [];
@@ -1473,7 +2020,9 @@ el('logout').onclick = () => {
   el('code').value = '';
   el('loginError').textContent = '';
   el('app').classList.add('hidden');
-  el('login').classList.remove('hidden');
+  el('logout').classList.add('hidden');
+  el('loginWrap').classList.remove('hidden');
+  el('code').focus();
 };
 
 function scheduleRemote() {
@@ -1484,7 +2033,7 @@ function scheduleRemote() {
     render();
     return;
   }
-  searchTimer = setTimeout(runRemoteSearch, 300);
+  searchTimer = setTimeout(runRemoteSearch, 280);
 }
 
 async function runRemoteSearch() {
@@ -1513,9 +2062,9 @@ el('search').oninput = () => { if (el('scope').value === 'global') scheduleRemot
 el('scope').onchange = () => {
   remoteResults = null;
   if (el('scope').value === 'global') scheduleRemote();
-  else { el('search').value = ''; render(); }
+  else { el('search').value = ''; msg('', false); render(); }
 };
-el('sort').onchange = render;
+el('sort').onchange = () => { sortFlip = false; updateSortHeaders(); render(); };
 el('selectAll').onchange = e => {
   for (const item of visible()) {
     if (e.target.checked) selected.add(item.path);
@@ -1572,7 +2121,10 @@ el('deleteSelected').onclick = async () => {
 
 el('sizes').onclick = () => calculateSizes(generation);
 el('mkdir').onclick = async () => {
-  const name = await actionDialog({ title: t('mkdirTitle'), message: t('mkdirMsg'), accept: t('mkdirAccept'), input: '' });
+  const name = await actionDialog({
+    title: t('mkdirTitle'), message: t('mkdirMsg'), accept: t('mkdirAccept'),
+    input: '', iconHtml: ICONS.plus
+  });
   if (name === null) return;
   try {
     await api('mkdir', { path: current, name }, { method: 'POST' });
@@ -1583,21 +2135,20 @@ el('mkdir').onclick = async () => {
 };
 
 /* ---------- очередь загрузки с докачкой ---------- */
-const queueEl = document.createElement('div');
+const queueEl = document.createElement('section');
 queueEl.id = 'uploadQueue';
-queueEl.className = 'panel hidden';
-queueEl.style.cssText = 'padding:14px;position:fixed;bottom:16px;right:16px;width:min(430px,92vw);z-index:90';
+queueEl.className = 'hidden';
 queueEl.innerHTML =
-  '<div style="display:flex;justify-content:space-between;align-items:center;gap:6px;margin-bottom:8px">' +
-    '<h2 data-i18n="queueTitle">Загрузка</h2>' +
-    '<div style="display:flex;gap:4px;flex-wrap:wrap">' +
-      '<button id="queuePauseAll" type="button" class="qbtn" style="font-size:10px;padding:2px 6px" data-i18n="queuePauseAll">Пауза все</button>' +
-      '<button id="queueResumeAll" type="button" class="qbtn" style="font-size:10px;padding:2px 6px" data-i18n="queueResumeAll">Продолжить</button>' +
-      '<button id="queueClear" type="button" class="qbtn" style="font-size:10px;padding:2px 6px" data-i18n="queueClear">Очистить</button>' +
+  '<div class="qtop">' +
+    '<h2 data-i18n="queueTitle">Передачи</h2>' +
+    '<div class="qtop-acts">' +
+      '<button id="queuePauseAll" type="button" class="qbtn" data-i18n="queuePauseAll">Пауза</button>' +
+      '<button id="queueResumeAll" type="button" class="qbtn" data-i18n="queueResumeAll">Продолжить</button>' +
+      '<button id="queueClear" type="button" class="qbtn" data-i18n="queueClear">Скрыть</button>' +
     '</div>' +
   '</div>' +
   '<div id="queueList"></div>' +
-  '<div id="queueEmpty" style="color:var(--muted);font-size:12px" data-i18n="queueEmpty">Очередь пуста</div>';
+  '<div id="queueEmpty" data-i18n="queueEmpty">Очередь пуста</div>';
 el('app').appendChild(queueEl);
 
 const QMAX = 3;
@@ -1629,7 +2180,7 @@ function abortUploadOnServer(uploadId) {
 function cancelQueueItem(item) {
   item.aborted = true;
   item.paused = false;
-  if (item.controller) { try { item.controller.abort(); } catch (e) {} }
+  if (item.controller) { try { item.controller.abort(); } catch (_) {} }
   const id = item.uploadId;
   item.uploadId = null;
   abortUploadOnServer(id);
@@ -1656,7 +2207,7 @@ el('queuePauseAll').onclick = () => {
   for (const item of queue) {
     if (item.status === 'uploading') {
       item.paused = true;
-      if (item.controller) { try { item.controller.abort(); } catch (e) {} }
+      if (item.controller) { try { item.controller.abort(); } catch (_) {} }
     } else if (item.status === 'waiting') {
       item.paused = true;
       item.status = 'paused';
@@ -1684,10 +2235,7 @@ el('queueClear').onclick = () => {
 };
 
 function updateProgressBar() {
-  if (!queue.length) {
-    el('progress').classList.add('hidden');
-    return;
-  }
+  if (!queue.length) { el('progress').classList.add('hidden'); return; }
   const active = queue.some(i => !isTerminal(i.status));
   el('progress').classList.toggle('hidden', !active);
   if (!active) return;
@@ -1723,32 +2271,14 @@ function renderQueue() {
     row.className = 'qrow';
     const head = document.createElement('div');
     head.className = 'qhead';
-    const name = document.createElement('div');
+    const name = document.createElement('span');
     name.className = 'qname';
     name.textContent = item.name + (item.unique ? ' ' + t('queueUniqueSuffix') : '');
-    const state = document.createElement('div');
-    state.className = 'qstate';
-    state.textContent = stateLabel(item);
-    head.append(name, state);
-
-    const bar = document.createElement('div');
-    bar.className = 'qbar';
-    const fill = document.createElement('div');
-    fill.className = 'qfill';
-    const pct = item.total > 0 ? Math.min(100, Math.round((item.loaded / item.total) * 100)) : (item.status === 'done' ? 100 : 0);
-    fill.style.width = pct + '%';
-    bar.append(fill);
-
-    const info = document.createElement('div');
-    info.className = 'qinfo';
-    if (item.status === 'done') {
-      info.textContent = bytes(item.total) + ' · ' + t('queueDone');
-    } else if (item.error) {
-      info.textContent = bytes(item.loaded) + ' / ' + bytes(item.total) + ' — ' + item.error;
-    } else {
-      const spd = item.status === 'uploading' && item.speed > 0 ? ' · ' + humanSpeed(item.speed) : '';
-      info.textContent = bytes(item.loaded) + ' / ' + bytes(item.total) + spd;
-    }
+    name.title = item.name;
+    const st = document.createElement('span');
+    st.className = 'qstate';
+    st.textContent = stateLabel(item);
+    head.append(name, st);
 
     const actions = document.createElement('div');
     actions.className = 'qactions';
@@ -1765,7 +2295,7 @@ function renderQueue() {
     } else if (item.status === 'uploading') {
       addBtn(t('btnQueuePause'), 'qpause', () => {
         item.paused = true;
-        if (item.controller) { try { item.controller.abort(); } catch (e) {} }
+        if (item.controller) { try { item.controller.abort(); } catch (_) {} }
         renderQueue();
       });
       addBtn(t('btnQueueCancel'), 'qcancel', () => cancelQueueItem(item));
@@ -1798,7 +2328,30 @@ function renderQueue() {
         if (!queue.length && running === 0) queueHide();
       });
     }
-    row.append(head, bar, info, actions);
+
+    const meta = document.createElement('div');
+    meta.className = 'qmeta';
+    const bar = document.createElement('div');
+    bar.className = 'qbar';
+    const fill = document.createElement('div');
+    fill.className = 'qfill';
+    const pct = item.total > 0 ? Math.min(100, Math.round((item.loaded / item.total) * 100)) : (item.status === 'done' ? 100 : 0);
+    fill.style.width = pct + '%';
+    bar.append(fill);
+
+    const info = document.createElement('span');
+    info.className = 'qinfo';
+    if (item.status === 'done') {
+      info.textContent = bytes(item.total) + ' · ' + t('queueDone');
+    } else if (item.error) {
+      info.textContent = bytes(item.loaded) + ' / ' + bytes(item.total) + ' — ' + item.error;
+    } else {
+      const spd = item.status === 'uploading' && item.speed > 0 ? ' · ' + humanSpeed(item.speed) : '';
+      info.textContent = bytes(item.loaded) + ' / ' + bytes(item.total) + spd;
+    }
+    meta.append(bar, info);
+
+    row.append(head, actions, meta);
     item.row = row;
     list.append(row);
   }
@@ -1822,6 +2375,8 @@ function askConflict(name) {
     message: t('conflictMsg', { name }),
     accept: t('conflictAccept'),
     input: suggestName(name),
+    selectStem: true,
+    iconHtml: ICONS.copy,
     cancel: t('conflictCancel'),
     extra: { label: t('conflictOverwrite'), value: 'overwrite', danger: true }
   }));
@@ -1879,12 +2434,8 @@ async function initOrResume(item) {
       item.name = st.name || item.name;
       return true;
     } catch (e) {
-      if (e.status === 404) {
-        item.uploadId = null;
-        item.loaded = 0;
-      } else {
-        throw e;
-      }
+      if (e.status === 404) { item.uploadId = null; item.loaded = 0; }
+      else throw e;
     }
   }
   while (!item.aborted) {
@@ -1910,12 +2461,8 @@ async function initOrResume(item) {
           item.settle({ status: item.status });
           return false;
         }
-        if (choice === 'overwrite') {
-          item.overwrite = true;
-        } else {
-          item.name = choice;
-          item.overwrite = false;
-        }
+        if (choice === 'overwrite') item.overwrite = true;
+        else { item.name = choice; item.overwrite = false; }
         renderQueue();
         continue;
       }
@@ -2005,10 +2552,7 @@ async function runChunk(item) {
       item.settle({ status: 'cancelled' });
       return;
     }
-    if (item.paused || globalPaused) {
-      item.status = 'paused';
-      return;
-    }
+    if (item.paused || globalPaused) { item.status = 'paused'; return; }
     const clientErr = e.status && e.status >= 400 && e.status < 500 && e.status !== 429;
     if (!clientErr && item.retries < 3) {
       item.retries++;
@@ -2092,7 +2636,7 @@ async function uploadFolder(files) {
 function setView(v) {
   viewMode = v === 'grid' ? 'grid' : 'list';
   safeSet('pb-view', viewMode);
-  el('view').textContent = viewMode === 'grid' ? t('viewList') : t('viewGrid');
+  updateViewBtn();
   render();
 }
 el('view').onclick = () => setView(viewMode === 'grid' ? 'list' : 'grid');
@@ -2104,6 +2648,7 @@ el('langBtn').onclick = () => setLang(currentLang === 'ru' ? 'en' : 'ru');
   const preferred = saved || (window.matchMedia && matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
   applyTheme(preferred);
   populateI18n();
+  requestAnimationFrame(() => requestAnimationFrame(() => document.documentElement.classList.add('ready')));
 })();
 
 /* ---------- загрузка кнопками и перетаскиванием ---------- */
@@ -2121,18 +2666,28 @@ el('dirInput').onchange = async e => {
 };
 
 (function initDragDrop() {
-  const zone = el('app');
-  if (!zone) return;
-  zone.addEventListener('dragover', e => {
+  const overlay = el('dropOverlay');
+  const hasFiles = e => e.dataTransfer && (!e.dataTransfer.types || !e.dataTransfer.types.length || [...e.dataTransfer.types].includes('Files'));
+  window.addEventListener('dragenter', e => {
+    if (el('app').classList.contains('hidden') || !hasFiles(e)) return;
     e.preventDefault();
-    zone.classList.add('dropzone');
+    dragDepth++;
+    overlay.classList.remove('hidden');
   });
-  zone.addEventListener('dragleave', e => {
-    if (!e.relatedTarget || !zone.contains(e.relatedTarget)) zone.classList.remove('dropzone');
-  });
-  zone.addEventListener('drop', e => {
+  window.addEventListener('dragover', e => {
+    if (el('app').classList.contains('hidden')) return;
     e.preventDefault();
-    zone.classList.remove('dropzone');
+  });
+  window.addEventListener('dragleave', () => {
+    if (el('app').classList.contains('hidden')) return;
+    dragDepth = Math.max(0, dragDepth - 1);
+    if (dragDepth === 0) overlay.classList.add('hidden');
+  });
+  window.addEventListener('drop', e => {
+    if (el('app').classList.contains('hidden')) return;
+    e.preventDefault();
+    dragDepth = 0;
+    overlay.classList.add('hidden');
     const files = e.dataTransfer && e.dataTransfer.files;
     if (files && files.length) uploadFiles([...files]);
   });

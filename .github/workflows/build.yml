@@ -76,8 +76,8 @@ jobs:
           fi
 
           node server-tests/ui-test.js
-      - name: Upload UI diagnostics on failure
-        if: failure()
+      - name: Upload UI screenshots & diagnostics
+        if: always()
         uses: actions/upload-artifact@v6
         with:
           name: PocketBridge-ui-diagnostics
