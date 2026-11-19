@@ -1411,31 +1411,29 @@ public final class MainActivity extends Activity {
                 .setNeutralButton(tr("Вставить", "Paste"), null)
                 .setNegativeButton(tr("Отмена", "Cancel"), null)
                 .create();
-        dialog.setOnShowListener(d -> {
-            View pasteBtn = dialog.getButton(AlertDialog.BUTTON_NEUTRAL);
-            if (pasteBtn != null) {
-                pasteBtn.setOnClickListener(v -> {
-                    try {
-                        ClipboardManager cm = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
-                        ClipData cd = cm != null ? cm.getPrimaryClip() : null;
-                        if (cd != null && cd.getItemCount() > 0) {
-                            CharSequence cs = cd.getItemAt(0).coerceToText(this);
-                            if (cs != null && cs.length() > 0) {
-                                String pasted = cs.length() > FileServer.CLIPBOARD_MAX_CHARS
-                                        ? cs.subSequence(0, FileServer.CLIPBOARD_MAX_CHARS).toString()
-                                        : cs.toString();
-                                input.setText(pasted);
-                                input.setSelection(input.getText().length());
-                                hapticTick(v);
-                                return;
-                            }
-                        }
-                        Toast.makeText(this, tr("Буфер телефона пуст", "Phone clipboard is empty"), Toast.LENGTH_SHORT).show();
-                    } catch (Exception ignored) {}
-                });
-            }
-        });
         dialog.show();
+        View pasteBtn = dialog.getButton(AlertDialog.BUTTON_NEUTRAL);
+        if (pasteBtn != null) {
+            pasteBtn.setOnClickListener(v -> {
+                try {
+                    ClipboardManager cm = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+                    ClipData cd = cm != null ? cm.getPrimaryClip() : null;
+                    if (cd != null && cd.getItemCount() > 0) {
+                        CharSequence cs = cd.getItemAt(0).coerceToText(this);
+                        if (cs != null && cs.length() > 0) {
+                            String pasted = cs.length() > FileServer.CLIPBOARD_MAX_CHARS
+                                    ? cs.subSequence(0, FileServer.CLIPBOARD_MAX_CHARS).toString()
+                                    : cs.toString();
+                            input.setText(pasted);
+                            input.setSelection(input.getText().length());
+                            hapticTick(v);
+                            return;
+                        }
+                    }
+                    Toast.makeText(this, tr("Буфер телефона пуст", "Phone clipboard is empty"), Toast.LENGTH_SHORT).show();
+                } catch (Exception ignored) {}
+            });
+        }
     }
 
     private void shareLoginLink() {
