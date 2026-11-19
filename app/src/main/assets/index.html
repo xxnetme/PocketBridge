@@ -308,6 +308,78 @@ html.ready .btn{transition:background .15s ease,border-color .15s ease,color .15
 .davpill:active{transform:scale(.98)}
 .davpill.copied{border-color:var(--accent);background:var(--accent-soft);color:var(--accent-text)}
 .davpill code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:11.5px;color:var(--accent-text);font-weight:600}
+.clipbtn{position:relative}
+.clipbtn .clipdot{
+  width:7px;height:7px;border-radius:50%;background:var(--accent);
+  box-shadow:0 0 0 3px var(--ring);flex:none
+}
+.clipbtn.has-clip{border-color:var(--row-sel-border);color:var(--text)}
+
+.pathright{display:flex;align-items:center;gap:6px;flex:none}
+.pinbtn{
+  width:26px;height:26px;border-radius:8px;border:1px solid var(--border);
+  background:var(--panel2);color:var(--muted);display:inline-grid;place-items:center;
+  transition:background .14s ease,border-color .14s ease,color .14s ease,transform .1s ease
+}
+.pinbtn:hover{color:var(--text);border-color:var(--border-strong);background:var(--panel3)}
+.pinbtn:active{transform:scale(.94)}
+.pinbtn.is-pinned{background:var(--accent-soft);border-color:var(--row-sel-border);color:var(--accent-text)}
+.pinbtn.is-pinned svg{fill:currentColor}
+
+.bookmarksbar{
+  display:flex;align-items:center;gap:6px;padding:7px 18px;
+  border-bottom:1px solid var(--border);background:var(--panel);
+  overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch
+}
+.bookmarksbar::-webkit-scrollbar{display:none}
+.bmchip{
+  display:inline-flex;align-items:center;gap:5px;flex:none;
+  height:27px;padding:0 10px;border-radius:8px;
+  border:1px solid var(--border);background:var(--panel2);
+  color:var(--text-soft);font-size:11.5px;font-weight:600;white-space:nowrap;
+  transition:background .14s ease,border-color .14s ease,color .14s ease,transform .1s ease
+}
+.bmchip:hover{color:var(--text);border-color:var(--border-strong);background:var(--panel3)}
+.bmchip:active{transform:scale(.97)}
+.bmchip.active{background:var(--accent-soft);border-color:var(--row-sel-border);color:var(--accent-text)}
+.bmchip svg{width:12.5px;height:12.5px;color:var(--muted);flex:none}
+.bmchip.active svg,.bmchip.is-pin svg{color:var(--accent-text)}
+.bmchip .bmx{
+  display:inline-grid;place-items:center;width:15px;height:15px;margin-left:1px;margin-right:-3px;
+  border-radius:50%;color:var(--muted);font-size:12px;line-height:1;opacity:.7
+}
+.bmchip .bmx:hover{opacity:1;background:var(--danger-bg);color:var(--danger)}
+
+.clipbar{
+  background:var(--panel2);display:flex;align-items:center;gap:8px;padding:9px 18px;
+  border-bottom:1px solid var(--border);flex-wrap:wrap;
+  animation:pbSlideDown .16s cubic-bezier(.22,1,.36,1)
+}
+.clipbar .clipinfo{display:inline-flex;align-items:center;gap:7px;min-width:0;margin-right:auto;font-size:12.5px;color:var(--text)}
+.clipbar .clipinfo svg{color:var(--accent-text);flex:none}
+.clipbar .cliphint{color:var(--muted);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:340px}
+.clipbar .btn{height:31px;padding:0 11px;font-size:12px}
+
+tbody tr.is-cut,.card.is-cut{opacity:.52}
+tbody tr.is-dragging,.card.is-dragging{opacity:.4}
+tbody tr.drop-target{background:var(--accent-soft)!important;outline:2px dashed var(--accent);outline-offset:-2px}
+.card.drop-target,.crumbs button.drop-target,.bmchip.drop-target{
+  border-color:var(--accent)!important;background:var(--accent-soft)!important;
+  color:var(--accent-text)!important;box-shadow:0 0 0 2px var(--ring)
+}
+
+.clip-dialog{width:min(520px,100%)}
+.clip-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.clip-meta{font-size:11.5px;color:var(--muted);margin-top:10px;display:flex;justify-content:space-between;gap:8px;font-variant-numeric:tabular-nums}
+.clip-area{
+  width:100%;min-height:126px;max-height:46vh;resize:vertical;margin-top:8px;padding:11px 13px;
+  background:var(--input-bg);border:1px solid var(--border-strong);border-radius:12px;
+  color:var(--text);outline:none;font:13.5px/1.55 Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif
+}
+.clip-area:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--ring)}
+.clip-actions{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:16px;flex-wrap:wrap}
+.clip-actions-right{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-left:auto}
+.clip-actions .btn{height:37px;padding:0 13px}
 
 /* ---------- панель инструментов ---------- */
 .bar{
@@ -843,10 +915,12 @@ body.queue-open .totop{display:none}
   .brandicon svg{width:21px;height:21px}
   .brandtitle{font-size:14px}
   .brand small{font-size:9.5px}
-  .netpill,.davpill,.vsep,.searchbox .kbdhint{display:none}
-  .herometa{width:100%}
-  .storagepill{height:30px;padding:0 11px;font-size:11.5px;max-width:100%}
-  .filterbar{padding:7px 12px}
+  .netpill,.davpill:not(.clipbtn),.vsep,.searchbox .kbdhint{display:none}
+  .herometa{width:100%;gap:6px}
+  .storagepill,.clipbtn{height:30px;padding:0 11px;font-size:11.5px;max-width:100%}
+  .filterbar,.bookmarksbar{padding:7px 12px}
+  .clipbar{padding:8px 12px}
+  .clipbar .cliphint{display:none}
   #uploadQueue{right:12px;left:12px;bottom:12px;width:auto}
   .toast-host{left:12px;right:12px;bottom:14px;max-width:none}
   .btn.logout-btn .btnlabel{display:none}
@@ -977,6 +1051,11 @@ body.queue-open .totop{display:none}
           <div class="strack" aria-hidden="true"><div id="storageFill" class="sfill"></div></div>
           <span id="storageText" class="stext"></span>
         </div>
+        <button id="openClip" type="button" class="davpill clipbtn" data-i18n-title="sharedClipTitle" title="Общий текстовый буфер с телефоном">
+          <svg class="svg-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg>
+          <span data-i18n="sharedClipBtn">Буфер</span>
+          <span id="openClipDot" class="clipdot hidden" aria-hidden="true"></span>
+        </button>
         <button id="copyDav" type="button" class="davpill" data-i18n-title="davCopyTitle" title="Скопировать адрес WebDAV для Проводника / Finder">
           <svg class="svg-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M6 8h.01M10 8h.01M2 12h20"/></svg>
           <span id="copyDavLabel" data-i18n="davLabel">Сетевой диск</span>
@@ -1052,9 +1131,15 @@ body.queue-open .totop{display:none}
         <div class="pathline">
           <nav id="path" class="crumbs" data-i18n-aria="currentFolder" aria-label="Текущая папка">/</nav>
         </div>
-        <div id="itemCount" class="count"></div>
+        <div class="pathright">
+          <button id="pinFolder" type="button" class="pinbtn hidden" data-i18n-title="pinFolderTitle" data-i18n-aria="pinFolderTitle" title="Закрепить папку в закладках" aria-label="Закрепить папку в закладках">
+            <svg class="svg-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m19 21-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+          </button>
+          <div id="itemCount" class="count"></div>
+        </div>
       </div>
 
+      <div id="bookmarksBar" class="bookmarksbar hidden" role="navigation" data-i18n-aria="bookmarksAria" aria-label="Быстрые папки"></div>
       <div id="filterBar" class="filterbar hidden" role="toolbar" data-i18n-aria="filterAria" aria-label="Фильтр по типу"></div>
 
       <div id="selection" class="selection hidden">
@@ -1063,11 +1148,32 @@ body.queue-open .totop{display:none}
           <svg class="svg-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           <span data-i18n="btnDownloadSelected">Скачать ZIP</span>
         </button>
+        <button id="copySelected" class="btn" type="button" data-i18n-title="btnCopyTitle" title="Копировать выбранное (Ctrl+C)">
+          <svg class="svg-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          <span data-i18n="btnCopySelected">Копировать</span>
+        </button>
+        <button id="cutSelected" class="btn" type="button" data-i18n-title="btnCutTitle" title="Вырезать для перемещения (Ctrl+X)">
+          <svg class="svg-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>
+          <span data-i18n="btnCutSelected">Вырезать</span>
+        </button>
         <button id="deleteSelected" class="btn danger" type="button">
           <svg class="svg-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
           <span data-i18n="btnDeleteSelected">Удалить</span>
         </button>
         <button id="clearSelected" class="btn ghost" type="button" data-i18n="btnClearSelected">Снять выделение</button>
+      </div>
+
+      <div id="clipBar" class="clipbar hidden">
+        <div class="clipinfo">
+          <svg class="svg-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          <strong id="clipSummary"></strong>
+          <span id="clipHint" class="cliphint"></span>
+        </div>
+        <button id="pasteHere" class="btn primary" type="button">
+          <svg class="svg-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/><path d="m9 14 2 2 4-4"/></svg>
+          <span data-i18n="btnPasteHere">Вставить сюда</span>
+        </button>
+        <button id="clearClip" class="btn ghost" type="button" data-i18n="actionCancel">Отмена</button>
       </div>
 
       <div id="message" class="message" role="status" aria-live="polite"></div>
@@ -1106,6 +1212,38 @@ body.queue-open .totop{display:none}
     <strong data-i18n="dropTitle">Отпустите файлы для загрузки</strong>
     <span data-i18n="dropSub">Они сохранятся в открытую папку телефона</span>
     <span id="dropDest" class="drop-dest">/</span>
+  </div>
+</div>
+
+<div id="clipModal" class="dialog-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="clipModalTitle">
+  <div class="action-dialog clip-dialog">
+    <div class="clip-head">
+      <div class="dialog-symbol">
+        <svg class="svg-lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg>
+      </div>
+      <button id="sharedClipClose" class="btn ghost icon-only" type="button" data-i18n-title="previewCloseTitle" data-i18n-aria="previewCloseTitle" title="Закрыть (Esc)" aria-label="Закрыть (Esc)">
+        <svg class="svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <h2 id="clipModalTitle" data-i18n="sharedClipHeading">Общий буфер обмена</h2>
+    <p class="dialog-message" data-i18n="sharedClipDesc">Пересылайте ссылки, коды и заметки между браузером и телефоном. Данные хранятся только в памяти до остановки сервера.</p>
+    <div class="clip-meta">
+      <span id="sharedClipMeta"></span>
+      <span id="sharedClipLen"></span>
+    </div>
+    <textarea id="sharedClipInput" class="clip-area" maxlength="65536" data-i18n-placeholder="sharedClipPlaceholder" placeholder="Вставьте или введите текст для отправки на телефон…"></textarea>
+    <div class="clip-actions">
+      <div class="bargroup">
+        <button id="sharedClipRefresh" class="btn ghost icon-only" type="button" data-i18n-title="headerRefreshTitle" data-i18n-aria="headerRefreshTitle" title="Обновить" aria-label="Обновить">
+          <svg class="svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36L21 8"/><polyline points="21 3 21 8 16 8"/></svg>
+        </button>
+        <button id="sharedClipClear" class="btn ghost" type="button" data-i18n="sharedClipClear">Очистить</button>
+      </div>
+      <div class="clip-actions-right">
+        <button id="sharedClipCopy" class="btn" type="button" data-i18n="sharedClipCopy">Скопировать</button>
+        <button id="sharedClipSend" class="btn primary" type="button" data-i18n="sharedClipSend">Отправить</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -1180,7 +1318,9 @@ const ICONS = {
   pencil: '<svg class="svg-lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>',
   copy: '<svg class="svg-lg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>',
   check: '<svg class="svg-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
-  play: '<svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 4 20 12 6 20 6 4"/></svg>'
+  play: '<svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 4 20 12 6 20 6 4"/></svg>',
+  bookmark: '<svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m19 21-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>',
+  folderSm: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>'
 };
 
 const LANG = {
@@ -1347,6 +1487,50 @@ const LANG = {
     toTopTitle: 'Наверх',
     msgFolderCreated: 'Папка «{name}» создана',
     msgRenamed: 'Переименовано в «{name}»',
+    btnCopySelected: 'Копировать',
+    btnCopyTitle: 'Копировать выбранное (Ctrl+C)',
+    btnCutSelected: 'Вырезать',
+    btnCutTitle: 'Вырезать для перемещения (Ctrl+X)',
+    btnPasteHere: 'Вставить сюда',
+    clipCopiedCount: 'Скопировано: {n}',
+    clipCutCount: 'Вырезано: {n}',
+    clipTargetHint: 'Откройте нужную папку и нажмите «Вставить сюда»',
+    clipSameFolderHint: 'Выберите другую папку для перемещения',
+    msgCopying: 'Копирование {i} из {n}…',
+    msgMoving: 'Перемещение {i} из {n}…',
+    msgCopiedDone: 'Скопировано: {n}',
+    msgMovedDone: 'Перемещено: {n}',
+    msgPastingFiles: 'Вставка из буфера: {n}',
+    conflictItemTitle: 'Имя уже занято',
+    conflictItemMsg: '«{name}» уже есть в папке назначения. Сохранить под новым именем, перезаписать или пропустить?',
+    sharedClipBtn: 'Буфер',
+    sharedClipTitle: 'Общий текстовый буфер с телефоном',
+    sharedClipHeading: 'Общий буфер обмена',
+    sharedClipDesc: 'Пересылайте ссылки, коды и заметки между браузером и телефоном. Данные хранятся только в памяти до остановки сервера.',
+    sharedClipPlaceholder: 'Вставьте или введите текст для отправки на телефон (Ctrl+Enter)…',
+    sharedClipEmpty: 'Буфер пуст',
+    sharedClipFromPhone: 'С телефона · {time}',
+    sharedClipFromWeb: 'Из браузера · {time}',
+    sharedClipChars: '{n} / 65 536',
+    sharedClipClear: 'Очистить',
+    sharedClipCopy: 'Скопировать',
+    sharedClipSend: 'Отправить',
+    msgClipSent: 'Отправлено в общий буфер',
+    msgClipCleared: 'Общий буфер очищен',
+    msgClipCopied: 'Текст скопирован',
+    bookmarksAria: 'Быстрые папки',
+    pinFolderTitle: 'Закрепить папку в закладках',
+    unpinFolderTitle: 'Убрать папку из закладок',
+    msgPinned: 'Закреплено: {name}',
+    msgUnpinned: 'Убрано из закладок: {name}',
+    msgPinLimit: 'Можно закрепить не более 12 папок',
+    qdCamera: 'Камера',
+    qdDcim: 'DCIM',
+    qdPictures: 'Изображения',
+    qdDownload: 'Загрузки',
+    qdDocuments: 'Документы',
+    qdMusic: 'Музыка',
+    qdMovies: 'Фильмы',
     units: ['Б', 'КБ', 'МБ', 'ГБ', 'ТБ'],
     unitSec: 'с'
   },
@@ -1513,6 +1697,50 @@ const LANG = {
     toTopTitle: 'Back to top',
     msgFolderCreated: 'Folder “{name}” created',
     msgRenamed: 'Renamed to “{name}”',
+    btnCopySelected: 'Copy',
+    btnCopyTitle: 'Copy selected (Ctrl+C)',
+    btnCutSelected: 'Cut',
+    btnCutTitle: 'Cut to move (Ctrl+X)',
+    btnPasteHere: 'Paste here',
+    clipCopiedCount: 'Copied: {n}',
+    clipCutCount: 'Cut: {n}',
+    clipTargetHint: 'Open a folder and click “Paste here”',
+    clipSameFolderHint: 'Open another folder to move items',
+    msgCopying: 'Copying {i} of {n}…',
+    msgMoving: 'Moving {i} of {n}…',
+    msgCopiedDone: 'Copied: {n}',
+    msgMovedDone: 'Moved: {n}',
+    msgPastingFiles: 'Pasting from clipboard: {n}',
+    conflictItemTitle: 'Name already exists',
+    conflictItemMsg: '“{name}” already exists in the target folder. Save under a new name, overwrite, or skip?',
+    sharedClipBtn: 'Clipboard',
+    sharedClipTitle: 'Shared text clipboard with phone',
+    sharedClipHeading: 'Shared clipboard',
+    sharedClipDesc: 'Send links, codes, and notes between browser and phone. Kept in memory only until access stops.',
+    sharedClipPlaceholder: 'Paste or type text to send to your phone (Ctrl+Enter)…',
+    sharedClipEmpty: 'Clipboard is empty',
+    sharedClipFromPhone: 'From phone · {time}',
+    sharedClipFromWeb: 'From browser · {time}',
+    sharedClipChars: '{n} / 65,536',
+    sharedClipClear: 'Clear',
+    sharedClipCopy: 'Copy',
+    sharedClipSend: 'Send',
+    msgClipSent: 'Sent to shared clipboard',
+    msgClipCleared: 'Shared clipboard cleared',
+    msgClipCopied: 'Text copied',
+    bookmarksAria: 'Quick folders',
+    pinFolderTitle: 'Pin folder to bookmarks',
+    unpinFolderTitle: 'Remove folder from bookmarks',
+    msgPinned: 'Pinned: {name}',
+    msgUnpinned: 'Unpinned: {name}',
+    msgPinLimit: 'You can pin up to 12 folders',
+    qdCamera: 'Camera',
+    qdDcim: 'DCIM',
+    qdPictures: 'Pictures',
+    qdDownload: 'Downloads',
+    qdDocuments: 'Documents',
+    qdMusic: 'Music',
+    qdMovies: 'Movies',
     units: ['B', 'KB', 'MB', 'GB', 'TB'],
     unitSec: 's'
   }
@@ -1529,6 +1757,40 @@ let sortFlip = false, scanning = false, generation = 0, previewSerial = 0, previ
 let searchTimer = null, dragDepth = 0, filterCat = 'all', animateNextRender = false;
 let storageInfo = null, busyCount = 0, busyTimer = null, skelTimer = null, davCopyTimer = null;
 let queue = [], running = 0, globalPaused = false, uploadBusy = false, queueCollapsed = false;
+let pbClip = null, draggingItems = null, lastCheckIdx = -1;
+let quickDirs = [], pinnedDirs = loadPins();
+let sharedClipState = { text: '', updatedAt: 0, source: '' }, sharedClipPrevFocus = null;
+const PB_DRAG_MIME = 'application/x-pb-items';
+const MAX_PINS = 12;
+const QUICK_DIR_LABELS = {
+  '/DCIM/Camera': 'qdCamera',
+  '/DCIM': 'qdDcim',
+  '/Pictures': 'qdPictures',
+  '/Download': 'qdDownload',
+  '/Documents': 'qdDocuments',
+  '/Music': 'qdMusic',
+  '/Movies': 'qdMovies'
+};
+
+function loadPins() {
+  try {
+    const raw = JSON.parse(safeGet('pb-pins') || '[]');
+    if (!Array.isArray(raw)) return [];
+    const out = [];
+    for (const p of raw) {
+      if (typeof p !== 'string' || !p.startsWith('/') || p === '/' || p.length > 512) continue;
+      if (p.includes('\\') || p.split('/').some(seg => seg === '..' || seg === '.')) continue;
+      const norm = '/' + p.split('/').filter(Boolean).join('/');
+      if (norm !== '/' && !out.includes(norm)) out.push(norm);
+      if (out.length >= MAX_PINS) break;
+    }
+    return out;
+  } catch (_) { return []; }
+}
+
+function savePins() {
+  safeSet('pb-pins', JSON.stringify(pinnedDirs));
+}
 
 const el = id => document.getElementById(id);
 
@@ -1683,6 +1945,10 @@ function populateI18n() {
   updateSizesBtn(0, 0);
   updateSortHeaders();
   renderStorage();
+  renderBookmarksBar();
+  renderPinButton();
+  renderClipBar();
+  if (el('clipModal') && !el('clipModal').classList.contains('hidden')) renderSharedClipMeta();
 }
 
 function setLang(next) {
@@ -1701,6 +1967,7 @@ document.querySelectorAll('thead th.sortable').forEach(th => {
     const k = th.dataset.sort;
     if (el('sort').value === k) sortFlip = !sortFlip;
     else { el('sort').value = k; sortFlip = false; }
+    lastCheckIdx = -1;
     updateSortHeaders();
     render();
   };
@@ -1912,6 +2179,7 @@ function renderFilterBar() {
     chip.onclick = () => {
       if (filterCat === id) return;
       filterCat = id;
+      lastCheckIdx = -1;
       animateNextRender = true;
       render();
     };
@@ -1959,6 +2227,236 @@ function clearSkeleton() {
   skelTimer = null;
 }
 
+function isCutPath(p) {
+  return !!(pbClip && pbClip.mode === 'cut' && pbClip.items.some(x => x.path === p));
+}
+
+function canMoveItemTo(item, destDir) {
+  const dest = destDir || '/';
+  if (!item || !item.path || item.path === '/') return false;
+  if (parentOf(item.path) === dest) return false;
+  if (item.dir && (dest === item.path || dest.startsWith(item.path + '/'))) return false;
+  return true;
+}
+
+function canCopyItemTo(item, destDir) {
+  const dest = destDir || '/';
+  if (!item || !item.path || item.path === '/') return false;
+  if (item.dir && (dest === item.path || dest.startsWith(item.path + '/'))) return false;
+  return true;
+}
+
+function clearInternalDrag() {
+  draggingItems = null;
+  for (const n of document.querySelectorAll('.is-dragging, .drop-target')) {
+    n.classList.remove('is-dragging', 'drop-target');
+  }
+}
+
+function attachItemDrag(node, item) {
+  node.draggable = true;
+  node.addEventListener('dragstart', e => {
+    const pool = remoteResults || items;
+    draggingItems = selected.has(item.path)
+      ? pool.filter(x => selected.has(x.path)).map(x => ({ path: x.path, name: x.name, dir: !!x.dir }))
+      : [{ path: item.path, name: item.name, dir: !!item.dir }];
+    if (!draggingItems.length) draggingItems = [{ path: item.path, name: item.name, dir: !!item.dir }];
+    if (e.dataTransfer) {
+      e.dataTransfer.effectAllowed = 'move';
+      try { e.dataTransfer.setData(PB_DRAG_MIME, String(draggingItems.length)); } catch (_) {}
+      try { e.dataTransfer.setData('text/plain', item.name); } catch (_) {}
+    }
+    const dragPaths = new Set(draggingItems.map(x => x.path));
+    for (const row of document.querySelectorAll('#rows tr, #grid .card')) {
+      if (dragPaths.has(row.dataset.path)) row.classList.add('is-dragging');
+    }
+  });
+  node.addEventListener('dragend', clearInternalDrag);
+}
+
+function attachFolderDropTarget(node, targetPath) {
+  node.addEventListener('dragover', e => {
+    if (!draggingItems || !draggingItems.length) return;
+    if (!draggingItems.some(x => canMoveItemTo(x, targetPath))) return;
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+    node.classList.add('drop-target');
+  });
+  node.addEventListener('dragleave', e => {
+    if (!e.relatedTarget || !node.contains(e.relatedTarget)) {
+      node.classList.remove('drop-target');
+    }
+  });
+  node.addEventListener('drop', e => {
+    if (!draggingItems || !draggingItems.length) return;
+    const batch = draggingItems.filter(x => canMoveItemTo(x, targetPath));
+    if (!batch.length) return;
+    e.preventDefault();
+    e.stopPropagation();
+    clearInternalDrag();
+    transferItems(batch, targetPath, true);
+  });
+}
+
+function syncSelectionDom() {
+  for (const node of document.querySelectorAll('#rows tr, #grid .card')) {
+    const p = node.dataset.path;
+    const on = selected.has(p);
+    node.classList.toggle('selected', on);
+    node.classList.toggle('is-cut', isCutPath(p));
+    const cb = node.querySelector('input[type="checkbox"]');
+    if (cb) cb.checked = on;
+  }
+  updateSelection();
+}
+
+function bindSelectCheckbox(check, container, view, idx, item) {
+  let shiftHeld = false;
+  check.addEventListener('click', e => { shiftHeld = !!e.shiftKey; });
+  check.onchange = () => {
+    const useShift = shiftHeld;
+    shiftHeld = false;
+    const want = check.checked;
+    if (useShift && lastCheckIdx >= 0 && lastCheckIdx < view.length && lastCheckIdx !== idx) {
+      const lo = Math.min(lastCheckIdx, idx), hi = Math.max(lastCheckIdx, idx);
+      let capped = false;
+      for (let k = lo; k <= hi; k++) {
+        const p = view[k].path;
+        if (want) {
+          if (!selected.has(p) && selected.size >= 500) { capped = true; break; }
+          selected.add(p);
+        } else {
+          selected.delete(p);
+        }
+      }
+      lastCheckIdx = idx;
+      syncSelectionDom();
+      if (capped) msg(t('msgMaxSelect'));
+      return;
+    }
+    if (want) {
+      if (!selected.has(item.path) && selected.size >= 500) {
+        check.checked = false;
+        msg(t('msgMaxSelect'));
+        return;
+      }
+      selected.add(item.path);
+    } else {
+      selected.delete(item.path);
+    }
+    lastCheckIdx = idx;
+    container.classList.toggle('selected', want);
+    updateSelection();
+  };
+}
+
+function renderPinButton() {
+  const btn = el('pinFolder');
+  if (!btn) return;
+  if (!current || current === '/' || el('app').classList.contains('hidden')) {
+    btn.classList.add('hidden');
+    return;
+  }
+  const pinned = pinnedDirs.includes(current);
+  btn.classList.remove('hidden');
+  btn.classList.toggle('is-pinned', pinned);
+  const label = t(pinned ? 'unpinFolderTitle' : 'pinFolderTitle');
+  btn.title = label;
+  btn.setAttribute('aria-label', label);
+  btn.setAttribute('aria-pressed', pinned ? 'true' : 'false');
+}
+
+function renderBookmarksBar() {
+  const bar = el('bookmarksBar');
+  if (!bar) return;
+  if (el('app').classList.contains('hidden')) {
+    bar.classList.add('hidden');
+    bar.replaceChildren();
+    return;
+  }
+  const list = [];
+  const seen = new Set();
+  for (const p of quickDirs) {
+    if (seen.has(p)) continue;
+    seen.add(p);
+    const lkey = QUICK_DIR_LABELS[p];
+    const base = p.slice(p.lastIndexOf('/') + 1);
+    list.push({ path: p, label: lkey ? t(lkey) : base, pinned: pinnedDirs.includes(p), custom: false });
+  }
+  for (const p of pinnedDirs) {
+    if (seen.has(p)) continue;
+    seen.add(p);
+    const lkey = QUICK_DIR_LABELS[p];
+    const base = p.slice(p.lastIndexOf('/') + 1);
+    list.push({ path: p, label: lkey ? t(lkey) : base, pinned: true, custom: true });
+  }
+  if (!list.length) {
+    bar.classList.add('hidden');
+    bar.replaceChildren();
+    return;
+  }
+  bar.classList.remove('hidden');
+  bar.replaceChildren();
+  for (const entry of list) {
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    chip.className = 'bmchip'
+      + (entry.custom ? ' is-pin' : '')
+      + (current === entry.path && remoteResults === null ? ' active' : '');
+    chip.dataset.bm = entry.path;
+    chip.title = entry.path;
+    chip.innerHTML = entry.custom ? ICONS.bookmark : ICONS.folderSm;
+    const lbl = document.createElement('span');
+    lbl.textContent = entry.label;
+    chip.append(lbl);
+    if (entry.custom) {
+      const x = document.createElement('span');
+      x.className = 'bmx';
+      x.textContent = '×';
+      x.title = t('unpinFolderTitle');
+      x.onclick = e => {
+        e.stopPropagation();
+        unpinPath(entry.path);
+      };
+      chip.append(x);
+    }
+    chip.onclick = () => show(entry.path);
+    attachFolderDropTarget(chip, entry.path);
+    bar.append(chip);
+  }
+}
+
+function unpinPath(p) {
+  const idx = pinnedDirs.indexOf(p);
+  if (idx < 0) return;
+  pinnedDirs.splice(idx, 1);
+  savePins();
+  renderPinButton();
+  renderBookmarksBar();
+  const base = p.slice(p.lastIndexOf('/') + 1) || p;
+  showToast(t('msgUnpinned', { name: base }));
+}
+
+function renderClipBar() {
+  const bar = el('clipBar');
+  if (!bar) return;
+  if (!pbClip || !pbClip.items.length || el('app').classList.contains('hidden')) {
+    bar.classList.add('hidden');
+    bar.classList.remove('is-cut');
+    return;
+  }
+  const isCut = pbClip.mode === 'cut';
+  bar.classList.remove('hidden');
+  bar.classList.toggle('is-cut', isCut);
+  el('clipSummary').textContent = t(isCut ? 'clipCutCount' : 'clipCopiedCount', { n: pbClip.items.length });
+  const okTarget = remoteResults === null && pbClip.items.some(x => isCut ? canMoveItemTo(x, current) : canCopyItemTo(x, current));
+  el('pasteHere').disabled = !okTarget;
+  el('clipHint').textContent = (!okTarget && isCut && remoteResults === null)
+    ? t('clipSameFolderHint')
+    : t('clipTargetHint');
+}
+
 function updateSelection() {
   const v = visible(), num = selected.size;
   el('selection').classList.toggle('hidden', !num);
@@ -1968,6 +2466,8 @@ function updateSelection() {
   all.indeterminate = n > 0 && n < v.length;
   all.disabled = !v.length;
   el('downloadSelected').disabled = num === 0;
+  if (el('copySelected')) el('copySelected').disabled = num === 0;
+  if (el('cutSelected')) el('cutSelected').disabled = num === 0;
 }
 
 async function ensureSession(force = false) {
@@ -2004,7 +2504,10 @@ function renderCounters(view) {
 }
 
 function render() {
+  renderBookmarksBar();
+  renderPinButton();
   renderFilterBar();
+  renderClipBar();
   const doAnim = animateNextRender;
   animateNextRender = false;
   if (viewMode === 'grid') renderGrid(doAnim);
@@ -2030,8 +2533,13 @@ function renderGrid(doAnim = false) {
     const vk = visualKind(item);
     const card = document.createElement('div');
     card.dataset.path = item.path;
-    card.className = 'card' + (selected.has(item.path) ? ' selected' : '') + (doAnim && i < 18 ? ' card-enter' : '');
+    card.className = 'card'
+      + (selected.has(item.path) ? ' selected' : '')
+      + (isCutPath(item.path) ? ' is-cut' : '')
+      + (doAnim && i < 18 ? ' card-enter' : '');
     if (doAnim && i < 18) card.style.setProperty('--i', String(Math.min(i, 10)));
+    attachItemDrag(card, item);
+    if (item.dir) attachFolderDropTarget(card, item.path);
     const thumb = document.createElement('div');
     thumb.className = 'thumb';
     const showIcon = () => {
@@ -2079,12 +2587,7 @@ function renderGrid(doAnim = false) {
     check.type = 'checkbox';
     check.checked = selected.has(item.path);
     check.setAttribute('aria-label', t('selectItem', { name: item.name }));
-    check.onchange = () => {
-      if (check.checked) selected.add(item.path);
-      else selected.delete(item.path);
-      card.classList.toggle('selected', check.checked);
-      updateSelection();
-    };
+    bindSelectCheckbox(check, card, view, i, item);
     pick.append(check);
     thumb.append(pick);
 
@@ -2156,10 +2659,13 @@ function renderList(doAnim = false) {
     const tr = document.createElement('tr');
     tr.dataset.path = item.path;
     tr.classList.toggle('selected', selected.has(item.path));
+    tr.classList.toggle('is-cut', isCutPath(item.path));
     if (doAnim && i < 18) {
       tr.classList.add('row-enter');
       tr.style.setProperty('--i', String(Math.min(i, 10)));
     }
+    attachItemDrag(tr, item);
+    if (item.dir) attachFolderDropTarget(tr, item.path);
 
     const checkcell = document.createElement('td');
     checkcell.className = 'checkcol';
@@ -2167,12 +2673,7 @@ function renderList(doAnim = false) {
     check.type = 'checkbox';
     check.checked = selected.has(item.path);
     check.setAttribute('aria-label', t('selectItem', { name: item.name }));
-    check.onchange = () => {
-      if (check.checked) selected.add(item.path);
-      else selected.delete(item.path);
-      tr.classList.toggle('selected', check.checked);
-      updateSelection();
-    };
+    bindSelectCheckbox(check, tr, view, i, item);
     checkcell.append(check);
 
     const n = document.createElement('td');
@@ -2290,6 +2791,7 @@ function renderPath(path) {
   root.querySelector('span').textContent = t('rootName');
   root.title = t('rootTitle');
   root.onclick = () => show('/');
+  if (path !== '/') attachFolderDropTarget(root, '/');
   box.append(root);
   let acc = '';
   for (const seg of path.split('/').filter(Boolean)) {
@@ -2302,6 +2804,7 @@ function renderPath(path) {
     b.textContent = seg;
     const target = acc;
     b.onclick = () => show(target);
+    if (target !== path) attachFolderDropTarget(b, target);
     box.append(sep, b);
   }
 }
@@ -2322,12 +2825,15 @@ async function show(path, preloaded = null) {
     await ensureSession().catch(() => {});
     current = data.path;
     items = data.items;
+    if (Array.isArray(data.quickDirs)) quickDirs = data.quickDirs.slice();
+    if (typeof data.clipHasText === 'boolean') updateClipDot(data.clipHasText);
     if (typeof data.totalBytes === 'number' && data.totalBytes > 0) {
       storageInfo = { total: data.totalBytes, free: Math.max(0, Number(data.freeBytes) || 0) };
       renderStorage();
     }
     selected.clear();
     sizes.clear();
+    lastCheckIdx = -1;
     remoteResults = null;
     el('search').value = '';
     const sb = el('searchBox');
@@ -2566,8 +3072,24 @@ el('preview').onclick = e => { if (e.target === el('preview')) closePreview(); }
     if (Math.abs(dx) > 54 && Math.abs(dx) > Math.abs(dy) * 1.5) stepTrack(dx < 0 ? 1 : -1);
   }, { passive: true });
 })();
+function isTextEntryElement(node) {
+  if (!node) return false;
+  if (node.isContentEditable) return true;
+  const tag = node.tagName || '';
+  if (tag === 'TEXTAREA' || tag === 'SELECT') return true;
+  if (tag === 'INPUT') {
+    const tp = (node.type || 'text').toLowerCase();
+    return tp !== 'checkbox' && tp !== 'radio' && tp !== 'button' && tp !== 'submit' && tp !== 'file';
+  }
+  return false;
+}
+
 document.addEventListener('keydown', e => {
   if (!el('actionDialog').classList.contains('hidden')) return;
+  if (!el('clipModal').classList.contains('hidden')) {
+    if (e.key === 'Escape') { e.preventDefault(); closeSharedClip(); }
+    return;
+  }
   if (!el('preview').classList.contains('hidden')) {
     if (e.key === 'Escape') closePreview();
     else if (e.key === 'ArrowLeft') { e.preventDefault(); stepTrack(-1); }
@@ -2575,8 +3097,8 @@ document.addEventListener('keydown', e => {
     return;
   }
   if (el('app').classList.contains('hidden')) return;
-  const tag = (document.activeElement && document.activeElement.tagName) || '';
-  const inField = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+  const inField = isTextEntryElement(document.activeElement);
+  const mod = (e.ctrlKey || e.metaKey) && !e.altKey;
   if (e.key === '/' && !inField && !e.ctrlKey && !e.metaKey && !e.altKey) {
     e.preventDefault();
     el('search').focus();
@@ -2586,14 +3108,57 @@ document.addEventListener('keydown', e => {
       el('search').value = '';
       syncSearchBox();
       remoteResults = null;
+      lastCheckIdx = -1;
       msg('', false);
       render();
     } else {
       el('search').blur();
     }
+  } else if (e.key === 'Escape' && !inField) {
+    if (selected.size > 0) {
+      e.preventDefault();
+      selected.clear();
+      syncSelectionDom();
+    } else if (pbClip) {
+      e.preventDefault();
+      clearFileClip();
+    }
   } else if (e.key === 'ArrowUp' && e.altKey && !inField && current !== '/') {
     e.preventDefault();
     el('up').click();
+  } else if (mod && e.code === 'KeyA' && !inField && !e.shiftKey) {
+    const v = visible();
+    if (!v.length) return;
+    e.preventDefault();
+    let capped = false;
+    for (const item of v) {
+      if (!selected.has(item.path) && selected.size >= 500) { capped = true; break; }
+      selected.add(item.path);
+    }
+    syncSelectionDom();
+    if (capped) msg(t('msgMaxSelect'));
+  } else if (mod && e.code === 'KeyC' && !inField && !e.shiftKey) {
+    const selTxt = window.getSelection ? String(window.getSelection()).trim() : '';
+    if (selected.size > 0 && !selTxt) {
+      e.preventDefault();
+      copySelectedItems();
+    }
+  } else if (mod && e.code === 'KeyX' && !inField && !e.shiftKey) {
+    if (selected.size > 0) {
+      e.preventDefault();
+      cutSelectedItems();
+    }
+  } else if (e.key === 'Delete' && !inField && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    if (selected.size > 0) {
+      e.preventDefault();
+      el('deleteSelected').click();
+    }
+  } else if (e.key === 'F2' && !inField && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    if (selected.size === 1) {
+      const only = [...selected][0];
+      const it = (remoteResults || items).find(x => x.path === only);
+      if (it) { e.preventDefault(); rename(it); }
+    }
   }
 });
 
@@ -2721,6 +3286,37 @@ function markRemoving(p) {
   }
 }
 
+function prunePathRefs(oldPath, newPath = null) {
+  let pinsDirty = false;
+  for (let i = pinnedDirs.length - 1; i >= 0; i--) {
+    const p = pinnedDirs[i];
+    if (p === oldPath || p.startsWith(oldPath + '/')) {
+      if (newPath) {
+        pinnedDirs[i] = newPath + p.slice(oldPath.length);
+      } else {
+        pinnedDirs.splice(i, 1);
+      }
+      pinsDirty = true;
+    }
+  }
+  if (pinsDirty) savePins();
+  if (pbClip && pbClip.items.length) {
+    if (newPath) {
+      for (const x of pbClip.items) {
+        if (x.path === oldPath) {
+          x.path = newPath;
+          x.name = newPath.slice(newPath.lastIndexOf('/') + 1);
+        } else if (x.path.startsWith(oldPath + '/')) {
+          x.path = newPath + x.path.slice(oldPath.length);
+        }
+      }
+    } else {
+      pbClip.items = pbClip.items.filter(x => x.path !== oldPath && !x.path.startsWith(oldPath + '/'));
+      if (!pbClip.items.length) pbClip = null;
+    }
+  }
+}
+
 async function rename(item) {
   const name = await actionDialog({
     title: t('renameTitle'), message: t('renameMsg'), accept: t('renameAccept'),
@@ -2729,6 +3325,7 @@ async function rename(item) {
   if (name === null || name === item.name) return;
   try {
     await api('rename', { path: item.path, name }, { method: 'POST' });
+    prunePathRefs(item.path, joinPath(parentOf(item.path), name));
     await refreshListing();
     showToast(t('msgRenamed', { name }));
   } catch (e) {
@@ -2748,6 +3345,7 @@ async function removeItem(item) {
     markRemoving(item.path);
     msg(t('msgDeleting', { i: 1, n: 1 }), false);
     await api('delete', { path: item.path }, { method: 'POST' });
+    prunePathRefs(item.path, null);
     await refreshListing();
     showToast(t('msgDeleted', { n: 1 }));
   } catch (e) {
@@ -2801,18 +3399,25 @@ el('refresh').onclick = async () => {
 el('logout').onclick = () => {
   cancelAllUploads();
   closePreview();
+  closeSharedClip();
   finishDialog(null);
+  clearInternalDrag();
   generation++;
   key = '';
   items = [];
   remoteResults = null;
   filterCat = 'all';
   storageInfo = null;
+  pbClip = null;
+  quickDirs = [];
+  sharedClipState = { text: '', updatedAt: 0, source: '' };
+  lastCheckIdx = -1;
   selected.clear();
   sizes.clear();
   sessionToken = null;
   clearSkeleton();
   renderStorage();
+  updateClipDot(false);
   const sb = el('searchBox');
   if (sb) sb.classList.remove('is-searching');
   const tt = el('toTop');
@@ -2821,6 +3426,9 @@ el('logout').onclick = () => {
   el('loginError').textContent = '';
   el('app').classList.add('hidden');
   el('logout').classList.add('hidden');
+  renderBookmarksBar();
+  renderPinButton();
+  renderClipBar();
   el('loginWrap').classList.remove('hidden');
   el('code').focus();
 };
@@ -2879,21 +3487,306 @@ function syncSearchBox() {
   const sb = el('searchBox');
   if (sb) sb.classList.toggle('has-val', !!el('search').value);
 }
-el('search').oninput = () => { syncSearchBox(); if (el('scope').value === 'global') scheduleRemote(); else render(); };
+el('search').oninput = () => { lastCheckIdx = -1; syncSearchBox(); if (el('scope').value === 'global') scheduleRemote(); else render(); };
 el('scope').onchange = () => {
   remoteResults = null;
+  lastCheckIdx = -1;
   if (el('scope').value === 'global') scheduleRemote();
   else { el('search').value = ''; syncSearchBox(); msg('', false); render(); }
 };
-el('sort').onchange = () => { sortFlip = false; updateSortHeaders(); render(); };
+el('sort').onchange = () => { sortFlip = false; lastCheckIdx = -1; updateSortHeaders(); render(); };
 el('selectAll').onchange = e => {
+  let capped = false;
   for (const item of visible()) {
-    if (e.target.checked) selected.add(item.path);
-    else selected.delete(item.path);
+    if (e.target.checked) {
+      if (!selected.has(item.path) && selected.size >= 500) { capped = true; break; }
+      selected.add(item.path);
+    } else {
+      selected.delete(item.path);
+    }
   }
   render();
+  if (capped) msg(t('msgMaxSelect'));
 };
 el('clearSelected').onclick = () => { selected.clear(); render(); };
+
+el('pinFolder').onclick = () => {
+  if (!current || current === '/') return;
+  const idx = pinnedDirs.indexOf(current);
+  const base = current.slice(current.lastIndexOf('/') + 1) || current;
+  if (idx >= 0) {
+    pinnedDirs.splice(idx, 1);
+    savePins();
+    renderPinButton();
+    renderBookmarksBar();
+    showToast(t('msgUnpinned', { name: base }));
+    return;
+  }
+  if (pinnedDirs.length >= MAX_PINS) {
+    msg(t('msgPinLimit'));
+    showToast(t('msgPinLimit'), true);
+    return;
+  }
+  pinnedDirs.push(current);
+  savePins();
+  renderPinButton();
+  renderBookmarksBar();
+  showToast(t('msgPinned', { name: base }));
+};
+
+/* ---------- копирование / перемещение файлов ---------- */
+function chosenSnapshot() {
+  return (remoteResults || items)
+    .filter(x => selected.has(x.path))
+    .map(x => ({ path: x.path, name: x.name, dir: !!x.dir }));
+}
+
+function setFileClip(mode, list) {
+  if (!list.length) { msg(t('msgNothingSelected')); return; }
+  if (list.length > 500) { msg(t('msgMaxSelect')); return; }
+  pbClip = { mode, items: list };
+  selected.clear();
+  renderClipBar();
+  syncSelectionDom();
+  showToast(t(mode === 'cut' ? 'clipCutCount' : 'clipCopiedCount', { n: list.length }));
+}
+
+function clearFileClip() {
+  pbClip = null;
+  renderClipBar();
+  syncSelectionDom();
+}
+
+function copySelectedItems() { setFileClip('copy', chosenSnapshot()); }
+function cutSelectedItems() { setFileClip('cut', chosenSnapshot()); }
+
+el('copySelected').onclick = copySelectedItems;
+el('cutSelected').onclick = cutSelectedItems;
+el('clearClip').onclick = clearFileClip;
+
+function suggestEntryName(name, isDir, takenSet) {
+  const d = isDir ? -1 : name.lastIndexOf('.');
+  const base = d > 0 ? name.slice(0, d) : name;
+  const ext = d > 0 ? name.slice(d) : '';
+  const has = cand => takenSet ? takenSet.has(cand) : items.some(x => x.name === cand);
+  for (let i = 1; i < 1000; i++) {
+    const cand = base + ' (' + i + ')' + ext;
+    if (!has(cand)) return cand;
+  }
+  return base + t('newNameSuffix') + ext;
+}
+
+function askItemConflict(name, isDir, takenSet) {
+  const next = conflictChain.then(() => actionDialog({
+    title: t('conflictItemTitle'),
+    message: t('conflictItemMsg', { name }),
+    accept: t('conflictAccept'),
+    input: suggestEntryName(name, isDir, takenSet),
+    selectStem: !isDir,
+    iconHtml: ICONS.copy,
+    cancel: t('conflictCancel'),
+    extra: { label: t('conflictOverwrite'), value: 'overwrite', danger: true }
+  }));
+  conflictChain = next.catch(() => {});
+  return next;
+}
+
+let transferBusy = false;
+async function transferItems(srcList, destDir, move, btn = null) {
+  if (transferBusy || !srcList.length) return false;
+  transferBusy = true;
+  if (btn) btn.classList.add('is-busy');
+  const route = move ? 'move' : 'copy';
+  const progressKey = move ? 'msgMoving' : 'msgCopying';
+  const doneKey = move ? 'msgMovedDone' : 'msgCopiedDone';
+  const taken = destDir === current ? new Set(items.map(x => x.name)) : new Set();
+  const movedPaths = new Set();
+  const errors = [];
+  let done = 0;
+  try {
+    for (let i = 0; i < srcList.length; i++) {
+      const it = srcList[i];
+      if (move && !canMoveItemTo(it, destDir)) continue;
+      let targetName = it.name;
+      let overwrite = false;
+      while (true) {
+        try {
+          msg(t(progressKey, { i: i + 1, n: srcList.length }), false);
+          const params = { path: it.path, dest: destDir, overwrite: overwrite ? '1' : '0' };
+          if (targetName !== it.name) params.name = targetName;
+          const res = await (await api(route, params, { method: 'POST' })).json();
+          if (res && res.name) taken.add(res.name);
+          else taken.add(targetName);
+          done++;
+          if (move) {
+            movedPaths.add(it.path);
+            selected.delete(it.path);
+          }
+          break;
+        } catch (e) {
+          if (e.status === 409 && !overwrite) {
+            taken.add(targetName);
+            const choice = await askItemConflict(targetName, !!it.dir, taken);
+            if (choice === null) break;
+            if (choice === 'overwrite') overwrite = true;
+            else { targetName = choice; overwrite = false; }
+            continue;
+          }
+          errors.push(it.name + ': ' + e.message);
+          break;
+        }
+      }
+    }
+    if (move && pbClip && pbClip.mode === 'cut' && movedPaths.size) {
+      pbClip.items = pbClip.items.filter(x => !movedPaths.has(x.path));
+      if (!pbClip.items.length) pbClip = null;
+    }
+    await refreshListing();
+    renderClipBar();
+    if (errors.length) {
+      const tail = errors.length > 3 ? t('msgAndMore', { n: errors.length - 3 }) : '';
+      msg(errors.slice(0, 3).join('; ') + tail, true);
+      return false;
+    }
+    if (done > 0) {
+      const okTxt = t(doneKey, { n: done });
+      msg(okTxt, false);
+      showToast(okTxt);
+      return true;
+    }
+    msg('', false);
+    return false;
+  } finally {
+    transferBusy = false;
+    if (btn && btn.isConnected) btn.classList.remove('is-busy');
+  }
+}
+
+async function pasteFileClip() {
+  if (!pbClip || !pbClip.items.length || remoteResults !== null) return;
+  const move = pbClip.mode === 'cut';
+  const batch = pbClip.items.filter(x => move ? canMoveItemTo(x, current) : canCopyItemTo(x, current));
+  if (!batch.length) {
+    if (move) msg(t('clipSameFolderHint'));
+    return;
+  }
+  await transferItems(batch, current, move, el('pasteHere'));
+}
+
+el('pasteHere').onclick = pasteFileClip;
+
+/* ---------- общий текстовый буфер обмена (ПК ↔ телефон) ---------- */
+function updateClipDot(hasText) {
+  const dot = el('openClipDot');
+  if (dot) dot.classList.toggle('hidden', !hasText);
+}
+
+function renderSharedClipMeta() {
+  const input = el('sharedClipInput');
+  const meta = el('sharedClipMeta');
+  const len = el('sharedClipLen');
+  if (!input || !meta || !len) return;
+  len.textContent = t('sharedClipChars', { n: input.value.length });
+  if (sharedClipState.text && sharedClipState.updatedAt > 0) {
+    const loc = currentLang === 'en' ? 'en-GB' : 'ru-RU';
+    const tm = new Date(sharedClipState.updatedAt).toLocaleTimeString(loc, { hour: '2-digit', minute: '2-digit' });
+    const k = sharedClipState.source === 'phone' ? 'sharedClipFromPhone' : 'sharedClipFromWeb';
+    meta.textContent = t(k, { time: tm });
+  } else {
+    meta.textContent = t('sharedClipEmpty');
+  }
+  el('sharedClipCopy').disabled = !input.value.length;
+  el('sharedClipClear').disabled = !input.value.length && !sharedClipState.text.length;
+}
+
+async function loadSharedClip() {
+  try {
+    const d = await (await api('clipboard')).json();
+    sharedClipState = { text: d.text || '', updatedAt: Number(d.updatedAt) || 0, source: d.source || '' };
+    el('sharedClipInput').value = sharedClipState.text;
+    updateClipDot(!!sharedClipState.text);
+    renderSharedClipMeta();
+  } catch (e) {
+    msg(e.message);
+  }
+}
+
+function openSharedClip() {
+  sharedClipPrevFocus = document.activeElement;
+  el('clipModal').classList.remove('hidden');
+  renderSharedClipMeta();
+  el('sharedClipInput').focus();
+  loadSharedClip();
+}
+
+function closeSharedClip() {
+  const m = el('clipModal');
+  if (!m || m.classList.contains('hidden')) return;
+  m.classList.add('hidden');
+  if (sharedClipPrevFocus && document.contains(sharedClipPrevFocus)) sharedClipPrevFocus.focus();
+  sharedClipPrevFocus = null;
+}
+
+async function sendSharedClip(textVal, btn = null) {
+  await withBtnFeedback(btn, async () => {
+    try {
+      const r = await api('clipboard', {}, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: textVal })
+      });
+      const d = await r.json();
+      sharedClipState = { text: d.text || '', updatedAt: Number(d.updatedAt) || 0, source: d.source || '' };
+      el('sharedClipInput').value = sharedClipState.text;
+      updateClipDot(!!sharedClipState.text);
+      renderSharedClipMeta();
+      showToast(t(sharedClipState.text ? 'msgClipSent' : 'msgClipCleared'));
+      return true;
+    } catch (e) {
+      msg(e.message);
+      showToast(e.message, true);
+      return false;
+    }
+  });
+}
+
+el('openClip').onclick = openSharedClip;
+el('sharedClipClose').onclick = closeSharedClip;
+el('clipModal').onclick = e => { if (e.target === el('clipModal')) closeSharedClip(); };
+el('sharedClipInput').oninput = renderSharedClipMeta;
+el('sharedClipInput').addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+    e.preventDefault();
+    sendSharedClip(el('sharedClipInput').value, el('sharedClipSend'));
+  }
+});
+el('sharedClipSend').onclick = () => sendSharedClip(el('sharedClipInput').value, el('sharedClipSend'));
+el('sharedClipClear').onclick = () => sendSharedClip('', el('sharedClipClear'));
+el('sharedClipRefresh').onclick = async () => {
+  const btn = el('sharedClipRefresh');
+  btn.classList.add('is-spinning');
+  const st = performance.now();
+  try { await loadSharedClip(); }
+  finally { setTimeout(() => btn.classList.remove('is-spinning'), Math.max(0, 420 - (performance.now() - st))); }
+};
+el('sharedClipCopy').onclick = () => withBtnFeedback(el('sharedClipCopy'), async () => {
+  const val = el('sharedClipInput').value;
+  if (!val) return false;
+  let copied = false;
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(val);
+      copied = true;
+    }
+  } catch (_) {}
+  if (!copied) {
+    el('sharedClipInput').focus();
+    el('sharedClipInput').select();
+    try { copied = document.execCommand('copy'); } catch (_) {}
+  }
+  showToast(t('msgClipCopied'));
+  return true;
+});
 
 el('downloadSelected').onclick = async () => {
   const chosen = (remoteResults || items).filter(x => selected.has(x.path));
@@ -2940,6 +3833,7 @@ el('deleteSelected').onclick = async () => {
       try {
         msg(t('msgDeleting', { i: i + 1, n: chosen.length }), false);
         await api('delete', { path: x.path }, { method: 'POST' });
+        prunePathRefs(x.path, null);
         deleted++;
       } catch (e) {
         errors.push(x.name + ': ' + e.message);
@@ -3525,36 +4419,46 @@ function summarizeBatch(results, kindKey) {
   }
 }
 
-async function uploadFiles(list) {
+async function uploadFiles(list, nameOverrides = null) {
   const targetDir = current;
-  const tasks = list.map(f => {
-    const item = qItem(f, targetDir, f.name, { interactive: true });
-    return enqueue(item).then(res => ({ ...res, label: f.name }));
+  const tasks = list.map((f, idx) => {
+    const fname = (nameOverrides && nameOverrides[idx]) ? nameOverrides[idx] : f.name;
+    const item = qItem(f, targetDir, fname, { interactive: true });
+    return enqueue(item).then(res => ({ ...res, label: fname }));
   });
   const results = await Promise.all(tasks);
   await refreshListing();
   summarizeBatch(results, 'msgUploadingFiles');
 }
 
-async function uploadFolder(files) {
+async function uploadRelativeEntries(fileEntries, emptyDirs = []) {
   const baseDir = current;
   const dirs = new Set();
   const results = [];
   const tasks = [];
+  const ensureDir = async relDir => {
+    const full = joinPath(baseDir, relDir);
+    if (full === baseDir || dirs.has(full)) return full;
+    await api('mkdirs', { path: full }, { method: 'POST' });
+    dirs.add(full);
+    return full;
+  };
   try {
-    for (const f of files) {
-      const rel = (f.webkitRelativePath || f.name).replace(/\\/g, '/');
+    for (const relDir of emptyDirs) {
+      const clean = relDir.replace(/\\/g, '/').split('/').filter(Boolean).join('/');
+      if (!clean) continue;
+      try { await ensureDir(clean); }
+      catch (e) { results.push({ status: 'error', label: clean, error: e.message }); }
+    }
+    for (const entry of fileEntries) {
+      const f = entry.file;
+      const rel = (entry.relPath || f.webkitRelativePath || f.name).replace(/\\/g, '/');
       const parts = rel.split('/').filter(Boolean);
       const name = parts.pop() || f.name;
-      const dir = parts.length ? joinPath(baseDir, parts.join('/')) : baseDir;
-      if (dir !== baseDir && !dirs.has(dir)) {
-        try {
-          await api('mkdirs', { path: dir }, { method: 'POST' });
-          dirs.add(dir);
-        } catch (e) {
-          results.push({ status: 'error', label: rel, error: e.message });
-          continue;
-        }
+      let dir = baseDir;
+      if (parts.length) {
+        try { dir = await ensureDir(parts.join('/')); }
+        catch (e) { results.push({ status: 'error', label: rel, error: e.message }); continue; }
       }
       const item = qItem(f, dir, name, { interactive: true });
       tasks.push(enqueue(item).then(res => ({ ...res, label: rel })));
@@ -3562,8 +4466,73 @@ async function uploadFolder(files) {
     results.push(...await Promise.all(tasks));
   } finally {
     await refreshListing();
-    summarizeBatch(results, 'msgUploadingFolder');
+    if (fileEntries.length) summarizeBatch(results, 'msgUploadingFolder');
+    else if (results.some(r => r.status === 'error')) summarizeBatch(results, 'msgUploadingFolder');
+    else if (emptyDirs.length) {
+      const firstName = emptyDirs[0].split('/').filter(Boolean)[0] || '';
+      if (firstName) { msg(t('msgFolderCreated', { name: firstName }), false); showToast(t('msgFolderCreated', { name: firstName })); }
+    }
   }
+}
+
+async function uploadFolder(files) {
+  const entries = files.map(f => ({ file: f, relPath: (f.webkitRelativePath || f.name).replace(/\\/g, '/') }));
+  await uploadRelativeEntries(entries, []);
+}
+
+function readAllDirEntries(reader) {
+  return new Promise((resolve, reject) => {
+    const all = [];
+    const step = () => {
+      reader.readEntries(batch => {
+        if (!batch || !batch.length) { resolve(all); return; }
+        for (const en of batch) all.push(en);
+        step();
+      }, reject);
+    };
+    step();
+  });
+}
+
+async function walkDroppedEntry(entry, prefix, outFiles, outEmptyDirs, depth, budget) {
+  if (!entry || depth > 32 || budget.count >= 10000) return;
+  const name = entry.name || '';
+  if (!name || name === '.' || name === '..') return;
+  const rel = prefix ? prefix + '/' + name : name;
+  if (entry.isFile) {
+    budget.count++;
+    const file = await new Promise((resolve, reject) => entry.file(resolve, reject));
+    outFiles.push({ file, relPath: rel });
+  } else if (entry.isDirectory) {
+    budget.count++;
+    const children = await readAllDirEntries(entry.createReader());
+    if (!children.length) {
+      outEmptyDirs.push(rel);
+      return;
+    }
+    for (const ch of children) {
+      if (budget.count >= 10000) break;
+      await walkDroppedEntry(ch, rel, outFiles, outEmptyDirs, depth + 1, budget);
+    }
+  }
+}
+
+function makeClipboardFilename(file, idx, total) {
+  const raw = (file.name || '').trim();
+  if (raw && !/^(image|blob|clipboard)(\.[a-z0-9]{1,6})?$/i.test(raw)) return raw;
+  const mimeMap = {
+    'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp', 'image/gif': 'gif',
+    'image/bmp': 'bmp', 'image/svg+xml': 'svg', 'application/pdf': 'pdf',
+    'text/plain': 'txt', 'text/html': 'html', 'video/mp4': 'mp4', 'video/webm': 'webm',
+    'audio/mpeg': 'mp3', 'audio/wav': 'wav', 'audio/ogg': 'ogg'
+  };
+  const fromName = extOf(raw);
+  const ext = fromName || mimeMap[(file.type || '').toLowerCase()] || 'bin';
+  const d = new Date();
+  const p2 = n => String(n).padStart(2, '0');
+  const stamp = d.getFullYear() + p2(d.getMonth() + 1) + p2(d.getDate()) + '-' + p2(d.getHours()) + p2(d.getMinutes()) + p2(d.getSeconds());
+  const suffix = total > 1 ? '-' + (idx + 1) : '';
+  return 'clipboard-' + stamp + suffix + '.' + ext;
 }
 
 /* ---------- виды, тема и язык ---------- */
@@ -3618,31 +4587,94 @@ el('dirInput').onchange = async e => {
 
 (function initDragDrop() {
   const overlay = el('dropOverlay');
-  const hasFiles = e => e.dataTransfer && (!e.dataTransfer.types || !e.dataTransfer.types.length || [...e.dataTransfer.types].includes('Files'));
+  const isExternalFiles = e => {
+    if (draggingItems !== null || !e.dataTransfer) return false;
+    const types = e.dataTransfer.types ? [...e.dataTransfer.types] : [];
+    if (types.includes(PB_DRAG_MIME)) return false;
+    return !types.length || types.includes('Files');
+  };
   window.addEventListener('dragenter', e => {
-    if (el('app').classList.contains('hidden') || !hasFiles(e)) return;
+    if (el('app').classList.contains('hidden') || !isExternalFiles(e)) return;
     e.preventDefault();
     dragDepth++;
     overlay.classList.remove('hidden');
   });
   window.addEventListener('dragover', e => {
-    if (el('app').classList.contains('hidden')) return;
+    if (el('app').classList.contains('hidden') || !isExternalFiles(e)) return;
     e.preventDefault();
   });
-  window.addEventListener('dragleave', () => {
-    if (el('app').classList.contains('hidden')) return;
+  window.addEventListener('dragleave', e => {
+    if (el('app').classList.contains('hidden') || draggingItems !== null) return;
     dragDepth = Math.max(0, dragDepth - 1);
     if (dragDepth === 0) overlay.classList.add('hidden');
   });
-  window.addEventListener('drop', e => {
-    if (el('app').classList.contains('hidden')) return;
+  window.addEventListener('drop', async e => {
+    if (el('app').classList.contains('hidden') || !isExternalFiles(e)) return;
     e.preventDefault();
     dragDepth = 0;
     overlay.classList.add('hidden');
-    const files = e.dataTransfer && e.dataTransfer.files;
-    if (files && files.length) uploadFiles([...files]);
+    const dt = e.dataTransfer;
+    if (!dt) return;
+    const rawFiles = dt.files ? [...dt.files] : [];
+    const entries = [];
+    if (dt.items && dt.items.length) {
+      for (const it of [...dt.items]) {
+        if (it.kind !== 'file') continue;
+        const en = typeof it.webkitGetAsEntry === 'function' ? it.webkitGetAsEntry() : null;
+        if (en) entries.push(en);
+      }
+    }
+    if (entries.some(en => en.isDirectory)) {
+      const outFiles = [], outEmptyDirs = [], budget = { count: 0 };
+      try {
+        for (const en of entries) {
+          await walkDroppedEntry(en, '', outFiles, outEmptyDirs, 0, budget);
+        }
+        if (outFiles.length || outEmptyDirs.length) {
+          await uploadRelativeEntries(outFiles, outEmptyDirs);
+        }
+      } catch (err) {
+        msg(err && err.message ? err.message : String(err));
+      }
+      return;
+    }
+    if (rawFiles.length) await uploadFiles(rawFiles);
   });
 })();
+
+window.addEventListener('paste', e => {
+  if (el('app').classList.contains('hidden')) return;
+  if (!el('actionDialog').classList.contains('hidden')) return;
+  if (!el('clipModal').classList.contains('hidden')) return;
+  if (!el('preview').classList.contains('hidden')) return;
+  if (isTextEntryElement(document.activeElement)) return;
+  const cd = e.clipboardData;
+  const pasted = [];
+  if (cd) {
+    if (cd.items && cd.items.length) {
+      for (const it of [...cd.items]) {
+        if (it.kind === 'file') {
+          const f = it.getAsFile();
+          if (f) pasted.push(f);
+        }
+      }
+    }
+    if (!pasted.length && cd.files && cd.files.length) {
+      for (const f of [...cd.files]) pasted.push(f);
+    }
+  }
+  if (pasted.length && remoteResults === null) {
+    e.preventDefault();
+    const names = pasted.map((f, i) => makeClipboardFilename(f, i, pasted.length));
+    msg(t('msgPastingFiles', { n: pasted.length }), false);
+    uploadFiles(pasted, names);
+    return;
+  }
+  if (pbClip && pbClip.items.length && remoteResults === null) {
+    e.preventDefault();
+    pasteFileClip();
+  }
+});
 
 /* ---------- ссылка с кодом: /#k=XXXX входит автоматически ---------- */
 (function initHashLogin() {

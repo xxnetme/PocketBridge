@@ -29,7 +29,9 @@ import android.os.Looper;
 import android.os.StatFs;
 import android.os.SystemClock;
 import android.provider.Settings;
+import android.text.InputFilter;
 import android.text.InputType;
+import android.text.TextUtils;
 import android.transition.AutoTransition;
 import android.transition.TransitionManager;
 import android.view.Gravity;
@@ -69,8 +71,10 @@ import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Date;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Locale;
@@ -100,7 +104,7 @@ public final class MainActivity extends Activity {
     private static final int RIPPLE_LIGHT = 0x26ffffff;
     private static final int RIPPLE_DARK = 0x29071015;
 
-    private static final String APP_VERSION = "3.7";
+    private static final String APP_VERSION = "3.8";
     private static final String PREF_LANG = "ui_lang";
 
     private static final int PENDING_NONE = 0;
@@ -128,6 +132,9 @@ public final class MainActivity extends Activity {
     private TextView addrCaption, addressText, copyAddress;
     private TextView codeCaption, codeText, copyCode, newKey;
     private TextView davCaption, davText, davHint, copyDav;
+    private LinearLayout clipExtraRow;
+    private View clipOpenSpacer;
+    private TextView clipCaption, clipMetaBadge, clipPreview, clipCopyBtn, clipSendBtn, clipOpenUrlBtn, clipClearBtn;
     private TextView settingsTitle, settingsSub;
     private TextView portName, portHint, settingsPort;
     private TextView autoName, autoHint, settingsAutoStop;
@@ -489,6 +496,60 @@ public final class MainActivity extends Activity {
         davLine.addView(copyDav);
         davTile.addView(davLine);
         connectionCard.addView(davTile);
+        space(connectionCard, 10);
+
+        // 5. Блок общего текстового буфера (ПК ↔ телефон)
+        LinearLayout clipTile = tile();
+        LinearLayout clipHead = row();
+        clipHead.setGravity(Gravity.CENTER_VERTICAL);
+        clipCaption = caption("");
+        clipHead.addView(clipCaption, new LinearLayout.LayoutParams(0, -2, 1));
+        clipMetaBadge = label("", 10, MINT, true);
+        clipMetaBadge.setPadding(dp(8), dp(3), dp(8), dp(3));
+        clipMetaBadge.setBackground(shape(MINT_SOFT, 100, MINT_BORDER));
+        clipMetaBadge.setVisibility(View.GONE);
+        clipHead.addView(clipMetaBadge);
+        clipTile.addView(clipHead);
+        space(clipTile, 7);
+        clipPreview = label("", 13, MUTED, false);
+        clipPreview.setLineSpacing(dp(2), 1.0f);
+        clipPreview.setMaxLines(4);
+        clipPreview.setEllipsize(TextUtils.TruncateAt.END);
+        clipTile.addView(clipPreview);
+        space(clipTile, 10);
+        LinearLayout clipBtns = row();
+        clipCopyBtn = chipButton("");
+        clipCopyBtn.setOnClickListener(v -> {
+            String cur = service != null ? service.clipboardText() : "";
+            copyValue(tr("Буфер", "Clipboard"), cur, clipCopyBtn);
+        });
+        clipBtns.addView(clipCopyBtn, new LinearLayout.LayoutParams(0, dp(38), 1));
+        spaceH(clipBtns, 8);
+        clipSendBtn = chipButton("");
+        clipSendBtn.setOnClickListener(v -> { hapticTick(v); openSharedClipboardDialog(); });
+        clipBtns.addView(clipSendBtn, new LinearLayout.LayoutParams(0, dp(38), 1));
+        clipTile.addView(clipBtns);
+
+        clipExtraRow = row();
+        LinearLayout.LayoutParams clipExtraLp = new LinearLayout.LayoutParams(-1, -2);
+        clipExtraLp.topMargin = dp(8);
+        clipOpenUrlBtn = smallPill("");
+        clipOpenUrlBtn.setOnClickListener(v -> { hapticTick(v); openSharedClipboardUrl(); });
+        clipExtraRow.addView(clipOpenUrlBtn, new LinearLayout.LayoutParams(0, dp(36), 1));
+        clipOpenSpacer = new View(this);
+        clipExtraRow.addView(clipOpenSpacer, new LinearLayout.LayoutParams(dp(8), 1));
+        clipClearBtn = chipButton("");
+        clipClearBtn.setOnClickListener(v -> {
+            hapticTick(v);
+            if (service != null) {
+                service.setPhoneClipboard("");
+                Toast.makeText(this, tr("Общий буфер очищен", "Shared clipboard cleared"), Toast.LENGTH_SHORT).show();
+            }
+        });
+        clipExtraRow.addView(clipClearBtn, new LinearLayout.LayoutParams(0, dp(36), 1));
+        clipExtraRow.setVisibility(View.GONE);
+        clipTile.addView(clipExtraRow, clipExtraLp);
+        connectionCard.addView(clipTile);
 
         connectionCard.setVisibility(View.GONE);
         page.addView(connectionCard);
@@ -1100,6 +1161,9 @@ public final class MainActivity extends Activity {
         davHint.setText(tr("Логин любой · пароль — код доступа", "Any username · password is the access code"));
         applyCopyLabel(copyDav, tr("Копировать", "Copy"), true);
 
+        clipCaption.setText(tr("ОБЩИЙ БУФЕР (ПК ↔ ТЕЛЕФОН)", "SHARED CLIPBOARD (PC ↔ PHONE)"));
+        refreshSharedClipboardTile(running);
+
         settingsTitle.setText(tr("Настройки", "Settings"));
         settingsSub.setText(tr("Применяются сразу; активный сервер перезапустится.",
                 "Applied immediately; a running server restarts automatically."));
@@ -1238,6 +1302,140 @@ public final class MainActivity extends Activity {
     private String davUrl() {
         if (firstAddress == null || firstAddress.isEmpty()) return "";
         return firstAddress + "/dav/";
+    }
+
+    private static String extractSingleHttpUrl(String text) {
+        if (text == null) return "";
+        String s = text.trim();
+        if (s.length() < 10 || s.length() > 4096) return "";
+        for (int i = 0; i < s.length(); i++) {
+            if (Character.isWhitespace(s.charAt(i))) return "";
+        }
+        String low = s.toLowerCase(Locale.US);
+        if (!low.startsWith("https://") && !low.startsWith("http://")) return "";
+        return s;
+    }
+
+    private void refreshSharedClipboardTile(boolean running) {
+        if (clipPreview == null) return;
+        String text = (running && service != null) ? service.clipboardText() : "";
+        long updatedAt = (running && service != null) ? service.clipboardUpdatedAt() : 0L;
+        String src = (running && service != null) ? service.clipboardSource() : "";
+        boolean hasText = text != null && !text.isEmpty();
+
+        if (hasText && updatedAt > 0L) {
+            String hhmm = new SimpleDateFormat("HH:mm", Locale.US).format(new Date(updatedAt));
+            boolean fromWeb = "web".equals(src);
+            clipMetaBadge.setText(fromWeb
+                    ? tr("Из браузера · " + hhmm, "From browser · " + hhmm)
+                    : tr("С телефона · " + hhmm, "From phone · " + hhmm));
+            clipMetaBadge.setTextColor(fromWeb ? MINT : SOFT);
+            clipMetaBadge.setBackground(shape(fromWeb ? MINT_SOFT : PANEL3, 100, fromWeb ? MINT_BORDER : BORDER_STRONG));
+            clipMetaBadge.setVisibility(View.VISIBLE);
+        } else {
+            clipMetaBadge.setVisibility(View.GONE);
+        }
+
+        if (hasText) {
+            clipPreview.setText(text.length() > 600 ? text.substring(0, 600) + "…" : text);
+            clipPreview.setTextColor(WHITE);
+        } else {
+            clipPreview.setText(tr(
+                    "Пересылайте ссылки, коды и заметки между браузером и телефоном — только в памяти сессии.",
+                    "Send links, codes, and notes between browser and phone — kept in memory only."));
+            clipPreview.setTextColor(MUTED);
+        }
+
+        applyCopyLabel(clipCopyBtn, tr("Копировать", "Copy"), false);
+        setControlEnabled(clipCopyBtn, hasText);
+        clipSendBtn.setText(hasText ? tr("Изменить", "Edit") : tr("Отправить", "Send"));
+
+        if (hasText) {
+            String url = extractSingleHttpUrl(text);
+            boolean hasUrl = !url.isEmpty();
+            clipOpenUrlBtn.setText(tr("Открыть ссылку ↗", "Open link ↗"));
+            clipOpenUrlBtn.setVisibility(hasUrl ? View.VISIBLE : View.GONE);
+            clipOpenSpacer.setVisibility(hasUrl ? View.VISIBLE : View.GONE);
+            clipClearBtn.setText(tr("Очистить", "Clear"));
+            clipExtraRow.setVisibility(View.VISIBLE);
+        } else {
+            clipExtraRow.setVisibility(View.GONE);
+        }
+    }
+
+    private void openSharedClipboardUrl() {
+        if (!isRunning() || service == null) return;
+        String url = extractSingleHttpUrl(service.clipboardText());
+        if (url.isEmpty()) return;
+        try {
+            Intent view = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+            startActivity(view);
+        } catch (Exception e) {
+            Toast.makeText(this, tr("Не удалось открыть ссылку", "Could not open link"), Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void openSharedClipboardDialog() {
+        if (isFinishing() || isDestroyed() || !isRunning() || service == null) return;
+        LinearLayout box = column();
+        box.setPadding(dp(22), dp(12), dp(22), dp(4));
+        final EditText input = new EditText(this);
+        input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_MULTI_LINE | InputType.TYPE_TEXT_FLAG_CAP_SENTENCES);
+        input.setMinLines(3);
+        input.setMaxLines(8);
+        input.setGravity(Gravity.TOP | Gravity.START);
+        input.setTextColor(WHITE);
+        input.setHintTextColor(MUTED);
+        input.setHint(tr("Ссылка, код или заметка для браузера…", "Link, code, or note for browser…"));
+        input.setFilters(new InputFilter[]{ new InputFilter.LengthFilter(FileServer.CLIPBOARD_MAX_CHARS) });
+        String cur = service.clipboardText();
+        if (cur != null && !cur.isEmpty()) {
+            input.setText(cur);
+            input.setSelection(input.getText().length());
+        }
+        box.addView(input, new LinearLayout.LayoutParams(-1, -2));
+
+        AlertDialog dialog = new AlertDialog.Builder(this, R.style.AppDialogTheme)
+                .setTitle(tr("Общий буфер обмена", "Shared clipboard"))
+                .setMessage(tr("Текст станет сразу доступен по кнопке «Буфер» в браузере и очистится при остановке доступа.",
+                        "Text appears immediately under “Clipboard” in the browser and clears when access stops."))
+                .setView(box)
+                .setPositiveButton(tr("Отправить", "Send"), (d, which) -> {
+                    if (service == null || !service.isRunning()) return;
+                    String next = input.getText() == null ? "" : input.getText().toString();
+                    service.setPhoneClipboard(next);
+                    Toast.makeText(this, next.isEmpty()
+                            ? tr("Общий буфер очищен", "Shared clipboard cleared")
+                            : tr("Отправлено в общий буфер", "Sent to shared clipboard"), Toast.LENGTH_SHORT).show();
+                })
+                .setNeutralButton(tr("Вставить", "Paste"), null)
+                .setNegativeButton(tr("Отмена", "Cancel"), null)
+                .create();
+        dialog.setOnShowListener(d -> {
+            View pasteBtn = dialog.getButton(AlertDialog.BUTTON_NEUTRAL);
+            if (pasteBtn != null) {
+                pasteBtn.setOnClickListener(v -> {
+                    try {
+                        ClipboardManager cm = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+                        ClipData cd = cm != null ? cm.getPrimaryClip() : null;
+                        if (cd != null && cd.getItemCount() > 0) {
+                            CharSequence cs = cd.getItemAt(0).coerceToText(this);
+                            if (cs != null && cs.length() > 0) {
+                                String pasted = cs.length() > FileServer.CLIPBOARD_MAX_CHARS
+                                        ? cs.subSequence(0, FileServer.CLIPBOARD_MAX_CHARS).toString()
+                                        : cs.toString();
+                                input.setText(pasted);
+                                input.setSelection(input.getText().length());
+                                hapticTick(v);
+                                return;
+                            }
+                        }
+                        Toast.makeText(this, tr("Буфер телефона пуст", "Phone clipboard is empty"), Toast.LENGTH_SHORT).show();
+                    } catch (Exception ignored) {}
+                });
+            }
+        });
+        dialog.show();
     }
 
     private void shareLoginLink() {

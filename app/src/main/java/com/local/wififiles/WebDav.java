@@ -454,7 +454,15 @@ final class WebDav {
         if (raw == null || raw.indexOf('\0') >= 0) throw new FileServer.ApiException(400, "Недопустимый путь");
         String clean = raw;
         while (clean.startsWith("/")) clean = clean.substring(1);
-        File file = new File(root, clean).getCanonicalFile();
+        File rawFile = new File(root, clean);
+        File file;
+        if (rawFile.exists()) {
+            file = rawFile.toPath().toRealPath().toFile();
+        } else if (Files.isSymbolicLink(rawFile.toPath())) {
+            throw new FileServer.ApiException(400, "Недопустимая ссылка");
+        } else {
+            file = rawFile.getCanonicalFile();
+        }
         String base = root.getPath();
         String prefix = base.endsWith(File.separator) ? base : base + File.separator;
         if (!file.getPath().equals(base) && !file.getPath().startsWith(prefix)) {
@@ -481,8 +489,11 @@ final class WebDav {
 
     private File safeChild(File parent, String name) throws IOException {
         if (name.indexOf('\0') >= 0 || name.length() > 200) throw new FileServer.ApiException(400, "Недопустимое имя");
-        File child = new File(parent, name).getCanonicalFile();
-        if (!child.getParentFile().equals(parent.getCanonicalFile())) throw new FileServer.ApiException(400, "Недопустимое имя");
+        File rawChild = new File(parent, name);
+        if (Files.isSymbolicLink(rawChild.toPath())) throw new FileServer.ApiException(400, "Недопустимое имя");
+        File parentReal = parent.toPath().toRealPath().toFile();
+        File child = rawChild.exists() ? rawChild.toPath().toRealPath().toFile() : new File(parentReal, name);
+        if (!parentReal.equals(child.getParentFile())) throw new FileServer.ApiException(400, "Недопустимое имя");
         return child;
     }
 

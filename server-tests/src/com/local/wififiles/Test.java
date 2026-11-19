@@ -197,6 +197,7 @@ public class Test {
         thumbCacheTests();
         regressionTests();
         webDavTests();
+        v38CopyMoveClipboardTests();
         edgeTests();
         dosTest();
     }
@@ -849,6 +850,203 @@ public class Test {
         check("WebDAV DELETE корня -> 403", r.status == 403, "status=" + r.status);
         r = req("DELETE", "/dav/davdir", davAuth(), null);
         check("WebDAV DELETE папки -> 204", r.status == 204 && !new File(ROOT, "davdir").exists(), "status=" + r.status);
+    }
+
+    /* ---------------- v3.8: /api/copy, /api/move, /api/clipboard, quickDirs ---------------- */
+    static void v38CopyMoveClipboardTests() throws Exception {
+        // 1. Авторизация и базовые проверки /api/copy и /api/move
+        Resp r = req("POST", "/api/copy?path=/hello.txt&to=/sub", null, new byte[0]);
+        check("copy без ключа -> 403", r.status == 403, "status=" + r.status);
+        r = req("POST", "/api/move?path=/hello.txt&to=/sub", null, new byte[0]);
+        check("move без ключа -> 403", r.status == 403, "status=" + r.status);
+        r = post("/api/copy?path=/&to=/sub");
+        check("copy корня -> 400", r.status == 400, "status=" + r.status);
+        r = post("/api/move?path=/&to=/sub");
+        check("move корня -> 400", r.status == 400, "status=" + r.status);
+        r = post("/api/copy?path=/hello.txt&to=/../../tmp");
+        check("copy traversal в to -> 400", r.status == 400, "status=" + r.status);
+        r = post("/api/copy?path=/hello.txt&to=/sub&name=a%2Fb.txt");
+        check("copy с '/' в name -> 400", r.status == 400, "status=" + r.status);
+        r = post("/api/copy?path=/link_out.txt&to=/sub");
+        check("copy symlink наружу -> 400", r.status == 400, "status=" + r.status);
+
+        // 2. Копирование файла, конфликт, unique=1, overwrite=1 и дубликат в той же папке
+        File box = new File(ROOT, "cmbox");
+        File srcDir = new File(box, "src");
+        File dstDir = new File(box, "dst");
+        new File(srcDir, "tree/emptySub").mkdirs();
+        dstDir.mkdirs();
+        write("cmbox/src/alpha.txt", "alpha-v1\n");
+        write("cmbox/src/tree/leaf.txt", "leaf-data\n");
+        write("cmbox/src/tree/.wifi-upload-stale.part", "ignore-me");
+        Files.createSymbolicLink(new File(srcDir, "tree/esc_link.txt").toPath(), new File(TMP, "secret.txt").toPath());
+
+        r = post("/api/copy?path=/cmbox/src/alpha.txt&to=/cmbox/dst");
+        check("copy файла -> 200 и исходник сохранён",
+                r.status == 200
+                        && "alpha-v1\n".equals(Files.readString(new File(dstDir, "alpha.txt").toPath()))
+                        && new File(srcDir, "alpha.txt").isFile(),
+                "status=" + r.status + " body=" + r.text());
+
+        r = post("/api/copy?path=/cmbox/src/alpha.txt&to=/cmbox/dst");
+        check("copy при конфликте без overwrite -> 409", r.status == 409, "status=" + r.status);
+
+        r = post("/api/copy?path=/cmbox/src/alpha.txt&to=/cmbox/dst&unique=1");
+        JSONObject cj = r.status == 200 ? new JSONObject(r.text()) : new JSONObject();
+        check("copy с unique=1 -> alpha (1).txt",
+                r.status == 200 && "alpha (1).txt".equals(cj.optString("name")) && new File(dstDir, "alpha (1).txt").isFile(),
+                "status=" + r.status + " body=" + r.text());
+
+        r = post("/api/copy?path=/cmbox/src/alpha.txt&to=/cmbox/src&unique=1");
+        check("copy файла в ту же папку с unique=1 -> дубликат",
+                r.status == 200 && new File(srcDir, "alpha (1).txt").isFile(),
+                "status=" + r.status);
+
+        write("cmbox/src/alpha.txt", "alpha-v2-updated\n");
+        r = post("/api/copy?path=/cmbox/src/alpha.txt&to=/cmbox/dst&overwrite=1");
+        check("copy с overwrite=1 обновляет содержимое",
+                r.status == 200 && "alpha-v2-updated\n".equals(Files.readString(new File(dstDir, "alpha.txt").toPath())),
+                "status=" + r.status);
+
+        // 3. Рекурсивное копирование папки (с пустой подпапкой, пропуском .part и внешнего symlink)
+        r = post("/api/copy?path=/cmbox/src/tree&to=/cmbox/dst");
+        check("copy папки рекурсивно сохраняет файлы и пустые подпапки, скрывая .part и внешний symlink",
+                r.status == 200
+                        && "leaf-data\n".equals(Files.readString(new File(dstDir, "tree/leaf.txt").toPath()))
+                        && new File(dstDir, "tree/emptySub").isDirectory()
+                        && !new File(dstDir, "tree/.wifi-upload-stale.part").exists()
+                        && !new File(dstDir, "tree/esc_link.txt").exists(),
+                "status=" + r.status + " body=" + r.text());
+
+        r = post("/api/copy?path=/cmbox/src/tree&to=/cmbox/src/tree");
+        check("copy папки в саму себя -> 400", r.status == 400, "status=" + r.status);
+        r = post("/api/copy?path=/cmbox/src/tree&to=/cmbox/src/tree/emptySub");
+        check("copy папки во вложенную подпапку -> 400", r.status == 400, "status=" + r.status);
+        r = post("/api/copy?path=/cmbox/src/alpha.txt&to=/cmbox/dst&name=tree&overwrite=1");
+        check("copy файла поверх папки с overwrite=1 -> 409", r.status == 409, "status=" + r.status);
+
+        // 4. Перемещение файлов и папок (/api/move)
+        r = post("/api/move?path=/cmbox/src/alpha.txt&to=/cmbox/src");
+        check("move файла в самого себя -> 400", r.status == 400, "status=" + r.status);
+
+        r = post("/api/move?path=/cmbox/src/alpha%20(1).txt&to=/cmbox/dst&name=" + URLEncoder.encode("перенесён.txt", StandardCharsets.UTF_8));
+        check("move файла с новым кириллическим именем -> 200 и исходник удалён",
+                r.status == 200 && new File(dstDir, "перенесён.txt").isFile() && !new File(srcDir, "alpha (1).txt").exists(),
+                "status=" + r.status + " body=" + r.text());
+
+        r = post("/api/move?path=/cmbox/src/tree&to=/cmbox/src/tree/emptySub");
+        check("move папки во вложенную подпапку -> 400", r.status == 400, "status=" + r.status);
+
+        new File(srcDir, "movable/inner").mkdirs();
+        write("cmbox/src/movable/inner/ok.txt", "moved-ok");
+        r = post("/api/move?path=/cmbox/src/movable&to=/cmbox/dst");
+        check("move папки переносит дерево целиком",
+                r.status == 200
+                        && !new File(srcDir, "movable").exists()
+                        && "moved-ok".equals(Files.readString(new File(dstDir, "movable/inner/ok.txt").toPath())),
+                "status=" + r.status + " body=" + r.text());
+        cleanupDir(box);
+
+        // 5. Общий текстовый буфер обмена (/api/clipboard)
+        r = req("GET", "/api/clipboard", null, null);
+        check("clipboard GET без ключа -> 403", r.status == 403, "status=" + r.status);
+        r = req("POST", "/api/clipboard", null, "hi".getBytes(StandardCharsets.UTF_8));
+        check("clipboard POST без ключа -> 403", r.status == 403, "status=" + r.status);
+
+        r = get("/api/clipboard");
+        JSONObject cb0 = new JSONObject(r.text());
+        check("clipboard изначально пуст",
+                r.status == 200 && "".equals(cb0.getString("text")) && cb0.getLong("updatedAt") == 0L,
+                r.text());
+
+        java.util.concurrent.atomic.AtomicInteger clipEvents = new java.util.concurrent.atomic.AtomicInteger();
+        SERVER.setClipboardListener(clipEvents::incrementAndGet);
+        String sampleClip = "Ссылка: https://example.org/test?q=1\r\nКод: 731-904 🚀";
+        String expectedClip = "Ссылка: https://example.org/test?q=1\nКод: 731-904 🚀";
+        r = req("POST", "/api/clipboard", with(auth(), "Content-Type", "text/plain; charset=utf-8"),
+                sampleClip.getBytes(StandardCharsets.UTF_8));
+        JSONObject cb1 = new JSONObject(r.text());
+        check("clipboard POST сохраняет UTF-8, нормализует CRLF и уведомляет слушателя",
+                r.status == 200
+                        && expectedClip.equals(cb1.getString("text"))
+                        && "web".equals(cb1.getString("source"))
+                        && cb1.getLong("updatedAt") > 0L
+                        && clipEvents.get() == 1,
+                "status=" + r.status + " events=" + clipEvents.get());
+
+        r = get("/api/list?path=/");
+        JSONObject rootList1 = new JSONObject(r.text());
+        check("list отражает clipHasText=true при непустом буфере",
+                rootList1.optBoolean("clipHasText", false) && rootList1.optLong("clipUpdatedAt", 0L) > 0L,
+                r.text());
+
+        SERVER.updateClipboard("Привет с телефона", "phone");
+        r = get("/api/clipboard");
+        JSONObject cbPhone = new JSONObject(r.text());
+        check("clipboard с телефона отдаёт source=phone",
+                "Привет с телефона".equals(cbPhone.getString("text"))
+                        && "phone".equals(cbPhone.getString("source"))
+                        && clipEvents.get() == 2,
+                r.text());
+
+        r = postJson("/api/clipboard", new JSONObject().put("text", "JSON-тест 123").toString());
+        check("clipboard POST JSON сохраняет текст",
+                r.status == 200 && "JSON-тест 123".equals(new JSONObject(r.text()).getString("text")) && clipEvents.get() == 3,
+                r.text());
+
+        byte[] tooLong = "a".repeat(FileServer.CLIPBOARD_MAX_CHARS + 5).getBytes(StandardCharsets.US_ASCII);
+        r = req("POST", "/api/clipboard", auth(), tooLong);
+        check("clipboard > 65536 символов -> 413 и прежний текст не повреждён",
+                r.status == 413 && "JSON-тест 123".equals(SERVER.clipboardText()),
+                "status=" + r.status);
+
+        r = req("POST", "/api/clipboard", auth(), new byte[0]);
+        JSONObject cbClr = new JSONObject(r.text());
+        check("clipboard очистка пустым POST -> clipHasText=false",
+                r.status == 200 && "".equals(cbClr.getString("text")) && cbClr.getLong("updatedAt") == 0L,
+                r.text());
+        SERVER.setClipboardListener(null);
+
+        // Проверяем очистку буфера при stop() на отдельном экземпляре сервера.
+        FileServer ephemeral = new FileServer(new Context(new File(ASSETS)), ROOT, KEY);
+        ephemeral.start();
+        ephemeral.updateClipboard("secret-otp-999", "phone");
+        ephemeral.stop();
+        check("clipboard очищается в памяти при server.stop()",
+                "".equals(ephemeral.clipboardText()) && ephemeral.clipboardUpdatedAt() == 0L,
+                "leftover=" + ephemeral.clipboardText());
+
+        // 6. Быстрые папки Android (quickDirs) в GET /api/list?path=/
+        File dcimCam = new File(ROOT, "DCIM/Camera");
+        File dlDir = new File(ROOT, "Download");
+        File fakeMusicFile = new File(ROOT, "Music");
+        File escMovies = new File(ROOT, "Movies");
+        dcimCam.mkdirs();
+        dlDir.mkdirs();
+        Files.write(fakeMusicFile.toPath(), "not-a-dir".getBytes(StandardCharsets.UTF_8));
+        File outsideDir = new File(TMP, "outside-movies");
+        outsideDir.mkdirs();
+        Files.createSymbolicLink(escMovies.toPath(), outsideDir.toPath());
+        try {
+            r = get("/api/list?path=/");
+            org.json.JSONArray qd = new JSONObject(r.text()).optJSONArray("quickDirs");
+            List<String> qList = new ArrayList<>();
+            if (qd != null) for (int i = 0; i < qd.length(); i++) qList.add(qd.getString(i));
+            check("quickDirs в корне возвращает стандартные папки (DCIM/Camera скрывает дубль DCIM) и исключает файлы/внешние symlink",
+                    qList.equals(Arrays.asList("/DCIM/Camera", "/Download")),
+                    "quickDirs=" + qList);
+
+            r = get("/api/list?path=/sub");
+            check("quickDirs не дублируется во вложенных папках",
+                    !new JSONObject(r.text()).has("quickDirs"),
+                    r.text());
+        } finally {
+            Files.deleteIfExists(escMovies.toPath());
+            cleanupDir(outsideDir);
+            Files.deleteIfExists(fakeMusicFile.toPath());
+            cleanupDir(new File(ROOT, "DCIM"));
+            cleanupDir(dlDir);
+        }
     }
 
     /* ---------------- граничные случаи ---------------- */

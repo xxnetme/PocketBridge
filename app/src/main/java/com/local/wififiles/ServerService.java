@@ -58,6 +58,10 @@ public final class ServerService extends Service {
     int activeUploads() { FileServer s = server; return s == null ? 0 : s.activeUploads(); }
     long uptimeMillis() { FileServer s = server; return s == null ? 0L : s.uptimeMillis(); }
     boolean isClientActive() { FileServer s = server; return s != null && s.isRecentlyActive(12_000L); }
+    String clipboardText() { FileServer s = server; return s == null ? "" : s.clipboardText(); }
+    long clipboardUpdatedAt() { FileServer s = server; return s == null ? 0L : s.clipboardUpdatedAt(); }
+    String clipboardSource() { FileServer s = server; return s == null ? "" : s.clipboardSource(); }
+    void setPhoneClipboard(String text) { FileServer s = server; if (s != null) s.updateClipboard(text, "phone"); }
 
     void addListener(Runnable r) { listeners.add(r); }
     void removeListener(Runnable r) { listeners.remove(r); }
@@ -107,6 +111,7 @@ public final class ServerService extends Service {
             SSLContext ssl = SelfSignedCertificate.createContext(getFilesDir());
             int preferredPort = safePrefInt(PREF_PORT, DEFAULT_PORT);
             server = new FileServer(this, Environment.getExternalStorageDirectory(), key, ssl, getCacheDir(), preferredPort);
+            server.setClipboardListener(this::notifyListeners);
             port = server.start();
             acquireWifiLock();
             startWatchdog();

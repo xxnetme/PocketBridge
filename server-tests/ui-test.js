@@ -573,6 +573,206 @@ function zipEntries(zipPath) {
   await page.waitForTimeout(500);
   await goRoot(page);
 
+  /* ---------- 12d. новинки v3.8: копирование/перемещение, общий буфер, Ctrl+V, папки DnD, закладки, Shift+клик ---------- */
+  // 1) Общий текстовый буфер обмена (ПК ↔ телефон)
+  rec('Индикатор общего буфера скрыт при пустом буфере', await page.locator('#openClipDot').isHidden(), '');
+  await page.click('#openClip');
+  await page.waitForSelector('#clipModal:not(.hidden)');
+  await page.fill('#sharedClipInput', 'https://example.org/pb-v38\nКод: 482-910');
+  await page.locator('#sharedClipInput').press('Control+Enter');
+  await page.waitForFunction(() => {
+    const dot = document.getElementById('openClipDot');
+    return dot && !dot.classList.contains('hidden');
+  }, { timeout: 5000 });
+  const clipMetaTxt = (await page.locator('#sharedClipMeta').textContent()) || '';
+  rec('Общий буфер: отправка по Ctrl+Enter и индикатор в панели',
+      clipMetaTxt.includes('Из браузера') && await page.locator('#openClipDot').isVisible(), clipMetaTxt);
+  await page.screenshot({ path: path.join(shots, '30-shared-clipboard.png') });
+  await page.keyboard.press('Escape');
+  await page.waitForSelector('#clipModal', { state: 'hidden' });
+  // Переоткрытие подтягивает сохранённый текст, «Очистить» сбрасывает буфер и точку
+  await page.click('#openClip');
+  await page.waitForSelector('#clipModal:not(.hidden)');
+  await page.waitForFunction(() => document.getElementById('sharedClipInput').value.includes('482-910'), { timeout: 5000 });
+  const clipRoundtrip = await page.inputValue('#sharedClipInput');
+  rec('Общий буфер: повторное открытие возвращает текст с сервера', clipRoundtrip.includes('https://example.org/pb-v38'), '');
+  await page.click('#sharedClipClear');
+  await page.waitForFunction(() => document.getElementById('openClipDot').classList.contains('hidden'), { timeout: 5000 });
+  rec('Общий буфер: очистка сбрасывает текст и индикатор', (await page.inputValue('#sharedClipInput')) === '' && await page.locator('#openClipDot').isHidden(), '');
+  await page.click('#sharedClipClose');
+  await page.waitForSelector('#clipModal', { state: 'hidden' });
+
+  // 2) Быстрые папки Android (quickDirs) + закрепление своих папок (pb-pins)
+  const v38Sandbox = 'v38-box-' + Date.now();
+  await page.evaluate(async ({ sb, k }) => {
+    const post = p => fetch(p, { method: 'POST', headers: { 'X-Access-Key': k } });
+    await post('/api/mkdirs?path=/DCIM/Camera');
+    await post('/api/mkdirs?path=/Download');
+    await post('/api/mkdirs?path=/' + encodeURIComponent(sb) + '/alpha');
+    await post('/api/mkdirs?path=/' + encodeURIComponent(sb) + '/beta');
+  }, { sb: v38Sandbox, k: ACCESS_KEY });
+  await page.click('#refresh');
+  await page.waitForSelector('#bookmarksBar:not(.hidden)');
+  const bmLabels = await page.locator('#bookmarksBar .bmchip').allTextContents();
+  const bmBox = await page.locator('#bookmarksBar .bmchip').first().boundingBox();
+  rec('Быстрые папки: DCIM/Camera («Камера») и Download («Загрузки») показаны компактными чипами',
+      bmLabels.some(s => s.includes('Камера')) && bmLabels.some(s => s.includes('Загрузки')) && !!bmBox && bmBox.height <= 32,
+      bmLabels.join(', ') + ' h=' + (bmBox ? Math.round(bmBox.height) : 0));
+  await openFolder(page, 'Фото');
+  await openFolder(page, 'Отпуск');
+  await page.click('#pinFolder');
+  await page.waitForTimeout(200);
+  const pinnedActive = await page.locator('#pinFolder').evaluate(b => b.classList.contains('is-pinned'));
+  const hasVacationPin = (await page.locator('#bookmarksBar .bmchip', { hasText: 'Отпуск' }).count()) === 1;
+  rec('Закрепление папки добавляет чип в панель закладок', pinnedActive && hasVacationPin, '');
+  await page.screenshot({ path: path.join(shots, '31-bookmarks-bar.png') });
+  await page.locator('#bookmarksBar .bmchip', { hasText: 'Загрузки' }).click();
+  await page.waitForTimeout(300);
+  const jumpedPath = (await page.locator('#path').textContent()) || '';
+  rec('Клик по быстрой папке мгновенно открывает /Download', jumpedPath.includes('Download'), jumpedPath);
+  await page.locator('#bookmarksBar .bmchip', { hasText: 'Отпуск' }).click();
+  await page.waitForTimeout(300);
+  const jumpedPin = (await page.locator('#path').textContent()) || '';
+  rec('Клик по закреплённой папке открывает /Фото/Отпуск', jumpedPin.includes('Отпуск'), jumpedPin);
+
+  // 3) Shift+Click выделение диапазона и Ctrl+A / Escape
+  const cbs = page.locator('#rows tr input[type=checkbox]');
+  await cbs.nth(1).click();
+  await cbs.nth(4).click({ modifiers: ['Shift'] });
+  const shiftSelTxt = (await page.locator('#selectedCount').textContent()) || '';
+  rec('Shift+клик выделяет непрерывный диапазон файлов (4 шт.)', shiftSelTxt.includes('4'), shiftSelTxt);
+  await page.screenshot({ path: path.join(shots, '32-selection-copy-cut.png') });
+  await page.keyboard.press('Control+KeyA');
+  const allSelTxt = (await page.locator('#selectedCount').textContent()) || '';
+  rec('Ctrl+A выделяет все файлы папки (6 шт.)', allSelTxt.includes('6'), allSelTxt);
+  await page.keyboard.press('Escape');
+  rec('Escape снимает выделение', await page.locator('#selection').isHidden(), '');
+
+  // 4) Вставка скриншота по Ctrl+V, копирование/разрешение конфликта, вырезание и перетаскивание в папку
+  await goRoot(page);
+  await openFolder(page, v38Sandbox);
+  await openFolder(page, 'alpha');
+  await page.locator('#message').evaluate(m => { m.textContent = ''; });
+  await page.evaluate(() => {
+    const png1x1 = Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='), c => c.charCodeAt(0));
+    const dt = new DataTransfer();
+    dt.items.add(new File([png1x1], 'image.png', { type: 'image/png' }));
+    const ev = new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true });
+    window.dispatchEvent(ev);
+  });
+  const pasteUpMsg = await waitMsg(page, 'Файлы загружены', 12000);
+  const pastedRow = page.locator('#rows tr', { hasText: 'clipboard-' });
+  const pastedName = (await pastedRow.count()) === 1 ? ((await pastedRow.locator('button.filename').textContent()) || '') : '';
+  rec('Вставка скриншота из буфера (Ctrl+V) загружает PNG с меткой времени',
+      pasteUpMsg.includes('Файлы загружены') && /^clipboard-\d{8}-\d{6}\.png$/.test(pastedName), pastedName);
+
+  // Копирование файла в beta + повторная вставка с сохранением под новым именем (конфликт 409)
+  await pastedRow.locator('input[type=checkbox]').check();
+  await page.click('#copySelected');
+  rec('Панель буфера файлов появляется после «Копировать»', await page.locator('#clipBar').isVisible(), '');
+  await page.screenshot({ path: path.join(shots, '33-clipbar-paste.png') });
+  await page.click('#up'); await page.waitForTimeout(250);
+  await openFolder(page, 'beta');
+  await page.locator('#message').evaluate(m => { m.textContent = ''; });
+  await page.click('#pasteHere');
+  const copyMsg = await waitMsg(page, 'Скопировано', 10000);
+  rec('Вставка копии переносит файл в целевую папку',
+      copyMsg.includes('Скопировано: 1') && (await page.locator('#rows tr', { hasText: pastedName }).count()) === 1, copyMsg);
+
+  // Повторная вставка в beta -> диалог конфликта -> «Сохранить как» (clipboard-... (1).png)
+  const copyClick = page.click('#pasteHere');
+  await page.waitForSelector('#actionDialog:not(.hidden)');
+  const suggestedDup = await page.inputValue('#dialogInput');
+  await page.click('#dialogAccept');
+  await copyClick;
+  await page.waitForTimeout(300);
+  rec('Конфликт при копировании: сохранение под новым именем «(1)»',
+      suggestedDup.includes('(1)') && (await page.locator('#rows tr', { hasText: suggestedDup }).count()) === 1, suggestedDup);
+
+  // Вырезание (Cut) дубликата обратно в корень песочницы + перетаскивание строки внутрь папки alpha
+  await page.locator('#rows tr', { hasText: suggestedDup }).locator('input[type=checkbox]').check();
+  await page.click('#cutSelected');
+  await page.click('#up'); await page.waitForTimeout(250);
+  await page.locator('#message').evaluate(m => { m.textContent = ''; });
+  await page.click('#pasteHere');
+  const moveMsg = await waitMsg(page, 'Перемещено', 10000);
+  rec('Вырезание и вставка перемещает файл и очищает буфер',
+      moveMsg.includes('Перемещено: 1')
+      && (await page.locator('#rows tr', { hasText: suggestedDup }).count()) === 1
+      && await page.locator('#clipBar').isHidden(), moveMsg);
+
+  // Внутренний Drag & drop строки файла на строку папки alpha (без появления внешнего #dropOverlay)
+  await page.locator('#message').evaluate(m => { m.textContent = ''; });
+  const dragOverlayShown = await page.evaluate(async fileName => {
+    const rows = [...document.querySelectorAll('#rows tr')];
+    const src = rows.find(r => r.textContent && r.textContent.includes(fileName));
+    const dst = rows.find(r => r.textContent && r.textContent.includes('alpha'));
+    if (!src || !dst) return 'missing';
+    const dt = new DataTransfer();
+    src.dispatchEvent(new DragEvent('dragstart', { dataTransfer: dt, bubbles: true, cancelable: true }));
+    window.dispatchEvent(new DragEvent('dragenter', { dataTransfer: dt, bubbles: true, cancelable: true }));
+    const overlayHidden = document.getElementById('dropOverlay').classList.contains('hidden');
+    dst.dispatchEvent(new DragEvent('dragover', { dataTransfer: dt, bubbles: true, cancelable: true }));
+    const highlighted = dst.classList.contains('drop-target');
+    dst.dispatchEvent(new DragEvent('drop', { dataTransfer: dt, bubbles: true, cancelable: true }));
+    src.dispatchEvent(new DragEvent('dragend', { dataTransfer: dt, bubbles: true, cancelable: true }));
+    return overlayHidden && highlighted ? 'ok' : ('overlay=' + overlayHidden + ' hl=' + highlighted);
+  }, suggestedDup);
+  const dndMoveMsg = await waitMsg(page, 'Перемещено', 10000);
+  await openFolder(page, 'alpha');
+  const inAlphaAfterDrag = (await page.locator('#rows tr', { hasText: suggestedDup }).count()) === 1;
+  rec('Перетаскивание строки файла в папку перемещает его без внешнего оверлея',
+      dragOverlayShown === 'ok' && dndMoveMsg.includes('Перемещено: 1') && inAlphaAfterDrag, dragOverlayShown + ' ' + dndMoveMsg);
+
+  // 5) Drag & drop вложенной папки через webkitGetAsEntry (включая пустую подпапку)
+  await page.locator('#message').evaluate(m => { m.textContent = ''; });
+  await page.evaluate(() => {
+    const mkFileEntry = (name, content) => ({
+      isFile: true, isDirectory: false, name,
+      file: cb => cb(new File([content], name, { type: 'text/plain' }))
+    });
+    const mkDirEntry = (name, children) => ({
+      isFile: false, isDirectory: true, name,
+      createReader: () => {
+        let read = false;
+        return { readEntries: cb => { if (read) cb([]); else { read = true; cb(children); } } };
+      }
+    });
+    const tree = mkDirEntry('dropped-pkg', [
+      mkFileEntry('readme.txt', 'hello drop folder\n'),
+      mkDirEntry('nested', [mkFileEntry('deep.txt', 'deep content\n')]),
+      mkDirEntry('empty-sub', [])
+    ]);
+    const fakeEvent = new Event('drop', { bubbles: true, cancelable: true });
+    Object.defineProperty(fakeEvent, 'dataTransfer', {
+      value: {
+        types: ['Files'],
+        files: [],
+        items: [{ kind: 'file', webkitGetAsEntry: () => tree }]
+      }
+    });
+    window.dispatchEvent(fakeEvent);
+  });
+  const dndDirMsg = await waitMsg(page, 'Папка загружена', 15000);
+  await openFolder(page, 'dropped-pkg');
+  const hasReadme = (await page.locator('#rows tr', { hasText: 'readme.txt' }).count()) === 1;
+  const hasEmptySub = (await page.locator('#rows tr', { hasText: 'empty-sub' }).count()) === 1;
+  await openFolder(page, 'nested');
+  const hasDeepTxt = (await page.locator('#rows tr', { hasText: 'deep.txt' }).count()) === 1;
+  rec('Drag & drop папки сохраняет вложенные файлы и пустые подпапки',
+      dndDirMsg.includes('Папка загружена: 2') && hasReadme && hasEmptySub && hasDeepTxt, dndDirMsg);
+
+  // Уборка временных папок v3.8 (оставляем DCIM/Camera и Download для проверки мобильной вёрстки закладок)
+  await goRoot(page);
+  await page.locator('#bookmarksBar .bmchip', { hasText: 'Отпуск' }).locator('.bmx').click();
+  await page.waitForTimeout(150);
+  rec('Открепление папки по «×» убирает её из закладок',
+      (await page.locator('#bookmarksBar .bmchip', { hasText: 'Отпуск' }).count()) === 0, '');
+  await page.locator('#rows tr', { hasText: v38Sandbox }).getByText('Удалить').click();
+  await page.waitForTimeout(200);
+  await page.click('#dialogAccept');
+  await page.waitForTimeout(400);
+
   /* ---------- 13. мобильная вёрстка ---------- */
   const mctx = await browser.newContext({ ...devices['iPhone 13'], ignoreHTTPSErrors: true });
   const mp = await mctx.newPage();

@@ -86,8 +86,8 @@ public class MainActivityLaunchTest {
         List<String> texts = collectTexts(decor);
         assertTrue("Brand title must be present", texts.contains("PocketBridge"));
         assertTrue("Default port 8765 must be shown", texts.contains("8765"));
-        assertTrue("Version 3.7 must be shown in subtitle",
-                texts.stream().anyMatch(s -> s.contains("v3.7")));
+        assertTrue("Version 3.8 must be shown in subtitle",
+                texts.stream().anyMatch(s -> s.contains("v3.8")));
         assertTrue("Default port hint must mention 8765",
                 texts.stream().anyMatch(s -> s.contains("8765") && (s.contains("Default") || s.contains("По умолчанию"))));
 
@@ -198,15 +198,15 @@ public class MainActivityLaunchTest {
         Context app = RuntimeEnvironment.getApplication();
         File crashFile = new File(app.getFilesDir(), "last-crash.txt");
 
-        // 1. Устаревший отчёт от v3.6.1 должен тихо очищаться при первом входе в v3.7.
-        writeUtf8(crashFile, "PocketBridge 3.6.1 / Android 15 (API 35) / Pixel\nThread: main\njava.lang.NullPointerException\n");
+        // 1. Устаревший отчёт от v3.7 должен тихо очищаться при первом входе в v3.8.
+        writeUtf8(crashFile, "PocketBridge 3.7 / Android 15 (API 35) / Pixel\nThread: main\njava.lang.NullPointerException\n");
         ActivityController<MainActivity> c1 = Robolectric.buildActivity(MainActivity.class).setup();
-        assertFalse("Stale v3.6.1 crash report must be deleted", crashFile.exists());
+        assertFalse("Stale v3.7 crash report must be deleted", crashFile.exists());
         assertEquals(null, getField(c1.get(), "errorCard", View.class));
         c1.pause().stop().destroy();
 
         // 2. Актуальный отчёт текущей версии отображается, копируется и скрывается без сбоев.
-        writeUtf8(crashFile, "PocketBridge 3.7 / Android 15 (API 35) / Pixel\nThread: main\nTestTrace\n");
+        writeUtf8(crashFile, "PocketBridge 3.8 / Android 15 (API 35) / Pixel\nThread: main\nTestTrace\n");
         ActivityController<MainActivity> c2 = Robolectric.buildActivity(MainActivity.class).setup();
         View errorCard = getField(c2.get(), "errorCard", View.class);
         assertNotNull("Current-version crash card must render", errorCard);
@@ -299,6 +299,62 @@ public class MainActivityLaunchTest {
             assertNotNull(qr);
             assertEquals(512, qr.getWidth());
             assertFalse(qr.isRecycled());
+
+            // Общий буфер обмена (ПК ↔ телефон): диалог, вставка, URL-кнопка, копирование, очистка.
+            TextView clipPreview = getField(activity, "clipPreview", TextView.class);
+            TextView clipCopyBtn = getField(activity, "clipCopyBtn", TextView.class);
+            TextView clipSendBtn = getField(activity, "clipSendBtn", TextView.class);
+            TextView clipOpenUrlBtn = getField(activity, "clipOpenUrlBtn", TextView.class);
+            TextView clipClearBtn = getField(activity, "clipClearBtn", TextView.class);
+            View clipExtraRow = getField(activity, "clipExtraRow", View.class);
+            View clipMetaBadge = getField(activity, "clipMetaBadge", View.class);
+
+            assertFalse("Copy disabled when shared clipboard is empty", clipCopyBtn.isEnabled());
+            assertEquals(View.GONE, clipExtraRow.getVisibility());
+            assertEquals(View.GONE, clipMetaBadge.getVisibility());
+
+            android.content.ClipboardManager cm = (android.content.ClipboardManager)
+                    activity.getSystemService(Context.CLIPBOARD_SERVICE);
+            cm.setPrimaryClip(android.content.ClipData.newPlainText("url", "https://example.com/note?x=1"));
+            clipSendBtn.performClick();
+            AlertDialog clipDlg = ShadowAlertDialog.getLatestAlertDialog();
+            assertNotNull("Shared clipboard dialog must open", clipDlg);
+            assertTrue(clipDlg.isShowing());
+            clipDlg.getButton(DialogInterface.BUTTON_NEUTRAL).performClick(); // Вставить из буфера
+            EditText clipEdit = findFirst(clipDlg.getWindow().getDecorView(), EditText.class);
+            assertNotNull(clipEdit);
+            assertEquals("https://example.com/note?x=1", clipEdit.getText().toString());
+            clipDlg.getButton(DialogInterface.BUTTON_POSITIVE).performClick();
+            ShadowLooper.idleMainLooper();
+
+            assertEquals("https://example.com/note?x=1", svc.clipboardText());
+            assertEquals("phone", svc.clipboardSource());
+            assertEquals("https://example.com/note?x=1", clipPreview.getText().toString());
+            assertTrue(clipCopyBtn.isEnabled());
+            assertEquals(View.VISIBLE, clipMetaBadge.getVisibility());
+            assertEquals(View.VISIBLE, clipExtraRow.getVisibility());
+            assertEquals(View.VISIBLE, clipOpenUrlBtn.getVisibility());
+
+            clipOpenUrlBtn.performClick();
+            Intent startedView = Shadows.shadowOf(activity).getNextStartedActivity();
+            assertNotNull("Open link button must fire ACTION_VIEW", startedView);
+            assertEquals(Intent.ACTION_VIEW, startedView.getAction());
+            assertEquals("https://example.com/note?x=1", String.valueOf(startedView.getData()));
+
+            clipCopyBtn.performClick();
+            assertTrue("Clip copy button must flash checkmark", clipCopyBtn.getText().toString().startsWith("✓"));
+
+            // Обычный текст скрывает кнопку «Открыть ссылку», но оставляет «Очистить».
+            svc.setPhoneClipboard("Код 482-910");
+            ShadowLooper.idleMainLooper();
+            assertEquals(View.VISIBLE, clipExtraRow.getVisibility());
+            assertEquals(View.GONE, clipOpenUrlBtn.getVisibility());
+
+            clipClearBtn.performClick();
+            ShadowLooper.idleMainLooper();
+            assertEquals("", svc.clipboardText());
+            assertEquals(View.GONE, clipExtraRow.getVisibility());
+            assertFalse(clipCopyBtn.isEnabled());
 
             // Остановка сервиса скрывает карточку подключения, destroy освобождает QR Bitmap.
             svc.onStartCommand(new Intent(app, ServerService.class).setAction(ServerService.ACTION_STOP), 0, 4);

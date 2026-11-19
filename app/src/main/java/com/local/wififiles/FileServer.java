@@ -43,6 +43,12 @@ final class FileServer {
     private static final long UPLOAD_TTL = 6L * 60 * 60 * 1000;
     private static final long THUMB_CACHE_LIMIT = 200L * 1024 * 1024;
     private static final long THUMB_CLEANUP_INTERVAL_MS = 60_000L;
+    static final int CLIPBOARD_MAX_CHARS = 65_536;
+    private static final int CLIPBOARD_MAX_BODY = 256 * 1024;
+    private static final int COPY_MAX_NODES = 50_000;
+    private static final String[] QUICK_DIRS = {
+            "DCIM/Camera", "DCIM", "Pictures", "Download", "Documents", "Music", "Movies"
+    };
 
     /** Строгая изоляция SVG, чтобы встроенные скрипты никогда не выполнялись на origin сервера. */
     private static final String SANDBOX_CSP =
@@ -85,6 +91,11 @@ final class FileServer {
     private volatile long lastActivity = System.currentTimeMillis();
     private volatile long startedAt;
     private volatile long lastClientTouch;
+    private final Object clipLock = new Object();
+    private String clipText = "";
+    private long clipUpdatedAt;
+    private String clipSource = "";
+    private volatile Runnable clipboardListener;
 
     private static final class ZipItem {
         final File file; final String name;
@@ -135,6 +146,31 @@ final class FileServer {
         if (!connections.isEmpty() || !uploads.isEmpty()) return true;
         long t = lastClientTouch;
         return t > 0L && (System.currentTimeMillis() - t) <= windowMs;
+    }
+
+    void setClipboardListener(Runnable r) { this.clipboardListener = r; }
+    String clipboardText() { synchronized (clipLock) { return clipText; } }
+    long clipboardUpdatedAt() { synchronized (clipLock) { return clipUpdatedAt; } }
+    String clipboardSource() { synchronized (clipLock) { return clipSource; } }
+
+    void updateClipboard(String raw, String source) {
+        String clean = raw == null ? "" : raw.replace("\0", "").replace("\r\n", "\n").replace('\r', '\n');
+        if (clean.length() > CLIPBOARD_MAX_CHARS) clean = clean.substring(0, CLIPBOARD_MAX_CHARS);
+        synchronized (clipLock) {
+            clipText = clean;
+            if (clean.isEmpty()) {
+                clipUpdatedAt = 0L;
+                clipSource = "";
+            } else {
+                clipUpdatedAt = System.currentTimeMillis();
+                clipSource = source == null ? "" : source;
+            }
+        }
+        lastActivity = System.currentTimeMillis();
+        Runnable cb = clipboardListener;
+        if (cb != null) {
+            try { cb.run(); } catch (Throwable ignored) {}
+        }
     }
 
     int start() throws IOException {
@@ -199,6 +235,8 @@ final class FileServer {
         sessions.clear();
         for (Upload upload : uploads.values()) try { upload.tmp.delete(); } catch (Exception ignored) {}
         uploads.clear();
+        synchronized (clipLock) { clipText = ""; clipUpdatedAt = 0L; clipSource = ""; }
+        clipboardListener = null;
         cleanupThumbsCache(true);
     }
 
@@ -308,6 +346,10 @@ final class FileServer {
                     deleteTree(target);
                     ok(out);
                 }
+                else if ("POST".equals(parts[0]) && "/api/copy".equals(endpoint)) { copyOrMove(out, q, false); }
+                else if ("POST".equals(parts[0]) && "/api/move".equals(endpoint)) { copyOrMove(out, q, true); }
+                else if ("GET".equals(parts[0]) && "/api/clipboard".equals(endpoint)) { getClipboard(out); }
+                else if ("POST".equals(parts[0]) && "/api/clipboard".equals(endpoint)) { postClipboard(out, in, headers); }
                 else if ("POST".equals(parts[0]) && "/api/upload".equals(endpoint)) { upload(out, in, headers, q); }
                 else if ("POST".equals(parts[0]) && "/api/upload-init".equals(endpoint)) { uploadInit(out, q); }
                 else if ("GET".equals(parts[0]) && "/api/upload-status".equals(endpoint)) { uploadStatus(out, q); }
@@ -348,7 +390,15 @@ final class FileServer {
     private File resolve(String path) throws IOException {
         if (path == null || path.indexOf('\0') >= 0) throw new ApiException(400, "Недопустимый путь");
         while (path.startsWith("/")) path = path.substring(1);
-        File f = new File(root, path).getCanonicalFile();
+        File raw = new File(root, path);
+        File f;
+        if (raw.exists()) {
+            f = raw.toPath().toRealPath().toFile();
+        } else if (Files.isSymbolicLink(raw.toPath())) {
+            throw new ApiException(400, "Недопустимая ссылка");
+        } else {
+            f = raw.getCanonicalFile();
+        }
         String base = root.getPath();
         String prefix = base.endsWith(File.separator) ? base : base + File.separator;
         if (!f.getPath().equals(base) && !f.getPath().startsWith(prefix)) {
@@ -364,8 +414,10 @@ final class FileServer {
             throw new ApiException(400, "Недопустимое имя");
         }
         File child = new File(parent, name);
-        File canonical = child.getCanonicalFile();
-        if (!canonical.getParentFile().equals(parent.getCanonicalFile())) throw new ApiException(400, "Недопустимый путь");
+        if (Files.isSymbolicLink(child.toPath())) throw new ApiException(400, "Недопустимый путь");
+        File parentReal = parent.toPath().toRealPath().toFile();
+        File canonical = child.exists() ? child.toPath().toRealPath().toFile() : new File(parentReal, name);
+        if (!parentReal.equals(canonical.getParentFile())) throw new ApiException(400, "Недопустимый путь");
         return child;
     }
 
@@ -410,6 +462,27 @@ final class FileServer {
             long free = Math.max(0L, Math.min(total, root.getUsableSpace()));
             data.put("totalBytes", total);
             data.put("freeBytes", free);
+        }
+        synchronized (clipLock) {
+            data.put("clipHasText", !clipText.isEmpty());
+            data.put("clipUpdatedAt", clipUpdatedAt);
+        }
+        if (d.equals(root)) {
+            JSONArray quick = new JSONArray();
+            boolean hasCamera = false;
+            for (String rel : QUICK_DIRS) {
+                if ("DCIM".equals(rel) && hasCamera) continue;
+                try {
+                    File rawQd = new File(root, rel);
+                    if (!rawQd.isDirectory()) continue;
+                    File qd = resolve("/" + rel);
+                    if (qd.isDirectory() && qd.canRead()) {
+                        quick.put("/" + rel);
+                        if ("DCIM/Camera".equals(rel)) hasCamera = true;
+                    }
+                } catch (Exception ignored) {}
+            }
+            data.put("quickDirs", quick);
         }
         send(out, 200, "application/json; charset=utf-8", data.toString().getBytes(StandardCharsets.UTF_8), null);
     }
@@ -928,6 +1001,220 @@ final class FileServer {
         if (!f.delete()) throw new ApiException(400, "Не удалось удалить: " + f.getName());
     }
 
+    private static File uniqueEntryTarget(File parent, String name, boolean dir) throws IOException {
+        File candidate = new File(parent, name);
+        if (!candidate.exists()) return candidate;
+        int dot = dir ? -1 : name.lastIndexOf('.');
+        String base = dot > 0 ? name.substring(0, dot) : name;
+        String ext = dot > 0 ? name.substring(dot) : "";
+        for (int i = 1; i <= 9999; i++) {
+            String nextName = base + " (" + i + ")" + ext;
+            if (nextName.length() > 200) break;
+            File next = new File(parent, nextName);
+            if (!next.exists()) return next;
+        }
+        throw new ApiException(409, "Не удалось подобрать свободное имя");
+    }
+
+    private boolean isRawSymlink(String path) {
+        if (path == null) return false;
+        while (path.startsWith("/")) path = path.substring(1);
+        if (path.isEmpty()) return false;
+        try { return Files.isSymbolicLink(new File(root, path).toPath()); }
+        catch (Exception e) { return false; }
+    }
+
+    private void copyOrMove(OutputStream out, Map<String, String> q, boolean move) throws Exception {
+        String rawSrc = q.get("path");
+        String rawDest = q.get("dest");
+        if (rawDest == null || rawDest.isEmpty()) rawDest = q.get("to");
+        if (rawSrc == null || rawSrc.isEmpty() || rawDest == null || rawDest.isEmpty()) {
+            throw new ApiException(400, "Укажите исходный путь и папку назначения");
+        }
+        File src = resolve(rawSrc);
+        if (src.equals(root)) throw new ApiException(400, "Нельзя " + (move ? "переместить" : "скопировать") + " корень хранилища");
+        if (isRawSymlink(rawSrc)) throw new ApiException(400, "Операция с символической ссылкой запрещена");
+        if (!src.exists()) throw new ApiException(404, "Исходный объект не найден");
+        if (isTempName(src.getName())) throw new ApiException(400, "Недопустимый файл");
+
+        File destDir = resolve(rawDest);
+        if (!destDir.exists()) throw new ApiException(404, "Папка назначения не найдена");
+        if (!destDir.isDirectory()) throw new ApiException(400, "Назначение не является папкой");
+
+        String rawName = q.get("name");
+        String desiredName = (rawName == null || rawName.isEmpty()) ? src.getName() : rawName;
+        if (isTempName(desiredName)) throw new ApiException(400, "Недопустимое имя");
+
+        boolean isDir = src.isDirectory();
+        boolean overwrite = "1".equals(q.get("overwrite"));
+        boolean unique = "1".equals(q.get("unique"));
+
+        File target = safeChild(destDir, desiredName);
+        if (unique) {
+            target = uniqueEntryTarget(destDir, desiredName, isDir);
+        }
+
+        String srcCanon = src.getCanonicalPath();
+        String dstCanon = target.getCanonicalPath();
+        if (srcCanon.equals(dstCanon)) {
+            if (move) throw new ApiException(400, "Объект уже находится в этой папке");
+            if (overwrite) throw new ApiException(400, "Нельзя перезаписать объект самим собой");
+            throw new ApiException(409, "Объект с таким именем уже существует");
+        }
+        if (isDir) {
+            String srcPrefix = srcCanon.endsWith(File.separator) ? srcCanon : srcCanon + File.separator;
+            if (dstCanon.startsWith(srcPrefix)) {
+                throw new ApiException(400, "Нельзя поместить папку внутрь самой себя");
+            }
+        }
+
+        if (target.exists()) {
+            if (!overwrite) throw new ApiException(409, "Объект с таким именем уже существует");
+            String dstPrefix = dstCanon.endsWith(File.separator) ? dstCanon : dstCanon + File.separator;
+            if (srcCanon.startsWith(dstPrefix)) {
+                throw new ApiException(400, "Нельзя заменить родительскую папку");
+            }
+            if (target.isDirectory() != isDir) {
+                throw new ApiException(409, "Нельзя заменить папку файлом или файл папкой");
+            }
+            deleteTree(target);
+        }
+
+        if (move) {
+            boolean moved = false;
+            try {
+                Files.move(src.toPath(), target.toPath());
+                moved = true;
+            } catch (Exception e) {
+                if (src.renameTo(target)) moved = true;
+            }
+            if (!moved) {
+                copyTree(src, target, 0, new int[]{ COPY_MAX_NODES });
+                deleteTree(src);
+            }
+        } else {
+            copyTree(src, target, 0, new int[]{ COPY_MAX_NODES });
+        }
+
+        JSONObject json = new JSONObject();
+        json.put("ok", true);
+        json.put("name", target.getName());
+        json.put("path", relative(target));
+        json.put("dir", target.isDirectory());
+        send(out, 200, "application/json; charset=utf-8", json.toString().getBytes(StandardCharsets.UTF_8), null);
+    }
+
+    private void copyTree(File src, File dst, int depth, int[] budget) throws IOException {
+        if (depth > 40) throw new ApiException(400, "Слишком глубокая вложенность папок");
+        if (--budget[0] < 0) throw new ApiException(400, "Слишком много объектов для копирования (лимит " + COPY_MAX_NODES + ")");
+        if (isTempName(src.getName())) return;
+        if (Files.isSymbolicLink(src.toPath())) return;
+        // Дополнительная проверка, что канонический путь источника внутри root.
+        String p = src.getCanonicalPath();
+        String base = root.getPath();
+        String prefix = base.endsWith(File.separator) ? base : base + File.separator;
+        if (!p.equals(base) && !p.startsWith(prefix)) {
+            throw new ApiException(400, "Путь вне доступного хранилища");
+        }
+
+        if (src.isDirectory()) {
+            if (!dst.mkdir()) throw new ApiException(400, "Не удалось создать папку: " + dst.getName());
+            File[] children = src.listFiles();
+            if (children == null) throw new ApiException(400, "Нет доступа к папке: " + src.getName());
+            boolean ok = false;
+            try {
+                for (File child : children) {
+                    if (isTempName(child.getName()) || Files.isSymbolicLink(child.toPath())) continue;
+                    copyTree(child, new File(dst, child.getName()), depth + 1, budget);
+                }
+                //noinspection ResultOfMethodCallIgnored
+                dst.setLastModified(src.lastModified());
+                ok = true;
+            } finally {
+                if (!ok && dst.exists()) {
+                    try { deleteTree(dst); } catch (Exception ignored) {}
+                }
+            }
+            return;
+        }
+
+        if (!src.isFile() || !src.canRead()) throw new ApiException(400, "Нет доступа к файлу: " + src.getName());
+        long len = src.length();
+        File parent = dst.getParentFile();
+        if (parent != null) {
+            long usable = parent.getUsableSpace();
+            if (usable > 0L && len > usable) throw new ApiException(400, "Недостаточно свободного места на телефоне");
+        }
+        File tmp = File.createTempFile(".wifi-upload-", ".part", parent);
+        boolean ok = false;
+        try {
+            try (InputStream in = new BufferedInputStream(new FileInputStream(src));
+                 OutputStream out = new BufferedOutputStream(new FileOutputStream(tmp))) {
+                byte[] buf = new byte[65536];
+                int n;
+                while ((n = in.read(buf)) != -1) out.write(buf, 0, n);
+                out.flush();
+            }
+            //noinspection ResultOfMethodCallIgnored
+            tmp.setLastModified(src.lastModified());
+            try { Files.move(tmp.toPath(), dst.toPath(), StandardCopyOption.REPLACE_EXISTING); }
+            catch (Exception e) {
+                if (!tmp.renameTo(dst)) throw new ApiException(400, "Не удалось сохранить копию: " + dst.getName());
+            }
+            ok = true;
+        } finally {
+            if (!ok && tmp.exists()) {
+                //noinspection ResultOfMethodCallIgnored
+                tmp.delete();
+            }
+        }
+    }
+
+    private JSONObject clipboardJson() throws Exception {
+        JSONObject j = new JSONObject();
+        synchronized (clipLock) {
+            j.put("text", clipText);
+            j.put("updatedAt", clipUpdatedAt);
+            j.put("source", clipSource);
+        }
+        return j;
+    }
+
+    private void getClipboard(OutputStream out) throws Exception {
+        send(out, 200, "application/json; charset=utf-8", clipboardJson().toString().getBytes(StandardCharsets.UTF_8), null);
+    }
+
+    private void postClipboard(OutputStream out, InputStream in, Map<String, String> headers) throws Exception {
+        int length;
+        try { length = Integer.parseInt(headers.getOrDefault("content-length", "-1")); } catch (Exception e) { length = -1; }
+        if (length < 0) throw new ApiException(400, "Некорректный размер текста");
+        if (length > CLIPBOARD_MAX_BODY) throw new ApiException(413, "Текст слишком длинный (максимум 64 КБ)");
+        byte[] body = new byte[length];
+        int read = 0;
+        while (read < length) {
+            int r = in.read(body, read, length - read);
+            if (r < 0) throw new IOException("Передача прервана");
+            read += r;
+        }
+        String ct = headers.getOrDefault("content-type", "").toLowerCase(Locale.US);
+        String rawBody = new String(body, StandardCharsets.UTF_8);
+        String text;
+        if (ct.startsWith("application/json")) {
+            JSONObject req = new JSONObject(rawBody);
+            text = req.has("text") && !req.isNull("text") ? req.getString("text") : "";
+        } else {
+            text = rawBody;
+        }
+        String normalized = text.replace("\0", "").replace("\r\n", "\n").replace('\r', '\n');
+        if (normalized.length() > CLIPBOARD_MAX_CHARS) {
+            throw new ApiException(413, "Текст слишком длинный (максимум 64 КБ)");
+        }
+        updateClipboard(normalized, "web");
+        JSONObject resp = clipboardJson();
+        resp.put("ok", true);
+        send(out, 200, "application/json; charset=utf-8", resp.toString().getBytes(StandardCharsets.UTF_8), null);
+    }
+
     private void upload(OutputStream out, InputStream in, Map<String, String> headers, Map<String, String> q) throws Exception {
         File parent = resolve(q.getOrDefault("path", "/"));
         if (!parent.isDirectory()) throw new ApiException(400, "Папка недоступна");
@@ -1159,6 +1446,7 @@ final class FileServer {
             case 403: return "Forbidden";
             case 404: return "Not Found";
             case 409: return "Conflict";
+            case 413: return "Payload Too Large";
             case 415: return "Unsupported Media Type";
             case 416: return "Range Not Satisfiable";
             case 429: return "Too Many Requests";
