@@ -145,8 +145,13 @@ function zipEntries(zipPath) {
   const tPrev = Date.now();
   await page.locator('#rows tr', { hasText: 'IMG_2000' }).locator('button.filename').click();
   await page.waitForTimeout(900);
-  const imgLoaded = await page.locator('#previewBody img').evaluate(i => i.naturalWidth > 0).catch(() => false);
-  rec('Превью фото в браузере', imgLoaded, (Date.now() - tPrev) + ' мс');
+  const imgLoaded = await page.locator('#previewBody img').evaluate(i => i.naturalWidth > 0 && i.classList.contains('is-ready')).catch(() => false);
+  const zoomPillVisible = await page.locator('#previewBody .zoompill').isVisible().catch(() => false);
+  rec('Превью фото в браузере (плавное появление + кнопка зума)', imgLoaded && zoomPillVisible, (Date.now() - tPrev) + ' мс');
+  await page.locator('#previewBody .zoompill').click();
+  const isZoomed = await page.locator('#previewBody img').evaluate(i => i.classList.contains('zoomed')).catch(() => false);
+  await page.locator('#previewBody .zoompill').click();
+  rec('Превью фото: переключение масштаба 1:1', isZoomed, '');
   await page.screenshot({ path: path.join(shots, '06-preview-photo.png') });
   const canStepPhoto = await page.locator('#previewNext').isVisible();
   if (canStepPhoto) { await page.click('#previewNext'); await page.waitForTimeout(500); }
@@ -373,6 +378,49 @@ function zipEntries(zipPath) {
   rec('Клик по заголовку колонки меняет порядок сортировки', flippedNames[flippedNames.length - 1] === 'большой.bin', flippedNames.slice(0, 3).join(' | '));
   await page.selectOption('#sort', 'name');
   await goRoot(page);
+
+  /* ---------- 10c. v3.7: память, фильтры, горячие клавиши, тосты ---------- */
+  const stVisible = await page.locator('#storagePill').isVisible();
+  const stText = ((await page.locator('#storageText').textContent()) || '').trim();
+  rec('Индикатор памяти телефона отображается', stVisible && stText.includes('Свободно') && stText.includes('из'), stText);
+
+  await page.click('#copyDav');
+  await page.waitForTimeout(150);
+  const toastShown = (await page.locator('#toastHost .toast').count()) > 0;
+  const davCopiedCls = await page.locator('#copyDav').evaluate(b => b.classList.contains('copied'));
+  rec('Копирование WebDAV показывает тост и подтверждение', toastShown && davCopiedCls, '');
+
+  await openFolder(page, 'Фото');
+  const filterVisible = await page.locator('#filterBar').isVisible();
+  const totalInPhotos = await rowsCount(page);
+  await page.locator('#filterBar .fchip[data-filter="folder"]').click();
+  await page.waitForTimeout(150);
+  const onlyFolders = await rowsCount(page);
+  await page.locator('#filterBar .fchip[data-filter="image"]').click();
+  await page.waitForTimeout(150);
+  const onlyImages = await rowsCount(page);
+  await page.locator('#filterBar .fchip[data-filter="all"]').click();
+  await page.waitForTimeout(150);
+  const restoredCount = await rowsCount(page);
+  rec('Быстрые фильтры по типу работают корректно',
+      filterVisible && onlyFolders >= 1 && onlyImages >= 1 && onlyFolders + onlyImages === totalInPhotos && restoredCount === totalInPhotos,
+      'всего=' + totalInPhotos + ' папки=' + onlyFolders + ' фото=' + onlyImages);
+
+  await page.keyboard.press('/');
+  const searchFocused = await page.evaluate(() => document.activeElement && document.activeElement.id === 'search');
+  await page.keyboard.type('иконка');
+  await page.waitForTimeout(120);
+  const slashFiltered = await rowsCount(page);
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(120);
+  const escCleared = (await page.locator('#search').inputValue()) === '' && (await rowsCount(page)) === totalInPhotos;
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Alt+ArrowUp');
+  await page.waitForTimeout(300);
+  const backAtRoot = (await page.locator('#rows tr', { hasText: 'Фото' }).count()) === 1;
+  rec('Горячие клавиши (/ поиск, Esc очистка, Alt+↑ наверх)',
+      searchFocused && slashFiltered === 1 && escCleared && backAtRoot,
+      'focus=' + searchFocused + ' slash=' + slashFiltered + ' esc=' + escCleared + ' up=' + backAtRoot);
 
   /* ---------- 11. длинные имена и юникод ---------- */
   await openFolder(page, 'Длинные имена');

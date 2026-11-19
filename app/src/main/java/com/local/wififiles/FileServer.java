@@ -83,6 +83,8 @@ final class FileServer {
     }
 
     private volatile long lastActivity = System.currentTimeMillis();
+    private volatile long startedAt;
+    private volatile long lastClientTouch;
 
     private static final class ZipItem {
         final File file; final String name;
@@ -124,6 +126,16 @@ final class FileServer {
     String key() { return key; }
     long idleMillis() { return System.currentTimeMillis() - lastActivity; }
     int activeConnections() { return connections.size(); }
+    int activeUploads() { return uploads.size(); }
+    long uptimeMillis() {
+        long s = startedAt;
+        return s <= 0L ? 0L : Math.max(0L, System.currentTimeMillis() - s);
+    }
+    boolean isRecentlyActive(long windowMs) {
+        if (!connections.isEmpty() || !uploads.isEmpty()) return true;
+        long t = lastClientTouch;
+        return t > 0L && (System.currentTimeMillis() - t) <= windowMs;
+    }
 
     int start() throws IOException {
         IOException last = null;
@@ -161,6 +173,7 @@ final class FileServer {
         }, "wifi-file-server");
         t.setDaemon(true);
         t.start();
+        startedAt = System.currentTimeMillis();
         return listener.getLocalPort();
     }
 
@@ -251,6 +264,7 @@ final class FileServer {
                 return;
             }
             if (WebDav.matches(endpoint)) {
+                lastClientTouch = System.currentTimeMillis();
                 try { dav.handle(parts[0], endpoint, headers, in, out); }
                 catch (Exception e) { sendText(out, safeStatus(e), e.getMessage() == null ? "Ошибка WebDAV" : e.getMessage()); }
                 return;
@@ -262,6 +276,7 @@ final class FileServer {
                 sendText(out, 403, "Неверный код доступа");
                 return;
             }
+            lastClientTouch = System.currentTimeMillis();
             try {
                 if ("GET".equals(parts[0]) && "/api/list".equals(endpoint)) { list(out, q.getOrDefault("path", "/")); }
                 else if ("GET".equals(parts[0]) && "/api/search".equals(endpoint)) { search(out, q.getOrDefault("path", "/"), q.get("q")); }
@@ -390,6 +405,12 @@ final class FileServer {
         JSONObject data = new JSONObject();
         data.put("path", relative(d));
         data.put("items", arr);
+        long total = root.getTotalSpace();
+        if (total > 0L) {
+            long free = Math.max(0L, Math.min(total, root.getUsableSpace()));
+            data.put("totalBytes", total);
+            data.put("freeBytes", free);
+        }
         send(out, 200, "application/json; charset=utf-8", data.toString().getBytes(StandardCharsets.UTF_8), null);
     }
 

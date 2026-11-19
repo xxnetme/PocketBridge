@@ -86,24 +86,31 @@ public class MainActivityLaunchTest {
         List<String> texts = collectTexts(decor);
         assertTrue("Brand title must be present", texts.contains("PocketBridge"));
         assertTrue("Default port 8765 must be shown", texts.contains("8765"));
-        assertTrue("Version 3.6.1 must be shown in subtitle",
-                texts.stream().anyMatch(s -> s.contains("v3.6.1")));
+        assertTrue("Version 3.7 must be shown in subtitle",
+                texts.stream().anyMatch(s -> s.contains("v3.7")));
         assertTrue("Default port hint must mention 8765",
                 texts.stream().anyMatch(s -> s.contains("8765") && (s.contains("Default") || s.contains("По умолчанию"))));
 
-        // Проверяем нажатие главной кнопки и состояние с выданным разрешением на файлы.
+        // Проверяем подсказку 1-2-3, индикатор запуска и состояние с выданным разрешением на файлы.
         try {
+            assertEquals(View.VISIBLE, getField(activity, "stepsRow", View.class).getVisibility());
+            assertEquals(View.GONE, getField(activity, "telemetryRow", View.class).getVisibility());
+            assertEquals(View.GONE, getField(activity, "statusSpinner", View.class).getVisibility());
             if (android.os.Build.VERSION.SDK_INT < 30) {
                 Shadows.shadowOf(RuntimeEnvironment.getApplication())
                         .grantPermissions(android.Manifest.permission.WRITE_EXTERNAL_STORAGE);
                 controller.resume();
                 assertEquals(View.GONE, getField(activity, "permissionCard", View.class).getVisibility());
                 assertEquals(View.VISIBLE, getField(activity, "permissionGrantedRow", View.class).getVisibility());
+                getField(activity, "mainButton", TextView.class).performClick();
+                // Сразу после нажатия «Запустить» должен загореться спиннер запуска.
+                assertEquals(View.VISIBLE, getField(activity, "statusSpinner", View.class).getVisibility());
+                assertFalse(getField(activity, "mainButton", TextView.class).isEnabled());
             } else {
                 assertEquals(View.VISIBLE, getField(activity, "permissionCard", View.class).getVisibility());
                 assertEquals(View.GONE, getField(activity, "permissionGrantedRow", View.class).getVisibility());
+                getField(activity, "mainButton", TextView.class).performClick();
             }
-            getField(activity, "mainButton", TextView.class).performClick();
         } catch (Exception e) {
             throw new AssertionError(e);
         }
@@ -191,15 +198,15 @@ public class MainActivityLaunchTest {
         Context app = RuntimeEnvironment.getApplication();
         File crashFile = new File(app.getFilesDir(), "last-crash.txt");
 
-        // 1. Устаревший отчёт от v3.6 должен тихо очищаться при первом входе в v3.6.1.
-        writeUtf8(crashFile, "PocketBridge 3.6 / Android 15 (API 35) / Pixel\nThread: main\njava.lang.NullPointerException\n");
+        // 1. Устаревший отчёт от v3.6.1 должен тихо очищаться при первом входе в v3.7.
+        writeUtf8(crashFile, "PocketBridge 3.6.1 / Android 15 (API 35) / Pixel\nThread: main\njava.lang.NullPointerException\n");
         ActivityController<MainActivity> c1 = Robolectric.buildActivity(MainActivity.class).setup();
-        assertFalse("Stale v3.6 crash report must be deleted", crashFile.exists());
+        assertFalse("Stale v3.6.1 crash report must be deleted", crashFile.exists());
         assertEquals(null, getField(c1.get(), "errorCard", View.class));
         c1.pause().stop().destroy();
 
         // 2. Актуальный отчёт текущей версии отображается, копируется и скрывается без сбоев.
-        writeUtf8(crashFile, "PocketBridge 3.6.1 / Android 15 (API 35) / Pixel\nThread: main\nTestTrace\n");
+        writeUtf8(crashFile, "PocketBridge 3.7 / Android 15 (API 35) / Pixel\nThread: main\nTestTrace\n");
         ActivityController<MainActivity> c2 = Robolectric.buildActivity(MainActivity.class).setup();
         View errorCard = getField(c2.get(), "errorCard", View.class);
         assertNotNull("Current-version crash card must render", errorCard);
@@ -241,9 +248,34 @@ public class MainActivityLaunchTest {
             ShadowLooper.idleMainLooper();
 
             View connectionCard = getField(activity, "connectionCard", View.class);
+            View telemetryRow = getField(activity, "telemetryRow", View.class);
+            View stepsRow = getField(activity, "stepsRow", View.class);
+            TextView telemetryUptime = getField(activity, "telemetryUptime", TextView.class);
             TextView codeText = getField(activity, "codeText", TextView.class);
+            TextView copyCode = getField(activity, "copyCode", TextView.class);
+            TextView newKey = getField(activity, "newKey", TextView.class);
+            View statusSpinner = getField(activity, "statusSpinner", View.class);
+
             assertEquals(View.VISIBLE, connectionCard.getVisibility());
+            assertEquals(View.VISIBLE, telemetryRow.getVisibility());
+            assertEquals(View.GONE, stepsRow.getVisibility());
+            assertTrue("Uptime must be formatted mm:ss", telemetryUptime.getText().toString().contains(":"));
             assertEquals("0123456789abcdef", codeText.getText().toString());
+            assertTrue("ServerService uptime must be non-negative", svc.uptimeMillis() >= 0L);
+            assertEquals(0, svc.activeUploads());
+
+            // Кнопка копирования кода показывает мгновенное подтверждение «✓» и возвращает подпись.
+            copyCode.performClick();
+            assertTrue("Copy feedback must show checkmark", copyCode.getText().toString().startsWith("✓"));
+            Shadows.shadowOf(android.os.Looper.getMainLooper())
+                    .idleFor(1600, java.util.concurrent.TimeUnit.MILLISECONDS);
+            assertFalse("Copy feedback must restore original label", copyCode.getText().toString().startsWith("✓"));
+            assertTrue(telemetryUptime.getText().toString().contains(":"));
+
+            // Нажатие «Сменить код» включает индикатор обновления до прихода нового ключа.
+            newKey.performClick();
+            assertEquals(View.VISIBLE, statusSpinner.getVisibility());
+            assertFalse(newKey.isEnabled());
 
             // Повторный START с тем же кодом и смена кода работают без сбоев.
             svc.onStartCommand(startIntent, 0, 2);
@@ -254,6 +286,8 @@ public class MainActivityLaunchTest {
             svc.onStartCommand(rotateIntent, 0, 3);
             ShadowLooper.idleMainLooper();
             assertEquals("fedcba9876543210", codeText.getText().toString());
+            assertEquals(View.GONE, statusSpinner.getVisibility());
+            assertTrue(newKey.isEnabled());
 
             // Генерация и отображение QR-кода (ZXing + Bitmap) на живом экране.
             Method updateQr = MainActivity.class.getDeclaredMethod("updateQrCode", String.class);

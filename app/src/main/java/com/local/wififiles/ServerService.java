@@ -54,6 +54,10 @@ public final class ServerService extends Service {
     String accessKey() { return key; }
     int port() { return port; }
     String lastError() { return error; }
+    int activeConnections() { FileServer s = server; return s == null ? 0 : s.activeConnections(); }
+    int activeUploads() { FileServer s = server; return s == null ? 0 : s.activeUploads(); }
+    long uptimeMillis() { FileServer s = server; return s == null ? 0L : s.uptimeMillis(); }
+    boolean isClientActive() { FileServer s = server; return s != null && s.isRecentlyActive(12_000L); }
 
     void addListener(Runnable r) { listeners.add(r); }
     void removeListener(Runnable r) { listeners.remove(r); }

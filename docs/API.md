@@ -1,4 +1,4 @@
-# HTTP API — PocketBridge v3.5
+# HTTP API — PocketBridge v3.7
 
 Локальный HTTPS-сервер запускается на порту `8765` (настраивается в диапазоне `1024–65000`; при занятости пробуются следующие 15 портов). Принимаются подключения только из локальных сетей (loopback, RFC 1918, CGNAT `100.64.0.0/10`, IPv6 ULA и link-local).
 
@@ -24,6 +24,8 @@
 ```json
 {
   "path": "/",
+  "totalBytes": 128000000000,
+  "freeBytes": 54200000000,
   "items": [
     {"name": "Фото", "path": "/Фото", "dir": true, "size": 0, "modified": 1731798000000},
     {"name": "заметки.md", "path": "/заметки.md", "dir": false, "size": 2048, "modified": 1731798720000}

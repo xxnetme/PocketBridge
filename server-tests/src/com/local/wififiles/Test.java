@@ -29,6 +29,7 @@ public class Test {
     static int PORT;
     static File TMP;
     static File ROOT;
+    static FileServer SERVER;
     static String ASSETS = System.getProperty("pb.assets", "app/src/main/assets");
     static int pass = 0, fail = 0, note = 0;
     static final List<String> failures = new ArrayList<>();
@@ -41,6 +42,7 @@ public class Test {
             prepareTree();
             Context ctx = new Context(new File(ASSETS));
             FileServer server = new FileServer(ctx, ROOT, KEY);
+            SERVER = server;
             PORT = server.start();
             System.out.println("SERVER PORT=" + PORT + " ROOT=" + ROOT);
             try { runTests(); } finally { server.stop(); }
@@ -512,8 +514,19 @@ public class Test {
 
         r = req("POST", "/api/upload-init?name=abort.bin&path=/&size=5000&overwrite=0", auth(), null);
         String abortId = new JSONObject(r.text()).getString("uploadId");
+        check("телеметрия: activeUploads=1 при активной сессии", SERVER.activeUploads() == 1, "uploads=" + SERVER.activeUploads());
         r = req("POST", "/api/upload-abort?id=" + abortId, auth(), null);
         check("upload-abort 200", r.status == 200, "status=" + r.status);
+        check("телеметрия: activeUploads=0 после abort", SERVER.activeUploads() == 0, "uploads=" + SERVER.activeUploads());
+        check("телеметрия: uptime и недавняя активность клиента",
+                SERVER.uptimeMillis() >= 0L && SERVER.isRecentlyActive(10_000L) && !SERVER.isRecentlyActive(0L),
+                "uptime=" + SERVER.uptimeMillis());
+        JSONObject listMeta = new JSONObject(get("/api/list?path=/").text());
+        long totalB = listMeta.optLong("totalBytes", -1L);
+        long freeB = listMeta.optLong("freeBytes", -1L);
+        check("list возвращает корректные totalBytes и freeBytes",
+                totalB > 0L && freeB >= 0L && freeB <= totalB,
+                "total=" + totalB + " free=" + freeB);
     }
 
     /* ---------------- NFC нормализация поиска v2.1 ---------------- */

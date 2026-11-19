@@ -146,47 +146,56 @@ final class WebDav {
     private boolean get(OutputStream out, File target, String raw, boolean headOnly, String range) throws Exception {
         if (target.isDirectory()) {
             String displayPath = (raw == null || raw.isEmpty()) ? "/dav/" : ("/dav/" + raw + "/");
+            File[] children = target.listFiles();
+            List<File> visible = new ArrayList<>();
+            if (children != null) {
+                for (File child : children) {
+                    if (!FileServer.isTempName(child.getName())) visible.add(child);
+                }
+                visible.sort(Comparator.comparing((File f) -> !f.isDirectory())
+                    .thenComparing(f -> f.getName().toLowerCase(Locale.ROOT)));
+            }
             StringBuilder html = new StringBuilder();
             html.append("<!doctype html><html lang=\"ru\"><head><meta charset=\"utf-8\">")
                 .append("<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">")
                 .append("<title>PocketBridge WebDAV</title><style>")
-                .append(":root{--bg:#071015;--card:#0d1920;--head:#112028;--bd:#1e333b;--tx:#ecf6f4;--mu:#7e9a98;--ac:#6ee7c0;--hv:#12232c;color-scheme:dark}")
-                .append("@media(prefers-color-scheme:light){:root{--bg:#f2f7f5;--card:#fff;--head:#f7fbf9;--bd:#dce8e4;--tx:#0e221e;--mu:#58756f;--ac:#0d9473;--hv:#f3f9f7;color-scheme:light}}")
+                .append(":root{--bg:#071015;--card:#0d1920;--head:#112028;--bd:#1e333b;--tx:#ecf6f4;--mu:#7e9a98;--ac:#6ee7c0;--acs:#11302a;--fd:#f3c969;--hv:#12232c;color-scheme:dark}")
+                .append("@media(prefers-color-scheme:light){:root{--bg:#f2f7f5;--card:#fff;--head:#f7fbf9;--bd:#dce8e4;--tx:#0e221e;--mu:#58756f;--ac:#0d9473;--acs:#e2f6ef;--fd:#c27d10;--hv:#f3f9f7;color-scheme:light}}")
+                .append("@keyframes fi{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}")
                 .append("*{box-sizing:border-box}body{margin:0;padding:28px 18px;background:var(--bg);color:var(--tx);font:14px/1.5 Inter,-apple-system,\"Segoe UI\",Roboto,sans-serif}")
-                .append(".w{max-width:860px;margin:0 auto}.top{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:6px}")
-                .append("h1{font-size:20px;letter-spacing:-.02em;margin:0}.back{color:var(--ac);text-decoration:none;font-size:13px;font-weight:600}")
-                .append("p{margin:0 0 16px;color:var(--mu);font-size:13px}.box{background:var(--card);border:1px solid var(--bd);border-radius:14px;overflow:hidden}")
-                .append(".path{padding:10px 16px;background:var(--head);border-bottom:1px solid var(--bd);font:600 12.5px ui-monospace,SFMono-Regular,Consolas,monospace;color:var(--mu)}")
+                .append(".w{max-width:860px;margin:0 auto;animation:fi .22s cubic-bezier(.22,1,.36,1)}.top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:6px}")
+                .append("h1{font-size:20px;letter-spacing:-.02em;margin:0}.back{color:var(--ac);text-decoration:none;font-size:12.5px;font-weight:600;padding:5px 11px;border-radius:999px;background:var(--acs);border:1px solid var(--bd);transition:transform .14s ease,border-color .14s ease}")
+                .append(".back:hover{border-color:var(--ac);transform:translateX(-2px)}")
+                .append("p{margin:0 0 16px;color:var(--mu);font-size:13px}.box{background:var(--card);border:1px solid var(--bd);border-radius:14px;overflow:hidden;box-shadow:0 12px 36px -16px rgba(0,0,0,.35)}")
+                .append(".path{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 16px;background:var(--head);border-bottom:1px solid var(--bd);font:600 12.5px ui-monospace,SFMono-Regular,Consolas,monospace;color:var(--mu)}")
+                .append(".cnt{font:600 11.5px Inter,-apple-system,sans-serif;padding:2px 8px;border-radius:999px;background:var(--card);border:1px solid var(--bd);font-variant-numeric:tabular-nums}")
                 .append("ul{list-style:none;margin:0;padding:0}li{border-bottom:1px solid var(--bd)}li:last-child{border-bottom:0}")
-                .append("li a{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 16px;color:var(--tx);text-decoration:none;font-weight:500}")
-                .append("li a:hover{background:var(--hv);color:var(--ac)}.sz{color:var(--mu);font-size:12px;font-variant-numeric:tabular-nums;white-space:nowrap}")
+                .append("li a{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 16px;color:var(--tx);text-decoration:none;font-weight:500;transition:background .13s ease,color .13s ease,padding-left .13s ease}")
+                .append("li a:hover{background:var(--hv);color:var(--ac);padding-left:19px}.nm{display:flex;align-items:center;gap:9px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}")
+                .append(".dot{width:7px;height:7px;border-radius:2px;background:var(--fd);flex:none}.dot.f{border-radius:50%;background:var(--ac);opacity:.7}")
+                .append(".sz{color:var(--mu);font-size:12px;font-variant-numeric:tabular-nums;white-space:nowrap}")
                 .append(".empty{padding:28px 16px;text-align:center;color:var(--mu);font-size:13px}")
+                .append("@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}")
                 .append("</style></head><body><main class=\"w\"><div class=\"top\"><h1>PocketBridge WebDAV</h1>")
                 .append("<a class=\"back\" href=\"/\">← Веб-интерфейс</a></div>")
                 .append("<p>Монтируйте этот адрес в Проводнике Windows, macOS Finder или файловом менеджере Linux. Логин любой, пароль — код доступа.</p>")
-                .append("<div class=\"box\"><div class=\"path\">").append(escape(displayPath)).append("</div><ul>");
+                .append("<div class=\"box\"><div class=\"path\"><span>").append(escape(displayPath))
+                .append("</span><span class=\"cnt\">Объектов: ").append(visible.size()).append("</span></div><ul>");
             if (raw != null && !raw.isEmpty()) {
                 int sl = raw.lastIndexOf('/');
                 String parentRaw = sl < 0 ? "" : raw.substring(0, sl);
-                html.append("<li><a href=\"").append(escape(hrefOf(parentRaw, true))).append("\"><span>..</span><span class=\"sz\">Наверх</span></a></li>");
+                html.append("<li><a href=\"").append(escape(hrefOf(parentRaw, true))).append("\"><span class=\"nm\">..</span><span class=\"sz\">Наверх</span></a></li>");
             }
-            File[] children = target.listFiles();
-            int shown = 0;
-            if (children != null) {
-                Arrays.sort(children, Comparator.comparing((File f) -> !f.isDirectory())
-                    .thenComparing(f -> f.getName().toLowerCase(Locale.ROOT)));
-                for (File child : children) {
-                    if (FileServer.isTempName(child.getName())) continue;
-                    boolean dir = child.isDirectory();
-                    String name = escape(child.getName()) + (dir ? "/" : "");
-                    String sz = dir ? "Папка" : humanSize(child.length());
-                    html.append("<li><a href=\"").append(escape(hrefOf(joinRaw(raw, child.getName()), dir)))
-                        .append("\"><span>").append(name).append("</span><span class=\"sz\">").append(sz).append("</span></a></li>");
-                    shown++;
-                }
+            for (File child : visible) {
+                boolean dir = child.isDirectory();
+                String name = escape(child.getName()) + (dir ? "/" : "");
+                String sz = dir ? "Папка" : humanSize(child.length());
+                html.append("<li><a href=\"").append(escape(hrefOf(joinRaw(raw, child.getName()), dir)))
+                    .append("\"><span class=\"nm\"><i class=\"dot").append(dir ? "" : " f").append("\"></i>")
+                    .append(name).append("</span><span class=\"sz\">").append(sz).append("</span></a></li>");
             }
             html.append("</ul>");
-            if (shown == 0) html.append("<div class=\"empty\">Папка пуста</div>");
+            if (visible.isEmpty()) html.append("<div class=\"empty\">Папка пуста</div>");
             html.append("</div></main></body></html>");
             byte[] body = html.toString().getBytes(StandardCharsets.UTF_8);
             Map<String, String> extra = new LinkedHashMap<>();
