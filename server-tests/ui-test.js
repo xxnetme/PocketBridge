@@ -1,10 +1,12 @@
 const { chromium, devices } = require('playwright');
 const { execFileSync } = require('child_process');
+const crypto = require('crypto');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
 const WORK = process.env.PB_WORK || path.join(os.tmpdir(), 'pocketbridge-ui');
+const ROOT = process.env.PB_ROOT || path.join(WORK, 'root');
 const shots = path.join(WORK, 'shots');
 const BASE = process.env.PB_BASE || 'http://127.0.0.1:8765';
 const ACCESS_KEY = process.env.PB_KEY || 'deadbeefcafe1234';
@@ -773,6 +775,170 @@ function zipEntries(zipPath) {
   await page.click('#dialogAccept');
   await page.waitForTimeout(400);
 
+  /* ---------- 12e. новинки v3.9: видеопревью, редактор текста, поворот фото, ZIP-распаковка, свойства и SHA-256 ---------- */
+  // 1. Миниатюры видео в режиме плитки (реальный кадр + fallback для битого MP4)
+  await openFolder(page, 'Видео');
+  await page.click('#view'); // -> плитка
+  await page.waitForTimeout(700);
+  const vidGrid = await page.evaluate(() => {
+    const sample = document.querySelector('#grid .card[data-path="/Видео/sample.mp4"]');
+    const broken = document.querySelector('#grid .card[data-path="/Видео/битый.mp4"]');
+    const sImg = sample && sample.querySelector('.thumb img');
+    const bImg = broken && broken.querySelector('.thumb img');
+    return {
+      sampleReady: !!(sImg && sImg.complete && sImg.naturalWidth > 0 && sImg.classList.contains('is-ready')),
+      sampleW: sImg ? sImg.naturalWidth : 0,
+      sampleBadge: !!(sample && sample.querySelector('.playbadge')),
+      brokenFallback: !bImg && !!(broken && broken.querySelector('.cardicon.ic-video')) && !!(broken && broken.querySelector('.playbadge'))
+    };
+  });
+  rec('Видео-миниатюра в плитке загружает кадр + значок Play, битый MP4 даёт чистый fallback',
+      vidGrid.sampleReady && vidGrid.sampleBadge && vidGrid.brokenFallback, JSON.stringify(vidGrid));
+  await page.screenshot({ path: path.join(shots, '35-video-thumbs.png') });
+  await page.click('#view'); // -> список
+  await page.waitForTimeout(200);
+  await goRoot(page);
+
+  // 2. Создание текстового файла (#mkfile), правка с Ctrl+S и защита от конфликта mtime
+  const v39Sandbox = 'v39-sandbox';
+  await page.click('#mkdir');
+  await page.fill('#dialogInput', v39Sandbox);
+  await page.click('#dialogAccept');
+  await page.waitForTimeout(350);
+  await openFolder(page, v39Sandbox);
+
+  await page.click('#mkfile');
+  await page.waitForSelector('#actionDialog:not(.hidden)');
+  await page.fill('#dialogInput', 'список.md');
+  await page.click('#dialogAccept');
+  await page.waitForSelector('#textEditorArea');
+  await page.locator('#textEditorArea').fill('# План v3.9\n- Видео\n- ZIP\n');
+  await page.waitForTimeout(220);
+  await page.screenshot({ path: path.join(shots, '36-text-editor.png') });
+  await page.keyboard.press('Control+s');
+  await page.waitForTimeout(400);
+  const mdDiskPath = path.join(ROOT, v39Sandbox, 'список.md');
+  const savedMd = fs.existsSync(mdDiskPath) ? fs.readFileSync(mdDiskPath, 'utf8') : '';
+  rec('Создание файла (#mkfile) и сохранение по Ctrl+S записывают UTF-8 на диск',
+      savedMd === '# План v3.9\n- Видео\n- ZIP\n', JSON.stringify(savedMd));
+
+  // Симулируем внешнее изменение на телефоне и проверяем диалог конфликта mtime (409)
+  fs.writeFileSync(mdDiskPath, 'изменено извне\n', 'utf8');
+  const bumpedSec = Math.floor(Date.now() / 1000) + 5;
+  fs.utimesSync(mdDiskPath, bumpedSec, bumpedSec);
+  await page.locator('#textEditorArea').fill('# Моя версия побеждает\n');
+  await page.click('#previewSave');
+  await page.waitForSelector('#actionDialog:not(.hidden)', { timeout: 5000 });
+  const conflictTitle = (await page.locator('#dialogTitle').textContent()) || '';
+  await page.click('#dialogAccept'); // Перезаписать (force=1)
+  await page.waitForTimeout(400);
+  const forcedMd = fs.readFileSync(mdDiskPath, 'utf8');
+  rec('Редактор ловит внешнее изменение (409 mtime) и перезаписывает по подтверждению',
+      /изменился/.test(conflictTitle) && forcedMd === '# Моя версия побеждает\n', conflictTitle);
+  await closePreview(page);
+  await goRoot(page);
+  await page.locator('#rows tr', { hasText: v39Sandbox }).getByText('Удалить').click();
+  await page.waitForTimeout(200);
+  await page.click('#dialogAccept');
+  await page.waitForTimeout(350);
+
+  // 3. Поворот фото в просмотрщике (клавиша R + сохранение на диск)
+  await openFolder(page, 'Фото');
+  await page.locator('#rows tr', { hasText: 'обложка.png' }).locator('button.filename').click();
+  await page.waitForSelector('#previewBody img.is-ready');
+  await page.keyboard.press('r');
+  await page.waitForTimeout(150);
+  const rotPreview = await page.evaluate(() => {
+    const img = document.querySelector('#previewBody img');
+    const sb = document.getElementById('previewSaveRotate');
+    return { tf: img ? img.style.transform : '', saveShown: !!(sb && !sb.classList.contains('hidden')) };
+  });
+  await page.click('#previewSaveRotate');
+  await page.waitForTimeout(600);
+  await page.waitForSelector('#previewBody img.is-ready');
+  const rotatedDims = await page.evaluate(() => {
+    const img = document.querySelector('#previewBody img');
+    return img ? { w: img.naturalWidth, h: img.naturalHeight, tf: img.style.transform } : null;
+  });
+  rec('Поворот фото на 90° (R + «Сохранить поворот») меняет размер 400×300 -> 300×400',
+      rotPreview.tf === 'rotate(90deg)' && rotPreview.saveShown
+        && !!rotatedDims && rotatedDims.w === 300 && rotatedDims.h === 400 && rotatedDims.tf === '',
+      JSON.stringify(rotatedDims));
+  // Возвращаем исходную ориентацию 400×300 (поворот на 270° = -90°)
+  await page.keyboard.press('Shift+R');
+  await page.click('#previewSaveRotate');
+  await page.waitForTimeout(500);
+  await closePreview(page);
+
+  // 4. Свойства файла / папки + расчёт и сверка SHA-256
+  const coverBytes = fs.readFileSync(path.join(ROOT, 'Фото', 'обложка.png'));
+  const expectedSha = crypto.createHash('sha256').update(coverBytes).digest('hex');
+  await page.locator('#rows tr', { hasText: 'обложка.png' }).locator('.infobtn').click();
+  await page.waitForSelector('#propsModal:not(.hidden)');
+  await page.waitForTimeout(300);
+  const propsText = (await page.locator('#propsGrid').textContent()) || '';
+  await page.click('#propsCalcHash');
+  await page.waitForSelector('#propsHashValue:not(.hidden)', { timeout: 5000 });
+  const uiSha = ((await page.locator('#propsHashValue').textContent()) || '').trim();
+  await page.fill('#propsHashInput', expectedSha.toUpperCase() + '  обложка.png');
+  const matchOk = await page.locator('#propsHashStatus').evaluate(n => n.classList.contains('ok') && !n.classList.contains('hidden'));
+  await page.screenshot({ path: path.join(shots, '38-props-sha256.png') });
+  await page.fill('#propsHashInput', '0'.repeat(64));
+  const mismatchOk = await page.locator('#propsHashStatus').evaluate(n => n.classList.contains('bad') && !n.classList.contains('hidden'));
+  rec('Свойства фото (400 × 300 px) и расчёт/сверка SHA-256 работают точно',
+      propsText.includes('400 × 300 px') && propsText.includes('image/png')
+        && uiSha === expectedSha && matchOk && mismatchOk,
+      uiSha.slice(0, 16) + '…');
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(150);
+
+  // Свойства папки по Alt+Enter с живым подсчётом размера
+  await page.locator('#rows tr', { hasText: 'Отпуск' }).locator('input[type=checkbox]').click();
+  await page.keyboard.press('Alt+Enter');
+  await page.waitForSelector('#propsModal:not(.hidden)');
+  await page.waitForTimeout(450);
+  const dirPropsText = (await page.locator('#propsGrid').textContent()) || '';
+  rec('Свойства папки (Alt+Enter) показывают состав и рекурсивный объём',
+      dirPropsText.includes('файлов: 6') && (dirPropsText.includes('КБ') || dirPropsText.includes('МБ')),
+      dirPropsText.replace(/\s+/g, ' ').slice(0, 90));
+  await page.keyboard.press('Escape');
+  await page.click('#clearSelected');
+  await goRoot(page);
+
+  // 5. Просмотр и выборочная/полная распаковка .zip без скачивания
+  await openFolder(page, 'Загрузки');
+  await page.locator('#rows tr', { hasText: 'архив.zip' }).locator('button.filename').click();
+  await page.waitForSelector('.zipview');
+  const zipTotalRows = await page.locator('.ziprow').count();
+  await page.screenshot({ path: path.join(shots, '37-zip-preview.png') });
+  await page.fill('#zipFilter', 'план');
+  const zipFilteredRows = await page.locator('.ziprow').count();
+  await page.locator('.ziprow').first().locator('input[type=checkbox]').click();
+  await page.click('#zipExtractHere');
+  await page.waitForTimeout(500);
+  const selExtracted = fs.existsSync(path.join(ROOT, 'Загрузки', 'docs', 'план.md'))
+    && !fs.existsSync(path.join(ROOT, 'Загрузки', 'readme.txt'));
+  rec('Просмотр .zip, фильтр и выборочная распаковка одного файла работают',
+      zipTotalRows === 4 && zipFilteredRows === 1 && selExtracted,
+      'rows=' + zipTotalRows + ' filtered=' + zipFilteredRows);
+
+  await page.locator('#rows tr', { hasText: 'архив.zip' }).locator('button.filename').click();
+  await page.waitForSelector('#zipExtractFolder');
+  await page.click('#zipExtractFolder');
+  await page.waitForTimeout(600);
+  const fullReadme = path.join(ROOT, 'Загрузки', 'архив', 'readme.txt');
+  const fullOk = fs.existsSync(fullReadme) && fs.readFileSync(fullReadme, 'utf8').includes('Привет из архива PocketBridge!');
+  rec('Полная распаковка .zip в подпапку «архив» извлекает дерево файлов',
+      fullOk && (await page.locator('#rows tr', { hasText: 'архив' }).count()) >= 2, '');
+  fs.rmSync(path.join(ROOT, 'Загрузки', 'docs'), { recursive: true, force: true });
+  fs.rmSync(path.join(ROOT, 'Загрузки', 'архив'), { recursive: true, force: true });
+  await goRoot(page);
+
+  // Проверка компактности десктопной панели инструментов с новой кнопкой #mkfile (строго 1 строка)
+  const barBoxV39 = await page.locator('.bar').boundingBox();
+  rec('Панель инструментов с #mkfile остаётся в одну строку на 1280px',
+      !!barBoxV39 && barBoxV39.height <= 72, 'barH=' + (barBoxV39 ? Math.round(barBoxV39.height) : 0));
+
   /* ---------- 13. мобильная вёрстка ---------- */
   const mctx = await browser.newContext({ ...devices['iPhone 13'], ignoreHTTPSErrors: true });
   const mp = await mctx.newPage();
@@ -785,7 +951,12 @@ function zipEntries(zipPath) {
   await mp.waitForTimeout(400);
   await mp.screenshot({ path: path.join(shots, '20-mobile-list.png') });
   const mOverflow = await mp.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 2);
-  rec('Мобильная вёрстка: список без горизонтального скролла', !mOverflow, mOverflow ? 'есть overflow' : 'ok');
+  const mkfileFits = await mp.evaluate(() => {
+    const b = document.getElementById('mkfile').getBoundingClientRect();
+    const p = document.querySelector('#app .panel').getBoundingClientRect();
+    return b.width >= 34 && b.right <= p.right - 8;
+  });
+  rec('Мобильная вёрстка: список и кнопка #mkfile без горизонтального скролла и обрезки', !mOverflow && mkfileFits, mOverflow ? 'есть overflow' : 'ok');
   const delBox = await mp.locator('#rows tr').first().getByText('Удалить').boundingBox();
   const actBox = await mp.locator('#rows tr .rowactions').first().boundingBox();
   rec('Мобильная вёрстка: действия строки видны без скролла',
@@ -808,6 +979,15 @@ function zipEntries(zipPath) {
   await mp.waitForTimeout(900);
   await mp.screenshot({ path: path.join(shots, '21-mobile-preview.png') });
   rec('Мобильная вёрстка: превью открывается', (await mp.locator('#previewBody img').count()) > 0, '');
+  await mp.click('#previewProps');
+  await mp.waitForSelector('#propsModal:not(.hidden)');
+  await mp.waitForTimeout(250);
+  const mPropsOverflow = await mp.evaluate(() => {
+    const dlg = document.querySelector('#propsModal .props-dialog');
+    const r = dlg ? dlg.getBoundingClientRect() : null;
+    return !r || r.left < 0 || r.right > window.innerWidth + 1;
+  });
+  rec('Мобильная вёрстка: окно свойств открывается из превью без вылезания за экран', !mPropsOverflow, '');
   await mctx.close();
 
   /* ---------- итоги ---------- */

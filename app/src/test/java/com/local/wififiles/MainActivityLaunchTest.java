@@ -87,7 +87,7 @@ public class MainActivityLaunchTest {
         assertTrue("Brand title must be present", texts.contains("PocketBridge"));
         assertTrue("Default port 8765 must be shown", texts.contains("8765"));
         assertTrue("Version 3.8 must be shown in subtitle",
-                texts.stream().anyMatch(s -> s.contains("v3.8")));
+                texts.stream().anyMatch(s -> s.contains("v3.9")));
         assertTrue("Default port hint must mention 8765",
                 texts.stream().anyMatch(s -> s.contains("8765") && (s.contains("Default") || s.contains("По умолчанию"))));
 

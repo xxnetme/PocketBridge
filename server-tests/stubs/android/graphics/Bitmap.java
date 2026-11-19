@@ -8,14 +8,14 @@ import javax.imageio.ImageIO;
 
 /**
  * Заглушка android.graphics.Bitmap для автономных тестов на JVM.
- * Реализация через java.awt.ImageIO повторяет поведение Android: масштабирование и JPEG-сжатие.
+ * Реализация через java.awt.ImageIO повторяет поведение Android: масштабирование, повороты и сжатие.
  */
 public final class Bitmap {
     public enum CompressFormat { JPEG, PNG, WEBP }
 
     private final BufferedImage image;
 
-    Bitmap(BufferedImage image) { this.image = image; }
+    public Bitmap(BufferedImage image) { this.image = image; }
 
     public int getWidth() { return image.getWidth(); }
 
@@ -39,6 +39,55 @@ public final class Bitmap {
         g.drawImage(source.image, 0, 0, Math.max(1, width), Math.max(1, height), null);
         g.dispose();
         return new Bitmap(scaled);
+    }
+
+    public static Bitmap createBitmap(Bitmap source, int x, int y, int width, int height, Matrix m, boolean filter) {
+        BufferedImage cur = source.image.getSubimage(x, y, width, height);
+        if (m == null || m.ops.isEmpty()) return new Bitmap(cur);
+        for (Matrix.Op op : m.ops) {
+            if (op.rotate) {
+                int deg = ((Math.round(op.a) % 360) + 360) % 360;
+                cur = rotateOrtho(cur, deg);
+            } else {
+                cur = flipImage(cur, op.a < 0f, op.b < 0f);
+            }
+        }
+        return new Bitmap(cur);
+    }
+
+    private static BufferedImage rotateOrtho(BufferedImage src, int deg) {
+        int w = src.getWidth(), h = src.getHeight();
+        int type = src.getColorModel().hasAlpha() ? BufferedImage.TYPE_INT_ARGB : BufferedImage.TYPE_INT_RGB;
+        if (deg == 90) {
+            BufferedImage dst = new BufferedImage(h, w, type);
+            for (int sy = 0; sy < h; sy++)
+                for (int sx = 0; sx < w; sx++)
+                    dst.setRGB(h - 1 - sy, sx, src.getRGB(sx, sy));
+            return dst;
+        } else if (deg == 180) {
+            BufferedImage dst = new BufferedImage(w, h, type);
+            for (int sy = 0; sy < h; sy++)
+                for (int sx = 0; sx < w; sx++)
+                    dst.setRGB(w - 1 - sx, h - 1 - sy, src.getRGB(sx, sy));
+            return dst;
+        } else if (deg == 270) {
+            BufferedImage dst = new BufferedImage(h, w, type);
+            for (int sy = 0; sy < h; sy++)
+                for (int sx = 0; sx < w; sx++)
+                    dst.setRGB(sy, w - 1 - sx, src.getRGB(sx, sy));
+            return dst;
+        }
+        return src;
+    }
+
+    private static BufferedImage flipImage(BufferedImage src, boolean fx, boolean fy) {
+        int w = src.getWidth(), h = src.getHeight();
+        int type = src.getColorModel().hasAlpha() ? BufferedImage.TYPE_INT_ARGB : BufferedImage.TYPE_INT_RGB;
+        BufferedImage dst = new BufferedImage(w, h, type);
+        for (int sy = 0; sy < h; sy++)
+            for (int sx = 0; sx < w; sx++)
+                dst.setRGB(fx ? (w - 1 - sx) : sx, fy ? (h - 1 - sy) : sy, src.getRGB(sx, sy));
+        return dst;
     }
 
     public void recycle() { /* no-op в тестовой заглушке */ }

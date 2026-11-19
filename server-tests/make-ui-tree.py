@@ -13,6 +13,7 @@ import struct
 import subprocess
 import sys
 import wave
+import zipfile
 
 from PIL import Image, ImageDraw
 import docx
@@ -100,14 +101,20 @@ if shutil.which('ffmpeg'):
     )
     made_video = res.returncode == 0 and os.path.isfile(video_path) and os.path.getsize(video_path) > 0
 if not made_video:
-    # Минимальный MP4-контейнер (ftyp + пустой mdat), если ffmpeg не установлен
+    # Минимальный MP4-контейнер (ftyp + moov + mdat), если ffmpeg не установлен
     ftyp = b'isom\x00\x00\x02\x00isomiso2mp41'
     with open(video_path, 'wb') as f:
         f.write(struct.pack('>I4s', 8 + len(ftyp), b'ftyp') + ftyp)
+        f.write(struct.pack('>I4s', 16, b'moov') + b'\x00' * 8)
         f.write(struct.pack('>I4s', 16, b'mdat') + b'\x00' * 8)
+with open(os.path.join(root, 'Видео', 'битый.mp4'), 'wb') as f:
+    f.write(b'NOT_AN_MP4_STREAM' * 20)
 
-with open(os.path.join(root, 'Загрузки', 'архив.zip'), 'wb') as f:
-    f.write(os.urandom(3 * 1024 * 1024))
+with zipfile.ZipFile(os.path.join(root, 'Загрузки', 'архив.zip'), 'w', compression=zipfile.ZIP_DEFLATED) as zf:
+    zf.writestr('readme.txt', 'Привет из архива PocketBridge!\nСтрока 2.\n')
+    zf.writestr('docs/план.md', '# План релиза\n\n- Распаковка ZIP\n- SHA-256\n')
+    zf.writestr('data/sample.json', '{"app":"PocketBridge","ok":true}\n')
+    zf.writestr('data/blob.bin', os.urandom(512 * 1024))
 with open(os.path.join(root, 'Загрузки', 'большой.bin'), 'wb') as f:
     for _ in range(50):
         f.write(os.urandom(1024 * 1024))

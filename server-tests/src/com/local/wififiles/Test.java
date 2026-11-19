@@ -198,6 +198,7 @@ public class Test {
         regressionTests();
         webDavTests();
         v38CopyMoveClipboardTests();
+        v39MediaZipEditorPropsTests();
         edgeTests();
         dosTest();
     }
@@ -1046,6 +1047,387 @@ public class Test {
             Files.deleteIfExists(fakeMusicFile.toPath());
             cleanupDir(new File(ROOT, "DCIM"));
             cleanupDir(dlDir);
+        }
+    }
+
+    /** Вставляет сегмент APP1/Exif с тегом Orientation (0x0112) сразу после маркера SOI (FFD8) в JPEG. */
+    static byte[] injectJpegExifOrientation(byte[] jpeg, int orientation) throws IOException {
+        // Minimal valid big-endian TIFF: "MM" + 0x002A + offset(8) + count(1) + tag(0x0112, SHORT=3, count=1, val<<16) + nextIFD(0)
+        ByteArrayOutputStream app1 = new ByteArrayOutputStream();
+        app1.write("Exif\0\0".getBytes(StandardCharsets.US_ASCII));
+        byte[] tiff = new byte[]{
+                'M', 'M', 0x00, 0x2A, 0x00, 0x00, 0x00, 0x08,
+                0x00, 0x01,
+                0x01, 0x12, 0x00, 0x03, 0x00, 0x00, 0x00, 0x01,
+                (byte) ((orientation >> 8) & 0xff), (byte) (orientation & 0xff), 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00
+        };
+        app1.write(tiff);
+        byte[] payload = app1.toByteArray();
+        int segLen = payload.length + 2;
+        ByteArrayOutputStream out = new ByteArrayOutputStream(jpeg.length + segLen + 2);
+        out.write(0xFF); out.write(0xD8);
+        out.write(0xFF); out.write(0xE1);
+        out.write((segLen >> 8) & 0xFF); out.write(segLen & 0xFF);
+        out.write(payload);
+        out.write(jpeg, 2, jpeg.length - 2);
+        return out.toByteArray();
+    }
+
+    static byte[] makeMinimalValidMp4() throws IOException {
+        ByteArrayOutputStream b = new ByteArrayOutputStream();
+        // ftyp (24 bytes): isom
+        b.write(new byte[]{ 0,0,0,24, 'f','t','y','p', 'i','s','o','m', 0,0,2,0, 'i','s','o','m', 'm','p','4','1' });
+        // moov (16 bytes)
+        b.write(new byte[]{ 0,0,0,16, 'm','o','o','v', 0,0,0,0, 0,0,0,0 });
+        // mdat (16 bytes)
+        b.write(new byte[]{ 0,0,0,16, 'm','d','a','t', 0,0,0,0, 0,0,0,0 });
+        return b.toByteArray();
+    }
+
+    /* ---------------- v3.9: видеопревью, EXIF/поворот, редактор текста, ZIP-распаковка, свойства и SHA-256 ---------------- */
+    static void v39MediaZipEditorPropsTests() throws Exception {
+        // 0. Проверка авторизации на всех новых endpoint'ах
+        check("save-text без ключа -> 403", req("POST", "/api/save-text?create=1&path=/&name=a.txt", null, new byte[0]).status == 403, "");
+        check("rotate-image без ключа -> 403", req("POST", "/api/rotate-image?path=/photo.jpg&degrees=90", null, null).status == 403, "");
+        check("zip-list без ключа -> 403", req("GET", "/api/zip-list?path=/a.zip", null, null).status == 403, "");
+        check("zip-extract без ключа -> 403", req("POST", "/api/zip-extract?path=/a.zip", null, null).status == 403, "");
+        check("stat без ключа -> 403", req("GET", "/api/stat?path=/hello.txt", null, null).status == 403, "");
+        check("hash без ключа -> 403", req("GET", "/api/hash?path=/hello.txt", null, null).status == 403, "");
+
+        File sand = new File(ROOT, "v39");
+        sand.mkdirs();
+        try {
+            // 1. Видео-миниатюры (/thumb для .mp4) + дисковый и негативный кеш
+            Files.write(new File(sand, "clip.mp4").toPath(), makeMinimalValidMp4());
+            Files.write(new File(sand, "broken.mp4").toPath(), "NOT_A_VALID_MP4_CONTAINER".getBytes(StandardCharsets.US_ASCII));
+            String tok = new JSONObject(postJson("/api/session", "{}").text()).getString("token");
+
+            Resp r = req("GET", "/thumb?token=" + tok + "&path=/v39/clip.mp4&w=320", null, null);
+            java.awt.image.BufferedImage vThumb = r.status == 200
+                    ? javax.imageio.ImageIO.read(new ByteArrayInputStream(r.body)) : null;
+            check("видео-миниатюра .mp4 отдаёт масштабированный JPEG 320×180",
+                    r.status == 200 && "image/jpeg".equals(r.h.get("content-type"))
+                            && vThumb != null && vThumb.getWidth() == 320 && vThumb.getHeight() == 180,
+                    "status=" + r.status + (vThumb != null ? " " + vThumb.getWidth() + "x" + vThumb.getHeight() : ""));
+
+            r = req("GET", "/thumb?token=" + tok + "&path=/v39/broken.mp4&w=320", null, null);
+            Resp r2 = req("GET", "/thumb?token=" + tok + "&path=/v39/broken.mp4&w=320", null, null);
+            check("битый .mp4 возвращает 400 (включая повторный запрос из негативного кеша)",
+                    r.status == 400 && r2.status == 400, "s1=" + r.status + " s2=" + r2.status);
+
+            File cacheDir = new File(TMP, "v39-cache");
+            cacheDir.mkdirs();
+            FileServer cachedSrv = new FileServer(new Context(new File(ASSETS)), ROOT, KEY, null, cacheDir, 0);
+            int cPort = cachedSrv.start();
+            int origPort = PORT;
+            try {
+                PORT = cPort;
+                String cTok = new JSONObject(postJson("/api/session", "{}").text()).getString("token");
+                Resp cr = req("GET", "/thumb?token=" + cTok + "&path=/v39/clip.mp4&w=240", null, null);
+                String tKey = cr.h.get("x-thumb-key");
+                File cachedJpg = new File(new File(cacheDir, "thumbs"), tKey + ".jpg");
+                check("видео-миниатюра сохраняется в дисковый кеш thumbs/<key>.jpg",
+                        cr.status == 200 && tKey != null && cachedJpg.isFile() && cachedJpg.length() == cr.body.length,
+                        "key=" + tKey + " exists=" + cachedJpg.isFile());
+            } finally {
+                PORT = origPort;
+                cachedSrv.stop();
+                cleanupDir(cacheDir);
+            }
+
+            // 2. Автоматическая EXIF-ориентация фото (Orientation=6 -> 90° CW и Orientation=3 -> 180°)
+            java.awt.image.BufferedImage rawImg = new java.awt.image.BufferedImage(200, 100, java.awt.image.BufferedImage.TYPE_INT_RGB);
+            for (int y = 0; y < 100; y++) {
+                for (int x = 0; x < 200; x++) {
+                    // Левый верхний угол ярко-красный, остальное синее
+                    int rgb = (x < 60 && y < 40) ? 0xFF1010 : 0x1020E0;
+                    rawImg.setRGB(x, y, rgb);
+                }
+            }
+            ByteArrayOutputStream rawJpg = new ByteArrayOutputStream();
+            javax.imageio.ImageIO.write(rawImg, "jpg", rawJpg);
+            Files.write(new File(sand, "exif6.jpg").toPath(), injectJpegExifOrientation(rawJpg.toByteArray(), 6));
+            Files.write(new File(sand, "exif3.jpg").toPath(), injectJpegExifOrientation(rawJpg.toByteArray(), 3));
+
+            r = req("GET", "/thumb?token=" + tok + "&path=/v39/exif6.jpg&w=200", null, null);
+            java.awt.image.BufferedImage ex6 = javax.imageio.ImageIO.read(new ByteArrayInputStream(r.body));
+            int topRight6 = ex6.getRGB(ex6.getWidth() - 10, 10);
+            int r6 = (topRight6 >> 16) & 0xff, b6 = topRight6 & 0xff;
+            check("EXIF Orientation=6 поворачивает миниатюру 200×100 в портрет 100×200 (красный угол справа сверху)",
+                    r.status == 200 && ex6.getWidth() == 100 && ex6.getHeight() == 200 && r6 > 180 && b6 < 80,
+                    ex6.getWidth() + "x" + ex6.getHeight() + " r=" + r6 + " b=" + b6);
+
+            r = req("GET", "/thumb?token=" + tok + "&path=/v39/exif3.jpg&w=200", null, null);
+            java.awt.image.BufferedImage ex3 = javax.imageio.ImageIO.read(new ByteArrayInputStream(r.body));
+            int botRight3 = ex3.getRGB(ex3.getWidth() - 10, ex3.getHeight() - 10);
+            check("EXIF Orientation=3 поворачивает миниатюру на 180° (красный угол справа снизу)",
+                    r.status == 200 && ex3.getWidth() == 200 && ex3.getHeight() == 100
+                            && ((botRight3 >> 16) & 0xff) > 180 && (botRight3 & 0xff) < 80,
+                    ex3.getWidth() + "x" + ex3.getHeight());
+
+            r = get("/api/stat?path=/v39/exif6.jpg");
+            JSONObject stEx6 = new JSONObject(r.text());
+            check("/api/stat учитывает EXIF-ориентацию в размерах (100×200, exifOrientation=6)",
+                    r.status == 200 && stEx6.getInt("width") == 100 && stEx6.getInt("height") == 200
+                            && stEx6.getInt("exifOrientation") == 6,
+                    r.text());
+
+            // 3. Поворот фото на месте (POST /api/rotate-image)
+            File rotJpg = new File(sand, "rot.jpg");
+            Files.write(rotJpg.toPath(), rawJpg.toByteArray());
+            long modBefore = rotJpg.lastModified();
+            r = post("/api/rotate-image?path=/v39/rot.jpg&degrees=90");
+            JSONObject rotRes = new JSONObject(r.text());
+            java.awt.image.BufferedImage afterRot = javax.imageio.ImageIO.read(rotJpg);
+            check("rotate-image 90° поворачивает JPEG 200×100 -> 100×200 и обновляет mtime",
+                    r.status == 200 && rotRes.getInt("width") == 100 && rotRes.getInt("height") == 200
+                            && afterRot.getWidth() == 100 && afterRot.getHeight() == 200
+                            && rotJpg.lastModified() > modBefore,
+                    r.text());
+
+            File rotPng = new File(sand, "rot.png");
+            javax.imageio.ImageIO.write(rawImg, "png", rotPng);
+            r = post("/api/rotate-image?path=/v39/rot.png&degrees=180");
+            byte[] pngHead = Arrays.copyOf(Files.readAllBytes(rotPng.toPath()), 4);
+            java.awt.image.BufferedImage afterPng = javax.imageio.ImageIO.read(rotPng);
+            check("rotate-image 180° сохраняет формат PNG и переворачивает пиксели",
+                    r.status == 200 && pngHead[0] == (byte) 0x89 && pngHead[1] == 'P' && pngHead[2] == 'N' && pngHead[3] == 'G'
+                            && ((afterPng.getRGB(190, 90) >> 16) & 0xff) > 180,
+                    "status=" + r.status);
+
+            check("rotate-image с углом 45° -> 400", post("/api/rotate-image?path=/v39/rot.jpg&degrees=45").status == 400, "");
+            check("rotate-image на не-изображении -> 400", post("/api/rotate-image?path=/hello.txt&degrees=90").status == 400, "");
+            File symJpg = new File(sand, "sym.jpg");
+            Files.createSymbolicLink(symJpg.toPath(), rotJpg.toPath());
+            check("rotate-image на символической ссылке -> 400", post("/api/rotate-image?path=/v39/sym.jpg&degrees=90").status == 400, "");
+
+            // 4. Создание и правка текстовых файлов (/api/text + /api/save-text + конфликт mtime)
+            byte[] iniBody = "[server]\nport = 8765\ntitle = Привет 🚀\n".getBytes(StandardCharsets.UTF_8);
+            r = req("POST", "/api/save-text?create=1&path=/v39&name=config.ini", auth(), iniBody);
+            JSONObject created = new JSONObject(r.text());
+            check("save-text create=1 создаёт UTF-8 .ini файл",
+                    r.status == 200 && "config.ini".equals(created.getString("name"))
+                            && "/v39/config.ini".equals(created.getString("path"))
+                            && created.getLong("size") == iniBody.length,
+                    r.text());
+
+            r = get("/api/text?path=/v39/config.ini");
+            long loadedMod = Long.parseLong(r.h.getOrDefault("x-file-modified", "0"));
+            check("/api/text поддерживает .ini и возвращает X-File-Modified + X-File-Editable=1",
+                    r.status == 200 && r.text().contains("Привет 🚀") && loadedMod > 0L
+                            && "1".equals(r.h.get("x-file-editable")),
+                    "mod=" + loadedMod);
+
+            check("save-text повторный create=1 без overwrite -> 409",
+                    req("POST", "/api/save-text?create=1&path=/v39&name=config.ini", auth(), iniBody).status == 409, "");
+
+            r = req("POST", "/api/save-text?create=1&unique=1&path=/v39&name=config.ini", auth(), iniBody);
+            check("save-text create=1&unique=1 создаёт config (1).ini",
+                    r.status == 200 && "config (1).ini".equals(new JSONObject(r.text()).getString("name")), r.text());
+
+            byte[] updated = "[server]\nport = 9000\n".getBytes(StandardCharsets.UTF_8);
+            r = req("POST", "/api/save-text?path=/v39/config.ini&expectedModified=" + loadedMod, auth(), updated);
+            long newMod = new JSONObject(r.text()).getLong("modified");
+            check("save-text с актуальным expectedModified сохраняет текст и сдвигает mtime",
+                    r.status == 200 && newMod > loadedMod
+                            && "[server]\nport = 9000\n".equals(Files.readString(new File(sand, "config.ini").toPath(), StandardCharsets.UTF_8)),
+                    "old=" + loadedMod + " new=" + newMod);
+
+            byte[] staleTry = "STALE OVERWRITE".getBytes(StandardCharsets.UTF_8);
+            r = req("POST", "/api/save-text?path=/v39/config.ini&expectedModified=" + loadedMod, auth(), staleTry);
+            check("save-text с устаревшим expectedModified -> 409 (X-Conflict-Reason: mtime) без порчи файла",
+                    r.status == 409 && "mtime".equals(r.h.get("x-conflict-reason"))
+                            && "[server]\nport = 9000\n".equals(Files.readString(new File(sand, "config.ini").toPath(), StandardCharsets.UTF_8)),
+                    "status=" + r.status + " reason=" + r.h.get("x-conflict-reason"));
+
+            r = req("POST", "/api/save-text?path=/v39/config.ini&expectedModified=" + loadedMod + "&force=1", auth(),
+                    "FORCED=1\n".getBytes(StandardCharsets.UTF_8));
+            check("save-text force=1 принудительно перезаписывает при конфликте mtime",
+                    r.status == 200 && "FORCED=1\n".equals(Files.readString(new File(sand, "config.ini").toPath(), StandardCharsets.UTF_8)),
+                    "status=" + r.status);
+
+            check("save-text бинарного расширения .exe -> 400",
+                    req("POST", "/api/save-text?create=1&path=/v39&name=evil.exe", auth(), new byte[]{1, 2}).status == 400, "");
+            check("save-text временного имени .part -> 400",
+                    req("POST", "/api/save-text?create=1&path=/v39&name=test.part", auth(), new byte[]{1}).status == 400, "");
+            check("save-text traversal ../../ -> 400",
+                    req("POST", "/api/save-text?path=/../../pwn.txt", auth(), new byte[]{1}).status == 400, "");
+            check("save-text симлинка link_in.txt -> 400",
+                    req("POST", "/api/save-text?path=/link_in.txt", auth(), "x".getBytes(StandardCharsets.UTF_8)).status == 400, "");
+            check("save-text > 2 МБ -> 413",
+                    req("POST", "/api/save-text?create=1&path=/v39&name=huge.txt", auth(), new byte[2 * 1024 * 1024 + 16]).status == 413, "");
+
+            // 5. Просмотр и безопасная распаковка .zip (/api/zip-list + /api/zip-extract)
+            File goodZip = new File(sand, "архив.zip");
+            try (java.util.zip.ZipOutputStream zout = new java.util.zip.ZipOutputStream(new FileOutputStream(goodZip), StandardCharsets.UTF_8)) {
+                zout.putNextEntry(new ZipEntry("пустая/"));
+                zout.closeEntry();
+                zout.putNextEntry(new ZipEntry("readme.txt"));
+                zout.write("Привет ZIP!\n".getBytes(StandardCharsets.UTF_8));
+                zout.closeEntry();
+                zout.putNextEntry(new ZipEntry("docs/отчёт.md"));
+                zout.write("# Отчёт\nВсё работает.\n".getBytes(StandardCharsets.UTF_8));
+                zout.closeEntry();
+            }
+
+            r = get("/api/zip-list?path=" + URLEncoder.encode("/v39/архив.zip", StandardCharsets.UTF_8));
+            JSONObject zl = new JSONObject(r.text());
+            check("zip-list возвращает список файлов, папок и размер без распаковки",
+                    r.status == 200 && zl.getInt("fileCount") == 2 && zl.getInt("dirCount") == 1
+                            && zl.getInt("unsafeCount") == 0 && zl.getLong("totalUncompressed") > 10L
+                            && zl.getJSONArray("entries").length() == 3,
+                    r.text());
+
+            r = post("/api/zip-extract?path=" + URLEncoder.encode("/v39/архив.zip", StandardCharsets.UTF_8) + "&dest=/v39&subfolder=1");
+            JSONObject zx = new JSONObject(r.text());
+            File extDir = new File(sand, "архив");
+            check("zip-extract subfolder=1 распаковывает файлы и пустые подпапки",
+                    r.status == 200 && zx.getInt("files") == 2
+                            && new File(extDir, "пустая").isDirectory()
+                            && "Привет ZIP!\n".equals(Files.readString(new File(extDir, "readme.txt").toPath(), StandardCharsets.UTF_8))
+                            && Files.readString(new File(extDir, "docs/отчёт.md").toPath(), StandardCharsets.UTF_8).contains("Всё работает."),
+                    r.text());
+
+            check("zip-extract повторно в существующую папку без overwrite -> 409",
+                    post("/api/zip-extract?path=" + URLEncoder.encode("/v39/архив.zip", StandardCharsets.UTF_8) + "&dest=/v39&subfolder=1").status == 409, "");
+
+            r = post("/api/zip-extract?path=" + URLEncoder.encode("/v39/архив.zip", StandardCharsets.UTF_8) + "&dest=/v39&subfolder=1&unique=1");
+            check("zip-extract subfolder=1&unique=1 создаёт папку «архив (1)»",
+                    r.status == 200 && new File(sand, "архив (1)/readme.txt").isFile(), r.text());
+
+            File selDest = new File(sand, "sel");
+            selDest.mkdirs();
+            r = postJson("/api/zip-extract?path=" + URLEncoder.encode("/v39/архив.zip", StandardCharsets.UTF_8) + "&dest=/v39/sel&subfolder=0",
+                    "{\"entries\":[\"docs/отчёт.md\"]}");
+            check("zip-extract выборочно извлекает только указанные файлы",
+                    r.status == 200 && new File(selDest, "docs/отчёт.md").isFile() && !new File(selDest, "readme.txt").exists(),
+                    r.text());
+
+            // Кириллический ZIP в старой кодировке CP866 (Windows/DOS)
+            File cp866Zip = new File(sand, "win-cp866.zip");
+            try (java.util.zip.ZipOutputStream zout = new java.util.zip.ZipOutputStream(
+                    new FileOutputStream(cp866Zip), java.nio.charset.Charset.forName("IBM866"))) {
+                zout.putNextEntry(new ZipEntry("Папка/Привет_мир.txt"));
+                zout.write("cp866-ok".getBytes(StandardCharsets.UTF_8));
+                zout.closeEntry();
+            }
+            r = get("/api/zip-list?path=/v39/win-cp866.zip");
+            Resp rEx866 = post("/api/zip-extract?path=/v39/win-cp866.zip&dest=/v39&subfolder=1");
+            check("ZIP с именами в CP866 корректно читается и распаковывается с русской кириллицей",
+                    r.status == 200 && r.text().contains("Папка/Привет_мир.txt")
+                            && rEx866.status == 200 && new File(sand, "win-cp866/Папка/Привет_мир.txt").isFile(),
+                    r.text());
+
+            // Защита от Zip Slip (../, ..\, абсолютные и C:/ пути)
+            File slipZip = new File(sand, "slip.zip");
+            try (java.util.zip.ZipOutputStream zout = new java.util.zip.ZipOutputStream(new FileOutputStream(slipZip), StandardCharsets.UTF_8)) {
+                zout.putNextEntry(new ZipEntry("innocent.txt"));
+                zout.write("hi".getBytes(StandardCharsets.US_ASCII));
+                zout.closeEntry();
+                zout.putNextEntry(new ZipEntry("../../zipslip-pwned.txt"));
+                zout.write("pwn".getBytes(StandardCharsets.US_ASCII));
+                zout.closeEntry();
+            }
+            r = get("/api/zip-list?path=/v39/slip.zip");
+            JSONObject slipList = new JSONObject(r.text());
+            Resp slipEx1 = post("/api/zip-extract?path=/v39/slip.zip&dest=/v39&subfolder=1");
+            Resp slipEx2 = post("/api/zip-extract?path=/v39/slip.zip&dest=/v39&subfolder=0");
+            check("Zip Slip (../../) помечается в zip-list и полностью блокируется в zip-extract до записи файлов",
+                    r.status == 200 && slipList.getInt("unsafeCount") == 1 && slipList.getInt("fileCount") == 1
+                            && slipEx1.status == 400 && slipEx2.status == 400
+                            && !new File(TMP, "zipslip-pwned.txt").exists()
+                            && !new File(ROOT, "zipslip-pwned.txt").exists()
+                            && !new File(sand, "slip").exists()
+                            && !new File(sand, "innocent.txt").exists(),
+                    "s1=" + slipEx1.status + " s2=" + slipEx2.status);
+
+            File winSlip = new File(sand, "winslip.zip");
+            try (java.util.zip.ZipOutputStream zout = new java.util.zip.ZipOutputStream(new FileOutputStream(winSlip), StandardCharsets.UTF_8)) {
+                zout.putNextEntry(new ZipEntry("sub\\..\\..\\evil.txt"));
+                zout.write("x".getBytes(StandardCharsets.US_ASCII));
+                zout.closeEntry();
+            }
+            check("Zip Slip с обратными слешами (sub\\..\\..) -> 400",
+                    post("/api/zip-extract?path=/v39/winslip.zip&dest=/v39&subfolder=1").status == 400, "");
+
+            // Защита от распаковки через существующий симлинк подпапки
+            File symTrap = new File(sand, "symtrap");
+            File outsideZipTarget = new File(TMP, "outside-zip-trap");
+            symTrap.mkdirs();
+            outsideZipTarget.mkdirs();
+            Files.createSymbolicLink(new File(symTrap, "docs").toPath(), outsideZipTarget.toPath());
+            try {
+                r = post("/api/zip-extract?path=" + URLEncoder.encode("/v39/архив.zip", StandardCharsets.UTF_8) + "&dest=/v39/symtrap&subfolder=0");
+                check("zip-extract блокирует запись через симлинк-подпапку -> 400",
+                        r.status == 400 && !new File(outsideZipTarget, "отчёт.md").exists(),
+                        "status=" + r.status);
+            } finally {
+                Files.deleteIfExists(new File(symTrap, "docs").toPath());
+                cleanupDir(outsideZipTarget);
+            }
+
+            // Защита от Zip Bomb (12 МБ нулей сжимаются в ~12 КБ -> коэффициент ~1000:1 > 100:1)
+            File bombZip = new File(sand, "bomb.zip");
+            try (java.util.zip.ZipOutputStream zout = new java.util.zip.ZipOutputStream(new FileOutputStream(bombZip), StandardCharsets.UTF_8)) {
+                zout.putNextEntry(new ZipEntry("zeros.bin"));
+                byte[] z64 = new byte[65536];
+                for (int i = 0; i < 192; i++) zout.write(z64); // 12 MiB
+                zout.closeEntry();
+            }
+            r = post("/api/zip-extract?path=/v39/bomb.zip&dest=/v39&subfolder=1");
+            check("Zip Bomb (12 МБ нулей, >100:1) прерывается с 400 и убирает временную папку",
+                    r.status == 400 && !new File(sand, "bomb").exists(),
+                    "status=" + r.status + " msg=" + r.text());
+
+            // Битый .zip
+            Files.write(new File(sand, "corrupt.zip").toPath(), "not-a-zip-at-all".getBytes(StandardCharsets.US_ASCII));
+            check("битый .zip -> 400 в zip-list и zip-extract",
+                    get("/api/zip-list?path=/v39/corrupt.zip").status == 400
+                            && post("/api/zip-extract?path=/v39/corrupt.zip&dest=/v39").status == 400, "");
+
+            // 6. Свойства (/api/stat) и потоковый SHA-256 (/api/hash)
+            write("v39/.hidden.txt", "secret-note");
+            r = get("/api/stat?path=/v39/.hidden.txt");
+            JSONObject stHid = new JSONObject(r.text());
+            check("/api/stat возвращает метаданные файла и признак hidden=true",
+                    r.status == 200 && !stHid.getBoolean("dir") && stHid.getBoolean("hidden")
+                            && stHid.getLong("size") == 11L && "text/plain".equals(stHid.getString("mime"))
+                            && "/v39".equals(stHid.getString("parent")),
+                    r.text());
+
+            r = get("/api/stat?path=" + URLEncoder.encode("/v39/архив", StandardCharsets.UTF_8));
+            JSONObject stDir = new JSONObject(r.text());
+            check("/api/stat на папке возвращает точное число прямых файлов и подпапок",
+                    r.status == 200 && stDir.getBoolean("dir")
+                            && stDir.getInt("directFiles") == 1 && stDir.getInt("directDirs") == 2,
+                    r.text());
+
+            check("/api/stat на несуществующем пути -> 404", get("/api/stat?path=/v39/nope.txt").status == 404, "");
+            check("/api/stat на внешнем симлинке -> 400", get("/api/stat?path=/link_out.txt").status == 400, "");
+
+            r = get("/api/hash?path=/empty.bin");
+            JSONObject hEmpty = new JSONObject(r.text());
+            check("/api/hash пустого файла совпадает с эталонным SHA-256",
+                    r.status == 200 && "SHA-256".equals(hEmpty.getString("algo"))
+                            && "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855".equals(hEmpty.getString("sha256")),
+                    r.text());
+
+            java.security.MessageDigest md = java.security.MessageDigest.getInstance("SHA-256");
+            byte[] expDigest = md.digest(Files.readAllBytes(new File(ROOT, "bin.dat").toPath()));
+            StringBuilder expHex = new StringBuilder();
+            for (byte b : expDigest) expHex.append(String.format(Locale.US, "%02x", b & 0xff));
+            r = get("/api/hash?path=/bin.dat");
+            JSONObject hBin = new JSONObject(r.text());
+            check("/api/hash 1 МБ бинарника совпадает побайтно с SHA-256",
+                    r.status == 200 && expHex.toString().equals(hBin.getString("sha256"))
+                            && hBin.getLong("size") == 1024L * 1024L,
+                    r.text());
+
+            check("/api/hash на папке -> 400", get("/api/hash?path=/sub").status == 400, "");
+            check("/api/hash на внешнем симлинке -> 400", get("/api/hash?path=/link_out.txt").status == 400, "");
+        } finally {
+            cleanupDir(sand);
         }
     }
 

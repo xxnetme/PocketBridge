@@ -8,6 +8,7 @@ import org.xmlpull.v1.XmlPullParser;
 
 import java.io.*;
 import java.net.*;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
@@ -46,6 +47,20 @@ final class FileServer {
     static final int CLIPBOARD_MAX_CHARS = 65_536;
     private static final int CLIPBOARD_MAX_BODY = 256 * 1024;
     private static final int COPY_MAX_NODES = 50_000;
+    private static final int TEXT_EDIT_MAX_BYTES = 2 * 1024 * 1024;
+    private static final int ZIP_BROWSE_LIMIT = 2000;
+    private static final int ZIP_SCAN_MAX = 50_000;
+    private static final int ZIP_EXTRACT_MAX_ENTRIES = 10_000;
+    private static final long ZIP_EXTRACT_MAX_BYTES = 2L * 1024 * 1024 * 1024;
+    private static final long ZIP_BOMB_THRESHOLD = 10L * 1024 * 1024;
+    private static final long ZIP_BOMB_MAX_RATIO = 100L;
+    private static final long HASH_MAX_BYTES = 4L * 1024 * 1024 * 1024;
+    private static final Set<String> TEXT_EXTS = new HashSet<>(Arrays.asList(
+            "txt", "md", "markdown", "csv", "tsv", "log", "json", "xml", "html", "htm",
+            "css", "js", "mjs", "ts", "tsx", "jsx", "yml", "yaml", "toml", "ini", "cfg",
+            "conf", "properties", "java", "kt", "kts", "py", "sh", "sql", "gradle",
+            "c", "h", "cpp", "go", "rs", "rb", "php"
+    ));
     private static final String[] QUICK_DIRS = {
             "DCIM/Camera", "DCIM", "Pictures", "Download", "Documents", "Music", "Movies"
     };
@@ -71,6 +86,7 @@ final class FileServer {
     private final Map<String, Ticket> tickets = new ConcurrentHashMap<>();
     private final Map<String, Long> sessions = new ConcurrentHashMap<>();
     private final Map<String, Upload> uploads = new ConcurrentHashMap<>();
+    private final Set<String> failedVideoThumbs = ConcurrentHashMap.newKeySet();
     private final AtomicLong lastThumbCleanup = new AtomicLong(0);
     private final WebDav dav;
 
@@ -236,6 +252,7 @@ final class FileServer {
         sessions.clear();
         for (Upload upload : uploads.values()) try { upload.tmp.delete(); } catch (Exception ignored) {}
         uploads.clear();
+        failedVideoThumbs.clear();
         synchronized (clipLock) { clipText = ""; clipUpdatedAt = 0L; clipSource = ""; }
         clipboardListener = null;
         cleanupThumbsCache(true);
@@ -351,6 +368,12 @@ final class FileServer {
                 else if ("POST".equals(parts[0]) && "/api/move".equals(endpoint)) { copyOrMove(out, q, true); }
                 else if ("GET".equals(parts[0]) && "/api/clipboard".equals(endpoint)) { getClipboard(out); }
                 else if ("POST".equals(parts[0]) && "/api/clipboard".equals(endpoint)) { postClipboard(out, in, headers); }
+                else if ("POST".equals(parts[0]) && "/api/save-text".equals(endpoint)) { saveText(out, in, headers, q); }
+                else if ("POST".equals(parts[0]) && "/api/rotate-image".equals(endpoint)) { rotateImage(out, q); }
+                else if ("GET".equals(parts[0]) && "/api/zip-list".equals(endpoint)) { zipList(out, q.get("path")); }
+                else if ("POST".equals(parts[0]) && "/api/zip-extract".equals(endpoint)) { zipExtract(out, in, headers, q); }
+                else if ("GET".equals(parts[0]) && "/api/stat".equals(endpoint)) { statEntry(out, q.get("path")); }
+                else if ("GET".equals(parts[0]) && "/api/hash".equals(endpoint)) { hashFile(out, q.get("path")); }
                 else if ("POST".equals(parts[0]) && "/api/upload".equals(endpoint)) { upload(out, in, headers, q); }
                 else if ("POST".equals(parts[0]) && "/api/upload-init".equals(endpoint)) { uploadInit(out, q); }
                 else if ("GET".equals(parts[0]) && "/api/upload-status".equals(endpoint)) { uploadStatus(out, q); }
@@ -648,6 +671,9 @@ final class FileServer {
         int requested = THUMB_WIDTH;
         try { if (width != null && !width.isEmpty()) requested = Integer.parseInt(width); } catch (Exception ignored) {}
         String thumbKey = thumbnailKey(f, requested);
+        if (video && failedVideoThumbs.contains(thumbKey)) {
+            throw new ApiException(400, "Кадр видео недоступен");
+        }
         byte[] jpeg;
         if (cacheDir != null) {
             File cache = new File(cacheDir, "thumbs");
@@ -655,7 +681,15 @@ final class FileServer {
             if (cached.isFile() && cached.length() > 0 && cached.lastModified() >= f.lastModified()) {
                 jpeg = Files.readAllBytes(cached.toPath());
             } else {
-                jpeg = video ? Thumbnails.videoFrame(f, requested) : Thumbnails.jpeg(f, requested);
+                try {
+                    jpeg = video ? Thumbnails.videoFrame(f, requested) : Thumbnails.jpeg(f, requested);
+                } catch (ApiException e) {
+                    if (video) {
+                        if (failedVideoThumbs.size() >= 256) failedVideoThumbs.clear();
+                        failedVideoThumbs.add(thumbKey);
+                    }
+                    throw e;
+                }
                 try {
                     if (!cache.isDirectory()) cache.mkdirs();
                     File tmp = File.createTempFile("thumb-", ".part", cache);
@@ -787,13 +821,21 @@ final class FileServer {
         }
     }
 
+    private static boolean isEditableTextName(String name) {
+        if (name == null || name.isEmpty()) return false;
+        int dot = name.lastIndexOf('.');
+        if (dot <= 0) return false;
+        return TEXT_EXTS.contains(name.substring(dot + 1).toLowerCase(Locale.ROOT));
+    }
+
     private void previewText(OutputStream out, String path) throws Exception {
         File f = readable(path);
         String ext = extension(f);
-        if (!Arrays.asList("txt", "md", "csv", "log", "json", "xml", "html", "htm", "css", "js").contains(ext)) {
+        if (!TEXT_EXTS.contains(ext)) {
             throw new ApiException(400, "Формат не поддерживается");
         }
         if (f.length() > 5L * 1024 * 1024) throw new ApiException(400, "Файл больше 5 МБ — скачайте его для просмотра");
+        long mod = f.lastModified();
         try (InputStream in = new FileInputStream(f); ByteArrayOutputStream b = new ByteArrayOutputStream()) {
             byte[] buf = new byte[8192]; int n, total = 0;
             while ((n = in.read(buf)) != -1) {
@@ -801,8 +843,600 @@ final class FileServer {
                 if (total > 5 * 1024 * 1024) throw new ApiException(400, "Файл слишком большой");
                 b.write(buf, 0, n);
             }
-            send(out, 200, "text/plain; charset=utf-8", b.toByteArray(), null);
+            String extra = "X-File-Modified: " + mod + "\r\nX-File-Size: " + total + "\r\nX-File-Editable: " + (total <= TEXT_EDIT_MAX_BYTES ? "1" : "0") + "\r\n";
+            send(out, 200, "text/plain; charset=utf-8", b.toByteArray(), extra);
         }
+    }
+
+    /** Создание или сохранение текстового файла с проверкой mtime и атомарной записью через .part. */
+    private void saveText(OutputStream out, InputStream in, Map<String, String> headers, Map<String, String> q) throws Exception {
+        int length;
+        try { length = Integer.parseInt(headers.getOrDefault("content-length", "-1")); } catch (Exception e) { length = -1; }
+        if (length < 0) throw new ApiException(400, "Некорректный размер текста");
+        if (length > TEXT_EDIT_MAX_BYTES) throw new ApiException(413, "Текстовый редактор ограничен файлами до 2 МБ");
+        byte[] body = new byte[length];
+        int read = 0;
+        while (read < length) {
+            int r = in.read(body, read, length - read);
+            if (r < 0) throw new IOException("Передача прервана");
+            read += r;
+        }
+
+        boolean create = "1".equals(q.get("create"));
+        boolean overwrite = "1".equals(q.get("overwrite"));
+        boolean unique = "1".equals(q.get("unique"));
+        boolean force = "1".equals(q.get("force"));
+
+        File parent;
+        String name;
+        if (create) {
+            parent = resolve(q.getOrDefault("path", "/"));
+            if (!parent.isDirectory()) throw new ApiException(400, "Папка недоступна");
+            name = q.get("name");
+        } else {
+            String rawPath = q.get("path");
+            if (rawPath == null || rawPath.isEmpty()) throw new ApiException(400, "Недопустимый путь");
+            if (isRawSymlink(rawPath)) throw new ApiException(400, "Редактирование символической ссылки запрещено");
+            String trimmed = rawPath;
+            while (trimmed.endsWith("/") && trimmed.length() > 1) trimmed = trimmed.substring(0, trimmed.length() - 1);
+            int slash = trimmed.lastIndexOf('/');
+            if (slash < 0 || "/".equals(trimmed)) throw new ApiException(400, "Недопустимый путь");
+            String parentPath = slash == 0 ? "/" : trimmed.substring(0, slash);
+            parent = resolve(parentPath);
+            if (!parent.isDirectory()) throw new ApiException(400, "Папка недоступна");
+            name = trimmed.substring(slash + 1);
+        }
+
+        if (isTempName(name)) throw new ApiException(400, "Недопустимое имя");
+        if (!isEditableTextName(name)) {
+            throw new ApiException(400, "Поддерживаются только текстовые форматы (.txt, .md, .json, .ini, .cfg, .xml, .csv и др.)");
+        }
+
+        File target = safeChild(parent, name);
+        if (unique) {
+            target = uniqueTarget(parent, name);
+        } else if (create) {
+            if (target.exists() && !overwrite) {
+                throw new ApiException(409, "Файл с таким именем уже существует");
+            }
+            if (target.isDirectory()) {
+                throw new ApiException(409, "Имя занято папкой");
+            }
+        } else {
+            if (!target.exists()) throw new ApiException(404, "Файл не найден (возможно, он был удалён или переименован)");
+            if (!target.isFile()) throw new ApiException(400, "Нельзя перезаписать папку текстом");
+            String expStr = q.get("expectedModified");
+            if (!force && expStr != null && !expStr.isEmpty()) {
+                long expected;
+                try { expected = Long.parseLong(expStr.trim()); }
+                catch (NumberFormatException e) { throw new ApiException(400, "Некорректная метка времени"); }
+                long actual = target.lastModified();
+                if (expected > 0L && actual != expected) {
+                    throw new ApiException(409,
+                            "Файл был изменён на телефоне или в другой вкладке",
+                            "X-Conflict-Reason: mtime\r\nX-File-Modified: " + actual + "\r\n");
+                }
+            }
+        }
+
+        long usable = parent.getUsableSpace();
+        if (usable > 0L && usable < (long) body.length + 1024L * 1024L) {
+            throw new ApiException(400, "Недостаточно свободного места на телефоне");
+        }
+
+        long prevMod = (!create && target.exists()) ? target.lastModified() : 0L;
+        File tmp = File.createTempFile(".wifi-upload-", ".part", parent);
+        boolean ok = false;
+        try {
+            try (OutputStream fout = new BufferedOutputStream(new FileOutputStream(tmp))) {
+                fout.write(body);
+                fout.flush();
+            }
+            try {
+                Files.move(tmp.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING);
+            } catch (Exception moveErr) {
+                if (target.exists() && !target.delete()) throw new ApiException(400, "Не удалось заменить файл");
+                if (!tmp.renameTo(target)) throw new ApiException(400, "Не удалось сохранить файл");
+            }
+            if (prevMod > 0L && target.lastModified() == prevMod) {
+                //noinspection ResultOfMethodCallIgnored
+                target.setLastModified(Math.max(System.currentTimeMillis(), prevMod + 1000L));
+            }
+            ok = true;
+        } finally {
+            if (!ok && tmp.exists()) {
+                //noinspection ResultOfMethodCallIgnored
+                tmp.delete();
+            }
+        }
+
+        JSONObject resp = new JSONObject();
+        resp.put("ok", true);
+        resp.put("name", target.getName());
+        resp.put("path", relative(target));
+        resp.put("size", target.length());
+        resp.put("modified", target.lastModified());
+        send(out, 200, "application/json; charset=utf-8", resp.toString().getBytes(StandardCharsets.UTF_8), null);
+    }
+
+    /** Поворот растрового фото (JPEG/PNG/WebP) на 90/180/270° на месте. */
+    private void rotateImage(OutputStream out, Map<String, String> q) throws Exception {
+        String rawPath = q.get("path");
+        if (rawPath == null || rawPath.isEmpty()) throw new ApiException(400, "Укажите путь к изображению");
+        if (isRawSymlink(rawPath)) throw new ApiException(400, "Операция с символической ссылкой запрещена");
+        File f = readable(rawPath);
+        int deg;
+        try { deg = Integer.parseInt(q.getOrDefault("degrees", "90").trim()); }
+        catch (NumberFormatException e) { throw new ApiException(400, "Некорректный угол поворота"); }
+        long prevMod = f.lastModified();
+        int[] dims = Thumbnails.rotateFile(f, deg);
+        // Гарантируем сдвиг mtime (даже на ФС с секундной точностью), чтобы кеш миниатюр и превью обновились.
+        long targetMod = Math.max(System.currentTimeMillis(), prevMod + 1000L);
+        if (f.lastModified() <= prevMod) {
+            //noinspection ResultOfMethodCallIgnored
+            f.setLastModified(targetMod);
+        }
+        JSONObject resp = new JSONObject();
+        resp.put("ok", true);
+        resp.put("path", relative(f));
+        resp.put("width", dims[0]);
+        resp.put("height", dims[1]);
+        resp.put("size", f.length());
+        resp.put("modified", f.lastModified());
+        send(out, 200, "application/json; charset=utf-8", resp.toString().getBytes(StandardCharsets.UTF_8), null);
+    }
+
+    /** Безопасная нормализация пути внутри ZIP-архива; возвращает null при попытке Zip Slip. */
+    private static String sanitizeZipEntryPath(String rawName) {
+        if (rawName == null || rawName.isEmpty() || rawName.indexOf('\0') >= 0) return null;
+        String norm = rawName.replace('\\', '/');
+        while (norm.startsWith("/")) norm = norm.substring(1);
+        while (norm.endsWith("/")) norm = norm.substring(0, norm.length() - 1);
+        if (norm.isEmpty()) return null;
+        if (norm.length() >= 2 && Character.isLetter(norm.charAt(0)) && norm.charAt(1) == ':') return null;
+        String[] parts = norm.split("/");
+        if (parts.length > 32) return null;
+        StringBuilder clean = new StringBuilder(norm.length());
+        for (String seg : parts) {
+            if (seg.isEmpty() || ".".equals(seg) || "..".equals(seg) || seg.length() > 200) return null;
+            if (isTempName(seg)) return null;
+            for (int i = 0; i < seg.length(); i++) {
+                char c = seg.charAt(i);
+                if (c < 0x20 || c == 0x7f) return null;
+            }
+            if (clean.length() > 0) clean.append('/');
+            clean.append(seg);
+        }
+        return clean.length() == 0 ? null : clean.toString();
+    }
+
+    /** Открывает ZIP-архив в UTF-8, а при старой кириллической кодировке (Windows/DOS) — в CP866/ISO-8859-1. */
+    private static ZipFile openZipWithFallback(File f) throws IOException {
+        Charset[] charsets;
+        try {
+            charsets = new Charset[]{ StandardCharsets.UTF_8, Charset.forName("IBM866"), StandardCharsets.ISO_8859_1 };
+        } catch (Exception ignored) {
+            charsets = new Charset[]{ StandardCharsets.UTF_8, StandardCharsets.ISO_8859_1 };
+        }
+        IOException last = null;
+        for (Charset cs : charsets) {
+            ZipFile zf = null;
+            try {
+                zf = new ZipFile(f, cs);
+                Enumeration<? extends ZipEntry> en = zf.entries();
+                int probe = 0;
+                while (en.hasMoreElements() && probe++ < 64) {
+                    en.nextElement().getName();
+                }
+                return zf;
+            } catch (IllegalArgumentException badCs) {
+                if (zf != null) try { zf.close(); } catch (Exception ignored) {}
+            } catch (IOException io) {
+                if (zf != null) try { zf.close(); } catch (Exception ignored) {}
+                last = io;
+                break;
+            }
+        }
+        throw new ApiException(400, "Не удалось прочитать ZIP-архив (файл повреждён или не является ZIP)"
+                + (last != null && last.getMessage() != null ? "" : ""));
+    }
+
+    /** Просмотр содержимого .zip без распаковки. */
+    private void zipList(OutputStream out, String path) throws Exception {
+        File f = readable(path);
+        if (!"zip".equals(extension(f))) throw new ApiException(400, "Нужен архив формата .zip");
+        JSONArray entries = new JSONArray();
+        int totalEntries = 0, fileCount = 0, dirCount = 0, unsafeCount = 0;
+        long totalUncompressed = 0L;
+        boolean truncated = false;
+
+        try (ZipFile zf = openZipWithFallback(f)) {
+            Enumeration<? extends ZipEntry> en = zf.entries();
+            while (en.hasMoreElements()) {
+                if (totalEntries >= ZIP_SCAN_MAX) { truncated = true; break; }
+                ZipEntry ze;
+                try { ze = en.nextElement(); }
+                catch (IllegalArgumentException badName) { unsafeCount++; continue; }
+                String rawName = ze.getName();
+                boolean isDir = ze.isDirectory() || (rawName != null && (rawName.endsWith("/") || rawName.endsWith("\\")));
+                String clean = sanitizeZipEntryPath(rawName);
+                if (clean == null) {
+                    if (rawName != null && !rawName.equals("/") && !rawName.isEmpty()) unsafeCount++;
+                    continue;
+                }
+                totalEntries++;
+                if (isDir) dirCount++; else fileCount++;
+                long sz = Math.max(0L, ze.getSize());
+                long csz = Math.max(0L, ze.getCompressedSize());
+                if (!isDir && sz > 0L && totalUncompressed <= Long.MAX_VALUE - sz) {
+                    totalUncompressed += sz;
+                }
+                if (entries.length() < ZIP_BROWSE_LIMIT) {
+                    JSONObject j = new JSONObject();
+                    j.put("path", clean);
+                    j.put("dir", isDir);
+                    j.put("size", isDir ? 0L : sz);
+                    j.put("compressedSize", isDir ? 0L : csz);
+                    long t = ze.getTime();
+                    j.put("modified", t > 0L ? t : 0L);
+                    entries.put(j);
+                } else {
+                    truncated = true;
+                }
+            }
+        }
+
+        JSONObject resp = new JSONObject();
+        resp.put("name", f.getName());
+        resp.put("path", relative(f));
+        resp.put("archiveSize", f.length());
+        resp.put("totalEntries", totalEntries);
+        resp.put("fileCount", fileCount);
+        resp.put("dirCount", dirCount);
+        resp.put("unsafeCount", unsafeCount);
+        resp.put("totalUncompressed", totalUncompressed);
+        resp.put("truncated", truncated);
+        resp.put("entries", entries);
+        send(out, 200, "application/json; charset=utf-8", resp.toString().getBytes(StandardCharsets.UTF_8), null);
+    }
+
+    /** Безопасная распаковка .zip на телефоне (защита от Zip Slip, симлинков, Zip Bomb и переполнения диска). */
+    private void zipExtract(OutputStream out, InputStream in, Map<String, String> headers, Map<String, String> q) throws Exception {
+        String rawZip = q.get("path");
+        if (rawZip == null || rawZip.isEmpty()) throw new ApiException(400, "Укажите путь к архиву");
+        File zipFile = readable(rawZip);
+        if (!"zip".equals(extension(zipFile))) throw new ApiException(400, "Нужен архив формата .zip");
+
+        String rawDest = q.get("dest");
+        if (rawDest == null || rawDest.isEmpty()) rawDest = q.get("to");
+        File baseDir = (rawDest == null || rawDest.isEmpty()) ? zipFile.getParentFile() : resolve(rawDest);
+        if (baseDir == null || !baseDir.exists()) throw new ApiException(404, "Папка назначения не найдена");
+        if (!baseDir.isDirectory()) throw new ApiException(400, "Назначение не является папкой");
+
+        // Необязательный JSON-список выбранных элементов {"entries":["a/b.txt", ...]}
+        Set<String> selectedPaths = null;
+        int bodyLen = 0;
+        try { bodyLen = Integer.parseInt(headers.getOrDefault("content-length", "0")); } catch (Exception ignored) {}
+        if (bodyLen > 512 * 1024) throw new ApiException(413, "Слишком большой список элементов");
+        if (bodyLen > 0) {
+            byte[] body = new byte[bodyLen];
+            int rd = 0;
+            while (rd < bodyLen) {
+                int r = in.read(body, rd, bodyLen - rd);
+                if (r < 0) throw new IOException("Передача прервана");
+                rd += r;
+            }
+            String s = new String(body, StandardCharsets.UTF_8).trim();
+            if (!s.isEmpty()) {
+                JSONObject jb = new JSONObject(s);
+                JSONArray arr = jb.optJSONArray("entries");
+                if (arr != null && arr.length() > 0) {
+                    selectedPaths = new HashSet<>();
+                    for (int i = 0; i < arr.length(); i++) {
+                        String rawSel = arr.getString(i);
+                        String p = sanitizeZipEntryPath(rawSel);
+                        if (p == null) throw new ApiException(400, "Недопустимый путь элемента в архиве");
+                        selectedPaths.add(p);
+                    }
+                    if (selectedPaths.isEmpty()) throw new ApiException(400, "Не выбрано допустимых элементов для распаковки");
+                }
+            }
+        }
+
+        // Предварительная проверка центрального каталога до создания папок и файлов на диске.
+        try (ZipFile preflight = openZipWithFallback(zipFile)) {
+            Enumeration<? extends ZipEntry> preEn = preflight.entries();
+            int preCount = 0;
+            while (preEn.hasMoreElements()) {
+                ZipEntry ze = preEn.nextElement();
+                String rawName = ze.getName();
+                String clean = sanitizeZipEntryPath(rawName);
+                if (clean == null) {
+                    if (selectedPaths == null && rawName != null && !rawName.isEmpty() && !"/".equals(rawName)) {
+                        throw new ApiException(400, "Заблокирован небезопасный путь в архиве (Zip Slip)");
+                    }
+                    continue;
+                }
+                if (selectedPaths != null && !matchesZipSelection(clean, selectedPaths)) continue;
+                if (++preCount > ZIP_EXTRACT_MAX_ENTRIES) {
+                    throw new ApiException(400, "В архиве слишком много объектов (лимит " + ZIP_EXTRACT_MAX_ENTRIES + ")");
+                }
+            }
+        }
+
+        boolean subfolder = !"0".equals(q.getOrDefault("subfolder", selectedPaths == null ? "1" : "0"));
+        boolean overwrite = "1".equals(q.get("overwrite"));
+        boolean unique = "1".equals(q.get("unique"));
+
+        File extractRoot;
+        boolean createdSubfolder = false;
+        if (subfolder) {
+            String customFolder = q.get("folder");
+            String stem;
+            if (customFolder != null && !customFolder.trim().isEmpty()) {
+                stem = customFolder.trim();
+            } else {
+                String zn = zipFile.getName();
+                int dot = zn.lastIndexOf('.');
+                stem = (dot > 0 ? zn.substring(0, dot) : zn + "-extracted").trim();
+                if (stem.isEmpty() || ".".equals(stem) || "..".equals(stem)) stem = "extracted";
+            }
+            if (isTempName(stem)) throw new ApiException(400, "Недопустимое имя папки");
+            extractRoot = safeChild(baseDir, stem);
+            if (unique) {
+                extractRoot = uniqueEntryTarget(baseDir, stem, true);
+            } else if (extractRoot.exists()) {
+                if (!overwrite) throw new ApiException(409, "Папка «" + stem + "» уже существует");
+                if (!extractRoot.isDirectory()) throw new ApiException(409, "Имя «" + stem + "» занято файлом");
+            }
+            if (!extractRoot.exists()) {
+                if (!extractRoot.mkdir()) throw new ApiException(400, "Не удалось создать папку распаковки");
+                createdSubfolder = true;
+            }
+        } else {
+            extractRoot = baseDir;
+        }
+
+        File rootReal = extractRoot.toPath().toRealPath().toFile();
+        String rootPrefix = rootReal.getPath().endsWith(File.separator)
+                ? rootReal.getPath()
+                : rootReal.getPath() + File.separator;
+
+        int extractedFiles = 0, extractedDirs = 0, skipped = 0, seen = 0;
+        long totalWritten = 0L;
+        byte[] buf = new byte[65536];
+        boolean completed = false;
+
+        try (ZipFile zf = openZipWithFallback(zipFile)) {
+            Enumeration<? extends ZipEntry> en = zf.entries();
+            while (en.hasMoreElements()) {
+                ZipEntry ze = en.nextElement();
+                String rawName = ze.getName();
+                boolean isDir = ze.isDirectory() || (rawName != null && (rawName.endsWith("/") || rawName.endsWith("\\")));
+                String clean = sanitizeZipEntryPath(rawName);
+                if (clean == null) {
+                    if (rawName != null && !rawName.isEmpty() && !"/".equals(rawName)) {
+                        throw new ApiException(400, "Заблокирован небезопасный путь в архиве (Zip Slip)");
+                    }
+                    continue;
+                }
+                if (selectedPaths != null && !matchesZipSelection(clean, selectedPaths)) {
+                    continue;
+                }
+                if (++seen > ZIP_EXTRACT_MAX_ENTRIES) {
+                    throw new ApiException(400, "В архиве слишком много объектов (лимит " + ZIP_EXTRACT_MAX_ENTRIES + ")");
+                }
+
+                // Пошаговая проверка каждого сегмента пути на отсутствие симлинков и выхода за extractRoot.
+                String[] parts = clean.split("/");
+                File curDir = rootReal;
+                int dirLimit = isDir ? parts.length : parts.length - 1;
+                for (int i = 0; i < dirLimit; i++) {
+                    File next = new File(curDir, parts[i]);
+                    if (Files.isSymbolicLink(next.toPath())) {
+                        throw new ApiException(400, "Заблокирована распаковка через символическую ссылку");
+                    }
+                    if (!next.exists()) {
+                        if (!next.mkdir()) throw new ApiException(400, "Не удалось создать подпапку: " + parts[i]);
+                        extractedDirs++;
+                    } else if (!next.isDirectory()) {
+                        throw new ApiException(409, "Путь занят файлом: " + parts[i]);
+                    }
+                    File nextReal = next.toPath().toRealPath().toFile();
+                    if (!nextReal.getPath().startsWith(rootPrefix)) {
+                        throw new ApiException(400, "Заблокирован выход за пределы папки распаковки (Zip Slip)");
+                    }
+                    curDir = nextReal;
+                }
+                if (isDir) continue;
+
+                String fileName = parts[parts.length - 1];
+                File dst = new File(curDir, fileName);
+                if (Files.isSymbolicLink(dst.toPath())) {
+                    throw new ApiException(400, "Заблокирована перезапись символической ссылки");
+                }
+                if (!new File(curDir, fileName).getPath().startsWith(rootPrefix)) {
+                    throw new ApiException(400, "Заблокирован небезопасный путь в архиве (Zip Slip)");
+                }
+                if (dst.exists()) {
+                    if (dst.isDirectory()) { skipped++; continue; }
+                    if (unique && !subfolder) {
+                        dst = uniqueTarget(curDir, fileName);
+                    } else if (!overwrite) {
+                        skipped++;
+                        continue;
+                    }
+                }
+
+                long compSize = ze.getCompressedSize();
+                File tmp = File.createTempFile(".wifi-upload-", ".part", curDir);
+                boolean fileOk = false;
+                long entryWritten = 0L;
+                try {
+                    try (InputStream zin = zf.getInputStream(ze);
+                         OutputStream fout = new BufferedOutputStream(new FileOutputStream(tmp))) {
+                        int n;
+                        long lastSpaceCheck = 0L;
+                        while ((n = zin.read(buf)) != -1) {
+                            entryWritten += n;
+                            totalWritten += n;
+                            if (totalWritten > ZIP_EXTRACT_MAX_BYTES) {
+                                throw new ApiException(413, "Превышен лимит распаковки (2 ГБ)");
+                            }
+                            if (entryWritten > ZIP_BOMB_THRESHOLD && compSize > 0L
+                                    && (entryWritten / compSize) > ZIP_BOMB_MAX_RATIO) {
+                                throw new ApiException(400, "Архив заблокирован: подозрительная степень сжатия (Zip Bomb)");
+                            }
+                            if (entryWritten - lastSpaceCheck >= 4L * 1024 * 1024) {
+                                lastSpaceCheck = entryWritten;
+                                long usable = curDir.getUsableSpace();
+                                if (usable > 0L && usable < 16L * 1024 * 1024) {
+                                    throw new ApiException(400, "Недостаточно свободного места на телефоне");
+                                }
+                            }
+                            fout.write(buf, 0, n);
+                        }
+                        fout.flush();
+                    } catch (java.util.zip.ZipException zeErr) {
+                        throw new ApiException(400, "Архив повреждён или защищён паролем");
+                    }
+                    long mtime = ze.getTime();
+                    if (mtime > 0L) {
+                        //noinspection ResultOfMethodCallIgnored
+                        tmp.setLastModified(mtime);
+                    }
+                    try {
+                        Files.move(tmp.toPath(), dst.toPath(), StandardCopyOption.REPLACE_EXISTING);
+                    } catch (Exception moveErr) {
+                        if (dst.exists() && !dst.delete()) throw new ApiException(400, "Не удалось заменить файл: " + dst.getName());
+                        if (!tmp.renameTo(dst)) throw new ApiException(400, "Не удалось сохранить файл: " + dst.getName());
+                    }
+                    fileOk = true;
+                    extractedFiles++;
+                } finally {
+                    if (!fileOk && tmp.exists()) {
+                        //noinspection ResultOfMethodCallIgnored
+                        tmp.delete();
+                    }
+                }
+            }
+            completed = true;
+        } finally {
+            // Если распаковка в новую подпапку оборвалась ошибкой (например Zip Slip/Bomb), убираем её целиком.
+            if (!completed && createdSubfolder && extractRoot.exists()) {
+                try { deleteTree(extractRoot); } catch (Exception ignored) {}
+            }
+        }
+
+        JSONObject resp = new JSONObject();
+        resp.put("ok", true);
+        resp.put("dest", relative(rootReal));
+        resp.put("name", rootReal.getName());
+        resp.put("files", extractedFiles);
+        resp.put("dirs", extractedDirs);
+        resp.put("skipped", skipped);
+        resp.put("bytes", totalWritten);
+        send(out, 200, "application/json; charset=utf-8", resp.toString().getBytes(StandardCharsets.UTF_8), null);
+    }
+
+    private static boolean matchesZipSelection(String entryPath, Set<String> selected) {
+        if (selected.contains(entryPath)) return true;
+        for (String sel : selected) {
+            if (entryPath.startsWith(sel + "/")) return true;
+        }
+        return false;
+    }
+
+    /** Подробные свойства файла или папки (включая размеры изображения и состав каталога). */
+    private void statEntry(OutputStream out, String path) throws Exception {
+        if (path == null || path.isEmpty()) throw new ApiException(400, "Укажите путь");
+        File f = resolve(path);
+        if (!f.exists()) throw new ApiException(404, "Объект не найден");
+        boolean isRoot = f.equals(root);
+        boolean isDir = f.isDirectory();
+        String rel = relative(f);
+        int lastSlash = rel.lastIndexOf('/');
+        String parentPath = isRoot ? "" : (lastSlash <= 0 ? "/" : rel.substring(0, lastSlash));
+
+        JSONObject j = new JSONObject();
+        j.put("name", isRoot ? "/" : f.getName());
+        j.put("path", rel);
+        j.put("parent", parentPath);
+        j.put("dir", isDir);
+        j.put("size", isDir ? 0L : f.length());
+        j.put("modified", f.lastModified());
+        j.put("readable", f.canRead());
+        j.put("writable", f.canWrite());
+        j.put("hidden", !isRoot && f.getName().startsWith("."));
+
+        if (isDir) {
+            File[] children = f.listFiles();
+            int df = 0, dd = 0;
+            if (children != null) {
+                for (File c : children) {
+                    if (isTempName(c.getName())) continue;
+                    if (c.isDirectory()) dd++; else df++;
+                }
+            }
+            j.put("directFiles", df);
+            j.put("directDirs", dd);
+        } else {
+            String ext = extension(f);
+            String mime = mediaMime(f);
+            if (mime == null) {
+                if ("zip".equals(ext)) mime = "application/zip";
+                else if ("apk".equals(ext)) mime = "application/vnd.android.package-archive";
+                else if ("docx".equals(ext)) mime = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+                else if ("json".equals(ext)) mime = "application/json";
+                else if ("xml".equals(ext)) mime = "application/xml";
+                else if ("html".equals(ext) || "htm".equals(ext)) mime = "text/html";
+                else if ("csv".equals(ext)) mime = "text/csv";
+                else if ("md".equals(ext) || "markdown".equals(ext)) mime = "text/markdown";
+                else if (TEXT_EXTS.contains(ext)) mime = "text/plain";
+                else mime = "application/octet-stream";
+            }
+            j.put("ext", ext);
+            j.put("mime", mime);
+            if (mime.startsWith("image/") && !"image/svg+xml".equals(mime) && f.length() <= PREVIEW_MAX_SIZE) {
+                int[] info = Thumbnails.readImageInfo(f);
+                if (info != null) {
+                    j.put("width", info[0]);
+                    j.put("height", info[1]);
+                    if (info[2] > 1) j.put("exifOrientation", info[2]);
+                }
+            }
+        }
+        send(out, 200, "application/json; charset=utf-8", j.toString().getBytes(StandardCharsets.UTF_8), null);
+    }
+
+    /** Потоковый расчёт контрольной суммы SHA-256 файла без загрузки в память. */
+    private void hashFile(OutputStream out, String path) throws Exception {
+        File f = readable(path);
+        long size = f.length();
+        if (size > HASH_MAX_BYTES) throw new ApiException(413, "Расчёт SHA-256 ограничен файлами до 4 ГБ");
+        MessageDigest md = MessageDigest.getInstance("SHA-256");
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(45);
+        byte[] buf = new byte[65536];
+        long processed = 0L;
+        try (InputStream fis = new FileInputStream(f)) {
+            int n;
+            while ((n = fis.read(buf)) != -1) {
+                md.update(buf, 0, n);
+                processed += n;
+                if ((processed & 0x3FFFFFL) == 0L && System.nanoTime() > deadline) {
+                    throw new ApiException(400, "Расчёт SHA-256 занял слишком много времени");
+                }
+            }
+        }
+        byte[] digest = md.digest();
+        StringBuilder hex = new StringBuilder(64);
+        for (byte b : digest) hex.append(String.format(Locale.US, "%02x", b & 0xff));
+        JSONObject j = new JSONObject();
+        j.put("algo", "SHA-256");
+        j.put("sha256", hex.toString());
+        j.put("size", processed);
+        j.put("modified", f.lastModified());
+        send(out, 200, "application/json; charset=utf-8", j.toString().getBytes(StandardCharsets.UTF_8), null);
     }
 
     private void previewDocx(OutputStream out, String path) throws Exception {

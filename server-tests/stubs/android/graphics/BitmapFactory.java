@@ -16,6 +16,10 @@ public final class BitmapFactory {
 
     private BitmapFactory() {}
 
+    public static Bitmap decodeFile(String path) {
+        return decodeFile(path, null);
+    }
+
     public static Bitmap decodeFile(String path, Options options) {
         try {
             BufferedImage image = ImageIO.read(new File(path));

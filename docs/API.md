@@ -185,6 +185,20 @@
 
 Поддерживаются методы `OPTIONS`, `PROPFIND` (`Depth: 0` и `Depth: 1`), `GET` (включая `Range`), `HEAD`, `PUT` (`Content-Length` и `Transfer-Encoding: chunked`, до 20 ГБ), `MKCOL`, `DELETE`, `MOVE`, `COPY` (с заголовком `Overwrite: T|F`), `PROPPATCH`, `LOCK`, `UNLOCK`. Подробнее — в [WEBDAV.md](WEBDAV.md).
 
+### `POST /api/save-text`
+Атомарное создание (`create=1&path=<dir>&name=<file>`) или сохранение (`path=<file>&expectedModified=<ms>`) текстового файла в UTF-8 (тело запроса до 2 МБ; флаги `overwrite=1`, `unique=1`, `force=1`). При внешнем изменении файла возвращает `409` с заголовками `X-Conflict-Reason: mtime` и `X-File-Modified`. Ответ: `{"ok": true, "name": "...", "path": "...", "size": 128, "modified": 1700000000000}`. `GET /api/text` дополнительно возвращает `X-File-Modified`, `X-File-Size` и `X-File-Editable: 1|0`.
+
+### `POST /api/rotate-image?path=<path>&degrees=90|180|270`
+Поворачивает JPEG, PNG или WebP (до 40 МБ и 36 МП, с учётом текущей EXIF-ориентации) с атомарной перезаписью и обновлением `lastModified`. Ответ: `{"ok": true, "path": "...", "width": 1200, "height": 1600, "size": ..., "modified": ...}`.
+
+### `GET /api/zip-list?path=<zip>` и `POST /api/zip-extract`
+- `GET /api/zip-list` — чтение каталога `.zip` без распаковки (UTF-8 с авто-fallback на `CP866`/ISO-8859-1): `fileCount`, `dirCount`, `unsafeCount`, `totalUncompressed`, `truncated` и массив `entries` (до 2 000 элементов).
+- `POST /api/zip-extract?path=<zip>&dest=<dir>&subfolder=1|0[&overwrite=1][&unique=1]` — полная или выборочная распаковка (необязательное JSON-тело `{"entries": ["docs/plan.md", ...]}`). Блокирует Zip Slip (`..`, `\`, абсолютные пути, диски Windows), симлинки в пути назначения и Zip Bomb (лимит 10 000 объектов, глубина 32, 2 ГБ суммарно, степень сжатия > 100:1 для файлов свыше 10 МБ).
+
+### `GET /api/stat?path=<path>` и `GET /api/hash?path=<path>`
+- `GET /api/stat` — подробные метаданные файла или папки (`name`, `path`, `parent`, `dir`, `size`, `modified`, `readable`, `writable`, `hidden`, для папок `directFiles`/`directDirs`, для файлов `ext`/`mime`, для изображений `width`/`height`/`exifOrientation`).
+- `GET /api/hash` — потоковый расчёт `SHA-256` файла (буфер 64 КБ, файлы до 4 ГБ): `{"algo": "SHA-256", "sha256": "<64-hex>", "size": ..., "modified": ...}`.
+
 ---
 
 ## Лимиты
@@ -196,6 +210,10 @@
 | Тикеты `/preview` и `/dl` | до 256 активных, TTL 10 минут |
 | Одновременные чанковые загрузки | до 32, TTL 6 часов, чанк до 32 МБ |
 | Максимальный размер загружаемого файла | 20 ГБ |
-| Кеш миниатюр | 200 МБ (автоочистка старейших файлов) |
+| Кеш миниатюр (фото + кадры видео) | 200 МБ (автоочистка старейших файлов) |
 | Превью HEIC/RAW / текста и SVG / DOCX XML | 50 МБ / 5 МБ / 8 МБ |
-| ZIP-архив | до 500 выбранных объектов, до 5 000 файлов, глубина до 40 |
+| Редактор текста (`/api/save-text`) | до 2 МБ (UTF-8) |
+| Поворот фото (`/api/rotate-image`) | JPEG/PNG/WebP до 40 МБ и 36 МП |
+| Скачивание в ZIP | до 500 выбранных объектов, до 5 000 файлов, глубина до 40 |
+| Просмотр / распаковка `.zip` | до 2 000 показанных записей / до 10 000 объектов, 2 ГБ, глубина 32 |
+| Расчёт `SHA-256` (`/api/hash`) | файлы до 4 ГБ (потоково, буфер 64 КБ) |

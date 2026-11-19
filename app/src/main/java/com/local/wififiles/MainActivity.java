@@ -104,7 +104,7 @@ public final class MainActivity extends Activity {
     private static final int RIPPLE_LIGHT = 0x26ffffff;
     private static final int RIPPLE_DARK = 0x29071015;
 
-    private static final String APP_VERSION = "3.8";
+    private static final String APP_VERSION = "3.9";
     private static final String PREF_LANG = "ui_lang";
 
     private static final int PENDING_NONE = 0;
