@@ -143,6 +143,7 @@ final class FileServer {
         return s <= 0L ? 0L : Math.max(0L, System.currentTimeMillis() - s);
     }
     boolean isRecentlyActive(long windowMs) {
+        if (windowMs <= 0L) return false;
         if (!connections.isEmpty() || !uploads.isEmpty()) return true;
         long t = lastClientTouch;
         return t > 0L && (System.currentTimeMillis() - t) <= windowMs;
