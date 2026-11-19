@@ -1010,15 +1010,18 @@ final class FileServer {
         return clean.length() == 0 ? null : clean.toString();
     }
 
-    /** Открывает ZIP-архив в UTF-8, а при старой кириллической кодировке (Windows/DOS) — в CP866/ISO-8859-1. */
+    /** Открывает ZIP-архив в UTF-8, а при старой кириллической кодировке (Windows/DOS) — в CP866/CP1251/ISO-8859-1. */
     private static ZipFile openZipWithFallback(File f) throws IOException {
-        Charset[] charsets;
-        try {
-            charsets = new Charset[]{ StandardCharsets.UTF_8, Charset.forName("IBM866"), StandardCharsets.ISO_8859_1 };
-        } catch (Exception ignored) {
-            charsets = new Charset[]{ StandardCharsets.UTF_8, StandardCharsets.ISO_8859_1 };
+        List<Charset> charsets = new ArrayList<>(4);
+        charsets.add(StandardCharsets.UTF_8);
+        for (String csName : new String[]{ "IBM866", "CP866", "windows-1251" }) {
+            try {
+                Charset c = Charset.forName(csName);
+                if (!charsets.contains(c)) charsets.add(c);
+            } catch (Exception ignored) {}
         }
-        IOException last = null;
+        charsets.add(StandardCharsets.ISO_8859_1);
+
         for (Charset cs : charsets) {
             ZipFile zf = null;
             try {
@@ -1029,16 +1032,15 @@ final class FileServer {
                     en.nextElement().getName();
                 }
                 return zf;
-            } catch (IllegalArgumentException badCs) {
+            } catch (IllegalArgumentException | java.util.zip.ZipException badCs) {
+                // JDK 17 бросает IllegalArgumentException (MALFORMED), JDK 21 и Android 14+ — ZipException (bad entry name).
                 if (zf != null) try { zf.close(); } catch (Exception ignored) {}
             } catch (IOException io) {
                 if (zf != null) try { zf.close(); } catch (Exception ignored) {}
-                last = io;
                 break;
             }
         }
-        throw new ApiException(400, "Не удалось прочитать ZIP-архив (файл повреждён или не является ZIP)"
-                + (last != null && last.getMessage() != null ? "" : ""));
+        throw new ApiException(400, "Не удалось прочитать ZIP-архив (файл повреждён или не является ZIP)");
     }
 
     /** Просмотр содержимого .zip без распаковки. */
