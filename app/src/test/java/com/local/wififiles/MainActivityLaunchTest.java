@@ -198,15 +198,15 @@ public class MainActivityLaunchTest {
         Context app = RuntimeEnvironment.getApplication();
         File crashFile = new File(app.getFilesDir(), "last-crash.txt");
 
-        // 1. Устаревший отчёт от v3.7 должен тихо очищаться при первом входе в v3.8.
-        writeUtf8(crashFile, "PocketBridge 3.7 / Android 15 (API 35) / Pixel\nThread: main\njava.lang.NullPointerException\n");
+        // 1. Устаревший отчёт от v3.8 должен тихо очищаться при первом входе в v3.9.
+        writeUtf8(crashFile, "PocketBridge 3.8 / Android 15 (API 35) / Pixel\nThread: main\njava.lang.NullPointerException\n");
         ActivityController<MainActivity> c1 = Robolectric.buildActivity(MainActivity.class).setup();
-        assertFalse("Stale v3.7 crash report must be deleted", crashFile.exists());
+        assertFalse("Stale v3.8 crash report must be deleted", crashFile.exists());
         assertEquals(null, getField(c1.get(), "errorCard", View.class));
         c1.pause().stop().destroy();
 
         // 2. Актуальный отчёт текущей версии отображается, копируется и скрывается без сбоев.
-        writeUtf8(crashFile, "PocketBridge 3.8 / Android 15 (API 35) / Pixel\nThread: main\nTestTrace\n");
+        writeUtf8(crashFile, "PocketBridge 3.9 / Android 15 (API 35) / Pixel\nThread: main\nTestTrace\n");
         ActivityController<MainActivity> c2 = Robolectric.buildActivity(MainActivity.class).setup();
         View errorCard = getField(c2.get(), "errorCard", View.class);
         assertNotNull("Current-version crash card must render", errorCard);
