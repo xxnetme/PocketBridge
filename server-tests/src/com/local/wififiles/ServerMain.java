@@ -21,6 +21,11 @@ public final class ServerMain {
         FileServer server = new FileServer(new Context(new File(assets)), root, key, context, cache, 8765);
         int port = server.start();
         System.out.println("PORT=" + port + " ROOT=" + root + " KEY=" + key + " TLS=" + tls);
+        if (a.length > 4 && "--read-only".equals(a[3])) {
+            File readOnlyRoot = new File(a[4]);
+            FileServer ro = new FileServer(new Context(new File(assets)), readOnlyRoot, key, context, cache, port + 1, true);
+            System.out.println("READ_ONLY_PORT=" + ro.start());
+        }
         System.out.println("READY");
         Thread.currentThread().join();
     }

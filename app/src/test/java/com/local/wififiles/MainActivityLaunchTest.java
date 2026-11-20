@@ -1,6 +1,7 @@
 package com.local.wififiles;
 
 import android.app.AlertDialog;
+import android.app.AppOpsManager;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.DialogInterface;
@@ -86,8 +87,8 @@ public class MainActivityLaunchTest {
         List<String> texts = collectTexts(decor);
         assertTrue("Brand title must be present", texts.contains("PocketBridge"));
         assertTrue("Default port 8765 must be shown", texts.contains("8765"));
-        assertTrue("Version 3.8 must be shown in subtitle",
-                texts.stream().anyMatch(s -> s.contains("v3.9")));
+        assertTrue("Version 4.0 must be shown in subtitle",
+                texts.stream().anyMatch(s -> s.contains("v4.0")));
         assertTrue("Default port hint must mention 8765",
                 texts.stream().anyMatch(s -> s.contains("8765") && (s.contains("Default") || s.contains("По умолчанию"))));
 
@@ -198,15 +199,15 @@ public class MainActivityLaunchTest {
         Context app = RuntimeEnvironment.getApplication();
         File crashFile = new File(app.getFilesDir(), "last-crash.txt");
 
-        // 1. Устаревший отчёт от v3.8 должен тихо очищаться при первом входе в v3.9.
-        writeUtf8(crashFile, "PocketBridge 3.8 / Android 15 (API 35) / Pixel\nThread: main\njava.lang.NullPointerException\n");
+        // 1. Устаревший отчёт от v3.9 должен тихо очищаться при первом входе в v4.0.
+        writeUtf8(crashFile, "PocketBridge 3.9 / Android 15 (API 35) / Pixel\nThread: main\njava.lang.NullPointerException\n");
         ActivityController<MainActivity> c1 = Robolectric.buildActivity(MainActivity.class).setup();
-        assertFalse("Stale v3.8 crash report must be deleted", crashFile.exists());
+        assertFalse("Stale v3.9 crash report must be deleted", crashFile.exists());
         assertEquals(null, getField(c1.get(), "errorCard", View.class));
         c1.pause().stop().destroy();
 
         // 2. Актуальный отчёт текущей версии отображается, копируется и скрывается без сбоев.
-        writeUtf8(crashFile, "PocketBridge 3.9 / Android 15 (API 35) / Pixel\nThread: main\nTestTrace\n");
+        writeUtf8(crashFile, "PocketBridge 4.0 / Android 15 (API 35) / Pixel\nThread: main\nTestTrace\n");
         ActivityController<MainActivity> c2 = Robolectric.buildActivity(MainActivity.class).setup();
         View errorCard = getField(c2.get(), "errorCard", View.class);
         assertNotNull("Current-version crash card must render", errorCard);
@@ -222,6 +223,7 @@ public class MainActivityLaunchTest {
     @Config(sdk = 34)
     public void serverServiceStartsBindsRendersQrAndStopsCleanly() throws Exception {
         Context app = RuntimeEnvironment.getApplication();
+        allowAllFiles(app);
         File ext = android.os.Environment.getExternalStorageDirectory();
         if (ext != null && !ext.isDirectory()) {
             //noinspection ResultOfMethodCallIgnored
@@ -237,6 +239,7 @@ public class MainActivityLaunchTest {
         ServerService svc = sc.get();
         try {
             assertTrue("ServerService must start HTTPS listener", svc.isRunning());
+            assertEquals(svc, ServerService.active());
             assertTrue("Bound port must be valid", svc.port() >= 1024);
             assertEquals("0123456789abcdef", svc.accessKey());
 
@@ -396,6 +399,66 @@ public class MainActivityLaunchTest {
             }
         }
         return null;
+    }
+
+    private static void allowAllFiles(Context app) {
+        Shadows.shadowOf(app.getSystemService(AppOpsManager.class)).setMode(
+                AppOpsManager.OPSTR_MANAGE_EXTERNAL_STORAGE, app.getApplicationInfo().uid, app.getPackageName(), AppOpsManager.MODE_ALLOWED);
+    }
+
+    @Test
+    @Config(sdk = 34)
+    public void tileStartUsesSelectedReadOnlyRootAndUnavailableRootFailsClosed() throws Exception {
+        Context app = RuntimeEnvironment.getApplication();
+        allowAllFiles(app);
+        File storage = android.os.Environment.getExternalStorageDirectory();
+        File share = new File(storage, "Selected");
+        assertTrue(share.mkdirs() || share.isDirectory());
+        SharedPreferences options = BridgeOptions.prefs(app);
+        options.edit().putString(BridgeOptions.ROOT, "Selected").putBoolean(BridgeOptions.READ_ONLY, true).commit();
+        Intent tileStart = new Intent(app, ServerService.class).setAction(ServerService.ACTION_TILE_START);
+        ServiceController<ServerService> sc = Robolectric.buildService(ServerService.class, tileStart).create().startCommand(0, 1);
+        ServerService service = sc.get();
+        try {
+            assertEquals(share.getCanonicalFile(), BridgeOptions.sharedFolder(app));
+            assertTrue(service.isRunning());
+            assertTrue(service.isReadOnly());
+            assertEquals(service, ServerService.active());
+            assertTrue(service.accessKey().matches("[0-9a-f]{16}"));
+            String key = service.accessKey();
+            service.onStartCommand(tileStart, 0, 2);
+            assertEquals("Duplicate tile START cannot change the key", key, service.accessKey());
+            service.stopFromUi();
+            assertFalse(service.isRunning());
+            assertEquals(null, ServerService.active());
+            options.edit().putString(BridgeOptions.ROOT, "Missing").commit();
+            service.onStartCommand(tileStart, 0, 3);
+            assertFalse("Missing folder must not expose full storage", service.isRunning());
+            assertFalse(service.lastError().isEmpty());
+            options.edit().putInt(BridgeOptions.ROOT, 42).commit();
+            service.onStartCommand(tileStart, 0, 4);
+            assertFalse("Invalid folder setting must not expose full storage", service.isRunning());
+        } finally { sc.destroy(); }
+    }
+
+    @Test
+    @Config(sdk = 34)
+    public void shareIntentParsesTextAndValidatesContentUris() {
+        Intent text = new Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, "заметка");
+        assertEquals("заметка", ShareActivity.parse(text).text);
+        assertTrue(ShareActivity.parse(text).files.isEmpty());
+        android.net.Uri item = android.net.Uri.parse("content://test.provider/notes/file.txt");
+        ArrayList<android.net.Uri> files = new ArrayList<>();
+        files.add(item);
+        files.add(item);
+        Intent multiple = new Intent(Intent.ACTION_SEND_MULTIPLE).setType("text/plain").putParcelableArrayListExtra(Intent.EXTRA_STREAM, files);
+        assertEquals(java.util.Collections.singletonList(item), ShareActivity.parse(multiple).files);
+        Intent untrusted = new Intent(Intent.ACTION_SEND).setType("text/plain")
+                .putExtra(Intent.EXTRA_STREAM, android.net.Uri.parse("file:///sdcard/example.txt"));
+        org.junit.Assert.assertThrows(IllegalArgumentException.class, () -> ShareActivity.parse(untrusted));
+        ActivityController<ShareActivity> denied = Robolectric.buildActivity(ShareActivity.class, multiple).create();
+        assertTrue("Un-granted content URIs must be refused", denied.get().isFinishing());
+        denied.destroy();
     }
 
     private static List<String> collectTexts(View root) {

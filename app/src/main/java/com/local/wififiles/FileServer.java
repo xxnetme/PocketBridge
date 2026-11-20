@@ -25,6 +25,8 @@ import java.util.zip.ZipOutputStream;
 import javax.net.ssl.SSLContext;
 
 final class FileServer {
+    static final String READ_ONLY_MESSAGE = "Доступ только для чтения";
+    static final String READ_ONLY_HEADER = "X-PocketBridge-Read-Only";
     private static final long PREVIEW_TTL = 10L * 60 * 1000;
     private static final long DOWNLOAD_TTL = 10L * 60 * 1000;
     private static final int TICKET_LIMIT = 256;
@@ -62,7 +64,7 @@ final class FileServer {
             "c", "h", "cpp", "go", "rs", "rb", "php"
     ));
     private static final String[] QUICK_DIRS = {
-            "DCIM/Camera", "DCIM", "Pictures", "Download", "Documents", "Music", "Movies"
+            ShareInbox.DIRECTORY, "DCIM/Camera", "DCIM", "Pictures", "Download", "Documents", "Music", "Movies"
     };
 
     /** Строгая изоляция SVG, чтобы встроенные скрипты никогда не выполнялись на origin сервера. */
@@ -76,6 +78,7 @@ final class FileServer {
 
     private final Context context;
     private final File root;
+    private final boolean readOnly;
     private final String key;
     private final SSLContext ssl;
     private final File cacheDir;
@@ -141,16 +144,22 @@ final class FileServer {
     FileServer(Context c, File root, String key) throws IOException { this(c, root, key, null, null, 8765); }
     FileServer(Context c, File root, String key, SSLContext ssl) throws IOException { this(c, root, key, ssl, null, 8765); }
     FileServer(Context c, File root, String key, SSLContext ssl, File cacheDir, int portStart) throws IOException {
+        this(c, root, key, ssl, cacheDir, portStart, false);
+    }
+
+    FileServer(Context c, File root, String key, SSLContext ssl, File cacheDir, int portStart, boolean readOnly) throws IOException {
         this.context = c.getApplicationContext();
         this.root = root.getCanonicalFile();
         this.key = key;
         this.ssl = ssl;
         this.cacheDir = cacheDir;
         this.portStart = Math.max(1024, Math.min(65000, portStart));
-        this.dav = new WebDav(this.root, key);
+        this.readOnly = readOnly;
+        this.dav = new WebDav(this.root, key, readOnly);
     }
 
     String key() { return key; }
+    boolean isReadOnly() { return readOnly; }
     long idleMillis() { return System.currentTimeMillis() - lastActivity; }
     int activeConnections() { return connections.size(); }
     int activeUploads() { return uploads.size(); }
@@ -231,7 +240,7 @@ final class FileServer {
     }
 
     /** Локальные сети: RFC1918, loopback, CGNAT 100.64/10, IPv6 ULA и link-local. */
-    private static boolean allowedAddress(InetAddress ip) {
+    static boolean allowedAddress(InetAddress ip) {
         if (ip.isLoopbackAddress() || ip.isSiteLocalAddress()) return true;
         byte[] b = ip.getAddress();
         if (b.length == 4) { int second = b[1] & 0xff; return (b[0] & 0xff) == 100 && second >= 64 && second <= 127; }
@@ -334,6 +343,9 @@ final class FileServer {
             }
             lastClientTouch = System.currentTimeMillis();
             try {
+                if (readOnly && !readOnlyApiAllowed(parts[0], endpoint)) {
+                    throw new ApiException(403, READ_ONLY_MESSAGE, READ_ONLY_HEADER + ": 1\r\n");
+                }
                 if ("GET".equals(parts[0]) && "/api/list".equals(endpoint)) { list(out, q.getOrDefault("path", "/")); }
                 else if ("GET".equals(parts[0]) && "/api/search".equals(endpoint)) { search(out, q.getOrDefault("path", "/"), q.get("q")); }
                 else if ("GET".equals(parts[0]) && "/api/download".equals(endpoint)) { download(out, q.getOrDefault("path", "/"), headers.get("range")); }
@@ -390,6 +402,22 @@ final class FileServer {
             android.util.Log.d("WiFiFiles", "tls handshake rejected: " + e.getMessage());
         } catch (Exception e) {
             android.util.Log.w("WiFiFiles", "request failed: " + e.getMessage());
+        }
+    }
+
+    /** Разрешаем чтение и POST, которые создают только временные билеты скачивания/просмотра. */
+    private static boolean readOnlyApiAllowed(String method, String endpoint) {
+        if ("GET".equals(method) || "HEAD".equals(method)) return true;
+        if (!"POST".equals(method)) return false;
+        switch (endpoint) {
+            case "/api/session":
+            case "/api/preview-ticket":
+            case "/api/download-ticket":
+            case "/api/zip-ticket":
+            case "/api/download-zip":
+                return true;
+            default:
+                return false;
         }
     }
 
@@ -480,6 +508,7 @@ final class FileServer {
         }
         JSONObject data = new JSONObject();
         data.put("path", relative(d));
+        data.put("readOnly", readOnly);
         data.put("items", arr);
         long total = root.getTotalSpace();
         if (total > 0L) {
@@ -843,7 +872,7 @@ final class FileServer {
                 if (total > 5 * 1024 * 1024) throw new ApiException(400, "Файл слишком большой");
                 b.write(buf, 0, n);
             }
-            String extra = "X-File-Modified: " + mod + "\r\nX-File-Size: " + total + "\r\nX-File-Editable: " + (total <= TEXT_EDIT_MAX_BYTES ? "1" : "0") + "\r\n";
+            String extra = "X-File-Modified: " + mod + "\r\nX-File-Size: " + total + "\r\nX-File-Editable: " + (!readOnly && total <= TEXT_EDIT_MAX_BYTES ? "1" : "0") + "\r\n";
             send(out, 200, "text/plain; charset=utf-8", b.toByteArray(), extra);
         }
     }

@@ -54,12 +54,14 @@ jobs:
           NODE_PATH: ${{ runner.temp }}/pw/node_modules
           PB_WORK: ${{ runner.temp }}/ui
           PB_BASE: https://127.0.0.1:8765
+          PB_RO_BASE: https://127.0.0.1:8766
           PB_KEY: deadbeefcafe1234
         run: |
           mkdir -p "$PB_WORK/root"
           python3 server-tests/make-ui-tree.py "$PB_WORK/root"
+          cp -a "$PB_WORK/root" "$PB_WORK/read-only"
 
-          ./server-tests/run.sh --serve "$PB_WORK/root" "$PB_KEY" tls > "$PB_WORK/server.log" 2>&1 &
+          ./server-tests/run.sh --serve "$PB_WORK/root" "$PB_KEY" tls --read-only "$PB_WORK/read-only" > "$PB_WORK/server.log" 2>&1 &
           SERVER_PID=$!
           trap 'pkill -P "$SERVER_PID" 2>/dev/null || true; kill "$SERVER_PID" 2>/dev/null || true' EXIT
 

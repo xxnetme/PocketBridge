@@ -4,6 +4,7 @@ import android.Manifest;
 import android.annotation.TargetApi;
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.app.StatusBarManager;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.ComponentName;
@@ -18,6 +19,7 @@ import android.graphics.Insets;
 import android.graphics.Typeface;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
+import android.graphics.drawable.Icon;
 import android.graphics.drawable.RippleDrawable;
 import android.net.Uri;
 import android.os.Build;
@@ -70,10 +72,12 @@ import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.nio.charset.StandardCharsets;
-import java.security.SecureRandom;
+import java.nio.file.Files;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.Date;
 import java.util.EnumMap;
 import java.util.List;
@@ -104,7 +108,7 @@ public final class MainActivity extends Activity {
     private static final int RIPPLE_LIGHT = 0x26ffffff;
     private static final int RIPPLE_DARK = 0x29071015;
 
-    private static final String APP_VERSION = "3.9";
+    private static final String APP_VERSION = "4.0";
     private static final String PREF_LANG = "ui_lang";
 
     private static final int PENDING_NONE = 0;
@@ -129,7 +133,7 @@ public final class MainActivity extends Activity {
     private TextView permissionTitle, permissionStatus, permissionButton, permissionOkText;
     private LinearLayout connectionCard, qrSection, errorCard;
     private TextView accessHeading, qrCaption, copyLink, shareLink;
-    private TextView addrCaption, addressText, copyAddress;
+    private TextView addrCaption, addressText, copyAddress, discoveryInfo;
     private TextView codeCaption, codeText, copyCode, newKey;
     private TextView davCaption, davText, davHint, copyDav;
     private LinearLayout clipExtraRow;
@@ -139,6 +143,12 @@ public final class MainActivity extends Activity {
     private TextView portName, portHint, settingsPort;
     private TextView autoName, autoHint, settingsAutoStop;
     private TextView keepName, keepHint, settingsKeepScreen;
+    private TextView rootName, rootHint, settingsRoot;
+    private TextView modeName, modeHint, settingsMode;
+    private TextView mdnsName, mdnsHint, settingsDiscovery;
+    private TextView tileName, tileHint, hotspotName, hotspotHint;
+    private long nextAddressCheck;
+    private int folderPickerGeneration;
     private TextView securityTitle, securityBody;
     private TextView crashTitle, crashBody, crashCopy, crashClear;
 
@@ -177,6 +187,7 @@ public final class MainActivity extends Activity {
     private final Runnable telemetryTickTask = new Runnable() {
         @Override public void run() {
             if (!resumed || isFinishing() || isDestroyed() || !isRunning()) return;
+            if (SystemClock.uptimeMillis() >= nextAddressCheck) updateAddresses();
             boolean busy = updateTelemetryStrip();
             pulseStatusRing(busy);
             uiHandler.postDelayed(this, busy ? 850L : 1200L);
@@ -205,13 +216,7 @@ public final class MainActivity extends Activity {
         super.onCreate(state);
         installCrashRecorder();
         prefs = getSharedPreferences(ServerService.PREFS, MODE_PRIVATE);
-        String savedLang = prefString(PREF_LANG, "");
-        if ("en".equals(savedLang) || "ru".equals(savedLang)) {
-            en = "en".equals(savedLang);
-        } else {
-            String sys = Locale.getDefault().getLanguage();
-            en = !("ru".equals(sys) || "uk".equals(sys) || "be".equals(sys) || "kk".equals(sys));
-        }
+        en = BridgeOptions.english(this);
 
         ScrollView scroller = new ScrollView(this);
         scroller.setFillViewport(true);
@@ -448,6 +453,10 @@ public final class MainActivity extends Activity {
         copyAddress.setOnClickListener(v -> copyValue(tr("Адрес", "Address"), firstAddress, copyAddress));
         addrLine.addView(copyAddress);
         addrTile.addView(addrLine);
+        discoveryInfo = label("", 11, MUTED, false);
+        discoveryInfo.setPadding(0, dp(6), 0, 0);
+        discoveryInfo.setVisibility(View.GONE);
+        addrTile.addView(discoveryInfo);
         connectionCard.addView(addrTile);
         space(connectionCard, 10);
 
@@ -599,8 +608,26 @@ public final class MainActivity extends Activity {
         TextView[] r2 = addSettingRow(settingsCard, this::editAutoStop, true);
         autoName = r2[0]; autoHint = r2[1]; settingsAutoStop = r2[2];
 
-        TextView[] r3 = addSettingRow(settingsCard, this::toggleKeepScreen, false);
+        TextView[] r3 = addSettingRow(settingsCard, this::toggleKeepScreen, true);
         keepName = r3[0]; keepHint = r3[1]; settingsKeepScreen = r3[2];
+
+        TextView[] r4 = addSettingRow(settingsCard, this::editRoot, true);
+        rootName = r4[0]; rootHint = r4[1]; settingsRoot = r4[2];
+        settingsRoot.setMaxWidth(dp(110));
+        settingsRoot.setSingleLine(true);
+        settingsRoot.setEllipsize(TextUtils.TruncateAt.START);
+
+        TextView[] r5 = addSettingRow(settingsCard, this::editAccessMode, true);
+        modeName = r5[0]; modeHint = r5[1]; settingsMode = r5[2];
+
+        TextView[] r6 = addSettingRow(settingsCard, this::toggleDiscovery, true);
+        mdnsName = r6[0]; mdnsHint = r6[1]; settingsDiscovery = r6[2];
+
+        TextView[] r7 = addSettingRow(settingsCard, this::addQuickSettingsTile, true);
+        tileName = r7[0]; tileHint = r7[1]; r7[2].setVisibility(View.GONE);
+
+        TextView[] r8 = addSettingRow(settingsCard, this::openHotspotSettings, false);
+        hotspotName = r8[0]; hotspotHint = r8[1]; r8[2].setVisibility(View.GONE);
 
         page.addView(settingsCard);
         space(page, 18);
@@ -1100,7 +1127,8 @@ public final class MainActivity extends Activity {
             statusDescription.setTextColor(SOFT);
         } else {
             statusDescription.setText(running
-                    ? tr("Защищено HTTPS · работает в фоне. ", "HTTPS encrypted · runs in background. ") + autoNote
+                    ? (service.isReadOnly() ? tr("Только чтение · ", "Read only · ") : "")
+                            + tr("Защищено HTTPS · работает в фоне. ", "HTTPS encrypted · runs in background. ") + autoNote
                     : (hasErr ? lastError : tr("Подключите телефон и компьютер к одной сети Wi-Fi и нажмите кнопку ниже.",
                             "Connect your phone and computer to the same Wi-Fi network and tap Start below.")));
             statusDescription.setTextColor(hasErr ? RED : MUTED);
@@ -1165,14 +1193,24 @@ public final class MainActivity extends Activity {
         refreshSharedClipboardTile(running);
 
         settingsTitle.setText(tr("Настройки", "Settings"));
-        settingsSub.setText(tr("Применяются сразу; активный сервер перезапустится.",
-                "Applied immediately; a running server restarts automatically."));
+        settingsSub.setText(tr("Изменение общей папки или режима завершит старую сессию и сменит код.",
+                "Changing the shared folder or access mode ends the old session and creates a new code."));
         portName.setText(tr("Порт HTTPS", "HTTPS port"));
         portHint.setText(tr("По умолчанию " + ServerService.DEFAULT_PORT, "Default " + ServerService.DEFAULT_PORT));
         autoName.setText(tr("Автостоп", "Auto-stop"));
         autoHint.setText(tr("Выключать без активности", "Stop when idle"));
         keepName.setText(tr("Не гасить экран", "Keep screen awake"));
         keepHint.setText(tr("Пока открыто окно PocketBridge", "While PocketBridge is open"));
+        rootName.setText(tr("Общая папка", "Shared folder"));
+        rootHint.setText(tr("Видна в браузере и WebDAV", "Visible in the browser and WebDAV"));
+        modeName.setText(tr("Режим доступа", "Access mode"));
+        modeHint.setText(tr("Разрешения клиентов в сети", "Permissions for network clients"));
+        mdnsName.setText(tr("Обнаружение mDNS", "mDNS discovery"));
+        mdnsHint.setText(tr("Показывать HTTPS в Bonjour/DNS-SD", "Announce HTTPS via Bonjour/DNS-SD"));
+        tileName.setText(tr("Плитка PocketBridge", "PocketBridge tile"));
+        tileHint.setText(tr("Добавить в Быстрые настройки Android", "Add to Android Quick Settings"));
+        hotspotName.setText(tr("Точка доступа", "Phone hotspot"));
+        hotspotHint.setText(tr("Открыть системные настройки сети", "Open Android network settings"));
 
         securityTitle.setText(tr("БЕЗОПАСНОСТЬ", "SECURITY"));
         securityBody.setText(tr(
@@ -1191,40 +1229,45 @@ public final class MainActivity extends Activity {
         if (running) {
             key = svcKey;
             port = service.port();
-            List<String> ips = ipAddresses();
-            boolean hasIp = !ips.isEmpty();
-            firstAddress = hasIp ? "https://" + ips.get(0) + ":" + port : "";
-            if (!hasIp) {
-                addressText.setText(tr("Нет Wi-Fi адреса — проверьте сеть", "No Wi-Fi IP — check connection"));
-                davText.setText("—");
-            } else {
-                List<String> urls = new ArrayList<>();
-                for (String ip : ips) urls.add("https://" + ip + ":" + port);
-                addressText.setText(String.join("\n", urls));
-                davText.setText(davUrl());
-            }
             codeText.setText(key);
             codeText.setAlpha(rotating ? 0.5f : 1f);
-            setControlEnabled(copyAddress, hasIp);
-            setControlEnabled(copyLink, hasIp);
-            setControlEnabled(shareLink, hasIp);
-            setControlEnabled(copyDav, hasIp);
-            updateQrCode(hasIp ? linkWithKey() : "");
-            if (rotating && qrSection.getVisibility() == View.VISIBLE) {
-                qrImage.setAlpha(0.45f);
-            }
+            updateAddresses();
             if (prefBool(ServerService.PREF_KEEP_SCREEN, true)) {
                 getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
             } else {
                 getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
             }
         } else {
+            firstAddress = "";
             updateQrCode("");
             getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         }
         refreshStorageCard();
         refreshSettings();
         syncTicker();
+    }
+
+    private void updateAddresses() {
+        nextAddressCheck = SystemClock.uptimeMillis() + 3000L;
+        List<String> ips = ipAddresses();
+        boolean hasIp = !ips.isEmpty();
+        firstAddress = hasIp ? "https://" + ips.get(0) + ":" + port : "";
+        List<String> urls = new ArrayList<>();
+        for (String ip : ips) urls.add("https://" + ip + ":" + port);
+        addressText.setText(hasIp ? String.join("\n", urls) : tr("Нет локального адреса", "No local address"));
+        davText.setText(hasIp ? davUrl() : "—");
+        setControlEnabled(copyAddress, hasIp);
+        setControlEnabled(copyLink, hasIp);
+        setControlEnabled(shareLink, hasIp);
+        setControlEnabled(copyDav, hasIp);
+        updateQrCode(hasIp ? linkWithKey() : "");
+        if (pendingState == PENDING_ROTATING && qrSection.getVisibility() == View.VISIBLE) qrImage.setAlpha(0.45f);
+
+        String name = service == null ? null : service.discoveryName();
+        discoveryInfo.setVisibility(BridgeOptions.discovery(this) ? View.VISIBLE : View.GONE);
+        discoveryInfo.setText(name == null ? tr("Регистрация mDNS…", "Registering mDNS…")
+                : name.isEmpty() ? tr("mDNS недоступен — используйте адрес или QR", "mDNS unavailable — use the address or QR")
+                : "mDNS · " + name + " (" + LanDiscovery.TYPE + ")");
     }
 
     private static void setControlEnabled(View v, boolean on) {
@@ -1450,14 +1493,6 @@ public final class MainActivity extends Activity {
         }
     }
 
-    private static String randomHexKey() {
-        byte[] bytes = new byte[8];
-        new SecureRandom().nextBytes(bytes);
-        StringBuilder b = new StringBuilder(16);
-        for (byte x : bytes) b.append(String.format(Locale.US, "%02x", x & 0xff));
-        return b.toString();
-    }
-
     private void dispatchStartService(String accessKey) {
         Intent intent = new Intent(this, ServerService.class)
                 .setAction(ServerService.ACTION_START)
@@ -1473,7 +1508,7 @@ public final class MainActivity extends Activity {
         try {
             pendingPrevKey = key;
             setPending(PENDING_ROTATING);
-            dispatchStartService(randomHexKey());
+            dispatchStartService(ServerService.newKey());
             Toast.makeText(this, tr("Новый код создан — войдите заново", "New code generated — sign in again"), Toast.LENGTH_LONG).show();
         } catch (Exception e) {
             setPending(PENDING_NONE);
@@ -1487,6 +1522,10 @@ public final class MainActivity extends Activity {
         int minutes = prefInt(ServerService.PREF_AUTOSTOP, ServerService.DEFAULT_AUTOSTOP);
         settingsAutoStop.setText(minutes <= 0 ? tr("Никогда", "Never") : minutes + tr(" мин", " min"));
         settingsKeepScreen.setText(prefBool(ServerService.PREF_KEEP_SCREEN, true) ? tr("Вкл", "On") : tr("Выкл", "Off"));
+        String root = BridgeOptions.root(this);
+        settingsRoot.setText(root == null ? tr("Недоступна", "Unavailable") : root.isEmpty() ? tr("Хранилище", "Storage") : "/" + root);
+        settingsMode.setText(BridgeOptions.readOnly(this) ? tr("Чтение", "Read only") : tr("Чтение и запись", "Read/write"));
+        settingsDiscovery.setText(BridgeOptions.discovery(this) ? tr("Вкл", "On") : tr("Выкл", "Off"));
     }
 
     private void editPort() {
@@ -1547,16 +1586,118 @@ public final class MainActivity extends Activity {
         refreshView();
     }
 
+    private void editRoot() {
+        if (!hasAccess()) { requestAccess(); return; }
+        String saved = BridgeOptions.root(this);
+        try { BridgeOptions.sharedFolder(this); }
+        catch (Exception unavailable) { saved = ""; }
+        showRootPicker(saved);
+    }
+
+    private void showRootPicker(String selection) {
+        int generation = ++folderPickerGeneration;
+        new Thread(() -> {
+            File[] entries;
+            try {
+                File folder = StorageRoot.resolve(Environment.getExternalStorageDirectory(), selection);
+                entries = folder.listFiles(f -> f.isDirectory() && f.canRead()
+                        && !f.getName().contains("\\") && !Files.isSymbolicLink(f.toPath()));
+            } catch (Exception unavailable) { entries = null; }
+            if (entries != null) Arrays.sort(entries, (a, b) -> a.getName().compareToIgnoreCase(b.getName()));
+            final File[] dirs = entries;
+            runOnUiThread(() -> {
+                if (generation != folderPickerGeneration || !resumed || isFinishing() || isDestroyed()) return;
+                if (dirs == null) {
+                    Toast.makeText(this, tr("Папка недоступна", "Folder unavailable"), Toast.LENGTH_SHORT).show();
+                    if (!selection.isEmpty()) showRootPicker("");
+                    return;
+                }
+                boolean canGoUp = !selection.isEmpty();
+                int offset = canGoUp ? 1 : 0;
+                String[] names = new String[dirs.length + offset];
+                if (canGoUp) names[0] = tr("↑  На уровень выше", "↑  Up one folder");
+                for (int i = 0; i < dirs.length; i++) names[i + offset] = dirs[i].getName();
+                new AlertDialog.Builder(this, R.style.AppDialogTheme)
+                        .setTitle(tr("Общая папка: /", "Shared folder: /") + selection)
+                        .setItems(names, (dialog, which) -> {
+                            if (canGoUp && which == 0) {
+                                int sep = selection.lastIndexOf('/');
+                                showRootPicker(sep < 0 ? "" : selection.substring(0, sep));
+                            } else {
+                                showRootPicker((canGoUp ? selection + "/" : "") + dirs[which - offset].getName());
+                            }
+                        })
+                        .setPositiveButton(tr("Выбрать эту папку", "Use this folder"), (dialog, which) -> {
+                            try { StorageRoot.resolve(Environment.getExternalStorageDirectory(), selection); }
+                            catch (Exception unavailable) {
+                                Toast.makeText(this, tr("Папка недоступна", "Folder unavailable"), Toast.LENGTH_SHORT).show();
+                                return;
+                            }
+                            if (selection.equals(BridgeOptions.root(this))) return;
+                            prefs.edit().putString(BridgeOptions.ROOT, selection).apply();
+                            applyAccessChange();
+                        })
+                        .setNegativeButton(tr("Отмена", "Cancel"), null).show();
+            });
+        }, "pocketbridge-folders").start();
+    }
+
+    private void editAccessMode() {
+        boolean ro = BridgeOptions.readOnly(this);
+        String[] choices = { tr("Чтение и запись", "Read and write"), tr("Только чтение", "Read only") };
+        new AlertDialog.Builder(this, R.style.AppDialogTheme)
+                .setTitle(tr("Режим доступа из сети", "Network access mode"))
+                .setSingleChoiceItems(choices, ro ? 1 : 0, (dialog, which) -> {
+                    dialog.dismiss();
+                    if (ro == (which == 1)) return;
+                    prefs.edit().putBoolean(BridgeOptions.READ_ONLY, which == 1).apply();
+                    applyAccessChange();
+                })
+                .setNegativeButton(tr("Отмена", "Cancel"), null).show();
+    }
+
+    private void applyAccessChange() {
+        if (isRunning()) {
+            // Close the old listener and invalidate its sessions before the new scope goes live.
+            service.stopFromUi();
+            key = ServerService.newKey();
+            setPending(PENDING_STARTING);
+            try { dispatchStartService(key); }
+            catch (RuntimeException blocked) {
+                setPending(PENDING_NONE);
+                Toast.makeText(this, tr("Запустите доступ с новым режимом", "Start access with the new settings"), Toast.LENGTH_LONG).show();
+            }
+        }
+        refreshView();
+    }
+
+    private void toggleDiscovery() {
+        prefs.edit().putBoolean(BridgeOptions.DISCOVERY, !BridgeOptions.discovery(this)).apply();
+        if (isRunning()) service.updateDiscovery();
+        refreshView();
+    }
+
+    private void addQuickSettingsTile() {
+        if (Build.VERSION.SDK_INT >= 33 && Api33.requestTile(this)) return;
+        new AlertDialog.Builder(this, R.style.AppDialogTheme)
+                .setTitle(tr("Плитка PocketBridge", "PocketBridge tile"))
+                .setMessage(tr("Разверните Быстрые настройки, нажмите «Изменить» и перетащите PocketBridge в панель.",
+                        "Expand Quick Settings, tap Edit and drag PocketBridge into the panel."))
+                .setPositiveButton(tr("Понятно", "OK"), null).show();
+    }
+
+    private void openHotspotSettings() {
+        try { startActivity(new Intent("android.settings.TETHER_SETTINGS")); }
+        catch (RuntimeException unavailable) {
+            try { startActivity(new Intent(Settings.ACTION_WIRELESS_SETTINGS)); }
+            catch (RuntimeException ignored) { startActivity(new Intent(Settings.ACTION_SETTINGS)); }
+        }
+    }
+
     private void restartIfRunning() {
         if (!isRunning()) return;
-        final String current = key;
-        setPending(PENDING_STARTING);
-        try { startService(new Intent(this, ServerService.class).setAction(ServerService.ACTION_STOP)); }
-        catch (Exception ignored) {}
-        uiHandler.postDelayed(() -> {
-            if (isFinishing() || isDestroyed()) return;
-            try { dispatchStartService(current); } catch (Exception ignored) { setPending(PENDING_NONE); }
-        }, 400L);
+        try { startService(new Intent(this, ServerService.class).setAction(ServerService.ACTION_RELOAD)); }
+        catch (RuntimeException ignored) {}
     }
 
     private void copyValue(String labelText, String value, TextView trigger) {
@@ -1577,8 +1718,7 @@ public final class MainActivity extends Activity {
     }
 
     private boolean hasAccess() {
-        if (Build.VERSION.SDK_INT >= 30) return Api30.isStorageManager();
-        return checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED;
+        return BridgeOptions.hasStorageAccess(this);
     }
 
     private void requestAccess() {
@@ -1610,7 +1750,7 @@ public final class MainActivity extends Activity {
         if (Build.VERSION.SDK_INT >= 33) {
             Api33.requestNotificationsIfNeeded(this);
         }
-        key = randomHexKey();
+        key = ServerService.newKey();
         setPending(PENDING_STARTING);
         try {
             dispatchStartService(key);
@@ -1631,28 +1771,26 @@ public final class MainActivity extends Activity {
     }
 
     private List<String> ipAddresses() {
-        List<String> ips = new ArrayList<>();
+        LinkedHashSet<String> ips = new LinkedHashSet<>();
         try {
-            for (NetworkInterface ni : Collections.list(NetworkInterface.getNetworkInterfaces())) {
+            List<NetworkInterface> interfaces = Collections.list(NetworkInterface.getNetworkInterfaces());
+            interfaces.sort((a, b) -> Integer.compare(networkPriority(a), networkPriority(b)));
+            for (NetworkInterface ni : interfaces) {
                 if (!ni.isUp() || ni.isLoopback()) continue;
                 for (InetAddress ip : Collections.list(ni.getInetAddresses())) {
-                    if (ip instanceof Inet4Address && !ip.isLoopbackAddress() && isLocalIpv4(ip)) {
+                    if (ip instanceof Inet4Address && !ip.isLoopbackAddress() && FileServer.allowedAddress(ip)) {
                         ips.add(ip.getHostAddress());
                     }
                 }
             }
         } catch (Exception ignored) {}
-        return ips;
+        return new ArrayList<>(ips);
     }
 
-    private static boolean isLocalIpv4(InetAddress ip) {
-        if (ip.isSiteLocalAddress()) return true;
-        byte[] b = ip.getAddress();
-        if (b.length == 4) {
-            int second = b[1] & 0xff;
-            return (b[0] & 0xff) == 100 && second >= 64 && second <= 127;
-        }
-        return false;
+    private static int networkPriority(NetworkInterface ni) {
+        String name = ni.getName().toLowerCase(Locale.ROOT);
+        if (name.contains("wlan") || name.startsWith("ap") || name.startsWith("wifi") || name.startsWith("softap")) return 0;
+        return name.startsWith("eth") ? 1 : 2;
     }
 
     @SuppressWarnings("deprecation")
@@ -1669,10 +1807,6 @@ public final class MainActivity extends Activity {
         } catch (Throwable ignored) {
             // Оформление системных панелей не должно прерывать запуск ни на одной прошивке.
         }
-    }
-
-    private String prefString(String k, String def) {
-        try { return prefs.getString(k, def); } catch (ClassCastException e) { return def; }
     }
 
     private int prefInt(String k, int def) {
@@ -1719,14 +1853,6 @@ public final class MainActivity extends Activity {
             page.setPadding(padH + bars.left, padTop + bars.top, padH + bars.right, padBottom + bars.bottom);
         }
 
-        static boolean isStorageManager() {
-            try {
-                return Environment.isExternalStorageManager();
-            } catch (Throwable e) {
-                return false;
-            }
-        }
-
         static Intent appAllFilesIntent(String pkg) {
             return new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION, Uri.parse("package:" + pkg));
         }
@@ -1738,6 +1864,16 @@ public final class MainActivity extends Activity {
 
     @TargetApi(33)
     private static final class Api33 {
+        static boolean requestTile(MainActivity activity) {
+            try {
+                StatusBarManager statusBar = activity.getSystemService(StatusBarManager.class);
+                if (statusBar == null) return false;
+                statusBar.requestAddTileService(new ComponentName(activity, BridgeTileService.class), "PocketBridge",
+                        Icon.createWithResource(activity, R.drawable.ic_quick_settings), activity.getMainExecutor(), result -> {});
+                return true;
+            } catch (RuntimeException unavailable) { return false; }
+        }
+
         static void requestNotificationsIfNeeded(Activity activity) {
             if (activity.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
                 activity.requestPermissions(new String[]{ Manifest.permission.POST_NOTIFICATIONS }, 5);

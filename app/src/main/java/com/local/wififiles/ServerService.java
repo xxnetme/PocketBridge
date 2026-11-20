@@ -10,9 +10,15 @@ import android.content.pm.ServiceInfo;
 import android.net.wifi.WifiManager;
 import android.os.Binder;
 import android.os.Build;
-import android.os.Environment;
+import android.os.Handler;
+import android.os.Looper;
 import android.os.IBinder;
 import android.util.Log;
+import android.widget.Toast;
+
+import java.io.File;
+import java.security.SecureRandom;
+import java.util.Locale;
 
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
@@ -24,6 +30,8 @@ import javax.net.ssl.SSLContext;
 public final class ServerService extends Service {
     static final String ACTION_START = "com.local.wififiles.action.START";
     static final String ACTION_STOP = "com.local.wififiles.action.STOP";
+    static final String ACTION_TILE_START = "com.local.wififiles.action.TILE_START";
+    static final String ACTION_RELOAD = "com.local.wififiles.action.RELOAD";
     static final String EXTRA_KEY = "key";
     /** Настройки, которые читает и экран, и сервис. */
     static final String PREFS = "pb-settings";
@@ -37,7 +45,12 @@ public final class ServerService extends Service {
 
     private final LocalBinder binder = new LocalBinder();
     private final CopyOnWriteArrayList<Runnable> listeners = new CopyOnWriteArrayList<>();
-    private FileServer server;
+    // Lifecycle, active instance and DNS-SD registration are owned by the main thread.
+    private static ServerService active;
+    private final Handler main = new Handler(Looper.getMainLooper());
+    private volatile FileServer server;
+    private LanDiscovery discovery;
+    private String discoveryName;
     private String key = "";
     private int port;
     private String error = "";
@@ -50,7 +63,18 @@ public final class ServerService extends Service {
 
     @Override public IBinder onBind(Intent intent) { return binder; }
 
+    static ServerService active() { return active; }
     boolean isRunning() { return server != null; }
+    boolean isReadOnly() { FileServer s = server; return s != null && s.isReadOnly(); }
+    String discoveryName() { return discoveryName; }
+
+    static String newKey() {
+        byte[] bytes = new byte[8];
+        new SecureRandom().nextBytes(bytes);
+        StringBuilder b = new StringBuilder(16);
+        for (byte x : bytes) b.append(String.format(Locale.US, "%02x", x & 0xff));
+        return b.toString();
+    }
     String accessKey() { return key; }
     int port() { return port; }
     String lastError() { return error; }
@@ -67,62 +91,99 @@ public final class ServerService extends Service {
     void removeListener(Runnable r) { listeners.remove(r); }
     private void notifyListeners() { for (Runnable r : listeners) try { r.run(); } catch (Throwable ignored) {} }
 
-    private boolean isEn() {
-        String saved = "";
-        try { saved = getSharedPreferences(PREFS, MODE_PRIVATE).getString("ui_lang", ""); }
-        catch (ClassCastException ignored) {}
-        if ("en".equals(saved) || "ru".equals(saved)) return "en".equals(saved);
-        String sys = java.util.Locale.getDefault().getLanguage();
-        return !("ru".equals(sys) || "uk".equals(sys) || "be".equals(sys) || "kk".equals(sys));
-    }
-
     private int safePrefInt(String k, int def) {
         try { return getSharedPreferences(PREFS, MODE_PRIVATE).getInt(k, def); }
         catch (ClassCastException e) { return def; }
     }
 
-    private String tr(String ru, String en) { return isEn() ? en : ru; }
+    private String tr(String ru, String en) { return BridgeOptions.english(this) ? en : ru; }
 
     void stopFromUi() { shutdown(); }
 
     @Override public int onStartCommand(Intent intent, int flags, int startId) {
         String action = intent == null ? null : intent.getAction();
         if (ACTION_STOP.equals(action)) { shutdown(); return START_NOT_STICKY; }
-        String requested = intent == null ? null : intent.getStringExtra(EXTRA_KEY);
+        boolean tileStart = ACTION_TILE_START.equals(action);
+        boolean reload = ACTION_RELOAD.equals(action);
+        if (reload && server == null) { stopSelf(); return START_NOT_STICKY; }
+        String requested = reload ? key : tileStart ? (server == null ? newKey() : key)
+                : intent == null ? null : intent.getStringExtra(EXTRA_KEY);
         if (requested == null || requested.isEmpty()) { stopSelf(); return START_NOT_STICKY; }
-        if (server != null && requested.equals(key)) {
-            if (!startInForeground(tr("PocketBridge активен · :" + port, "PocketBridge active · :" + port))) {
-                shutdown();
-                return START_NOT_STICKY;
-            }
-            notifyListeners();
+        if (!reload && server != null && requested.equals(key)) {
+            if (!startInForeground(tr("PocketBridge активен · :" + port, "PocketBridge active · :" + port))) shutdown();
+            else publishState();
             return START_NOT_STICKY;
         }
-        if (server != null) { server.stop(); server = null; }   // смена кода — перезапуск
-        stopWatchdog();
-        releaseWifiLock();
+        closeServer();
         key = requested;
         error = "";
         if (!startInForeground(tr("Запуск доступа…", "Starting access…"))) {
-            shutdown();
+            failStart(tileStart);
+            return START_NOT_STICKY;
+        }
+        if (!BridgeOptions.hasStorageAccess(this)) {
+            error = tr("Сначала разрешите доступ к файлам", "Grant storage access first");
+            failStart(tileStart);
+            return START_NOT_STICKY;
+        }
+        File root;
+        try { root = BridgeOptions.sharedFolder(this); }
+        catch (Exception unavailable) {
+            error = tr("Общая папка недоступна. Выберите другую в настройках.",
+                    "Shared folder unavailable. Choose another folder in Settings.");
+            failStart(tileStart);
             return START_NOT_STICKY;
         }
         try {
             SSLContext ssl = SelfSignedCertificate.createContext(getFilesDir());
             int preferredPort = safePrefInt(PREF_PORT, DEFAULT_PORT);
-            server = new FileServer(this, Environment.getExternalStorageDirectory(), key, ssl, getCacheDir(), preferredPort);
+            server = new FileServer(this, root, key, ssl, getCacheDir(), preferredPort, BridgeOptions.readOnly(this));
             server.setClipboardListener(this::notifyListeners);
             port = server.start();
             acquireWifiLock();
             startWatchdog();
         } catch (Exception e) {
             error = e.getMessage() == null ? tr("Не удалось запустить сервер", "Could not start server") : e.getMessage();
-            shutdown();
+            failStart(tileStart);
             return START_NOT_STICKY;
         }
-        startInForeground(tr("PocketBridge активен · :" + port, "PocketBridge active · :" + port));
-        notifyListeners();
+        if (!startInForeground(tr("PocketBridge активен · :" + port, "PocketBridge active · :" + port))) {
+            failStart(tileStart);
+            return START_NOT_STICKY;
+        }
+        active = this;
+        updateDiscovery();
+        publishState();
         return START_NOT_STICKY;
+    }
+
+    private void failStart(boolean tileStart) {
+        if (tileStart) Toast.makeText(this, error, Toast.LENGTH_LONG).show();
+        shutdown();
+    }
+
+    /** Переключение объявления не сбрасывает существующие клиентские сессии. */
+    void updateDiscovery() {
+        stopDiscovery();
+        if (server != null && BridgeOptions.discovery(this)) {
+            discovery = new LanDiscovery(this, name -> {
+                discoveryName = name;
+                notifyListeners();
+            });
+            discovery.start(port);
+        }
+        notifyListeners();
+    }
+
+    private void stopDiscovery() {
+        if (discovery != null) discovery.stop();
+        discovery = null;
+        discoveryName = null;
+    }
+
+    private void publishState() {
+        notifyListeners();
+        BridgeTileService.refresh(this);
     }
 
     /** Android 15+ (API 35+): корректная остановка при истечении лимита времени foregroundServiceType=dataSync. */
@@ -171,27 +232,37 @@ public final class ServerService extends Service {
         watchdog.scheduleWithFixedDelay(() -> {
             FileServer current = server;
             if (current != null && current.idleMillis() > limit && current.activeConnections() == 0) {
-                error = tr("Остановлен автоматически: " + minutes + " мин без подключений",
-                        "Stopped automatically after " + minutes + " min idle");
-                shutdown();
+                main.post(() -> {
+                    if (current != server || current.idleMillis() <= limit || current.activeConnections() != 0) return;
+                    error = tr("Остановлен автоматически: " + minutes + " мин без подключений",
+                            "Stopped automatically after " + minutes + " min idle");
+                    shutdown();
+                });
             }
         }, 1, 1, TimeUnit.MINUTES);
     }
 
-    private void shutdown() {
+    private void closeServer() {
         stopWatchdog();
-        if (server != null) { server.stop(); server = null; }
+        stopDiscovery();
+        FileServer old = server;
+        server = null;
+        if (active == this) active = null;
+        if (old != null) old.stop();
         releaseWifiLock();
+    }
+
+    private void shutdown() {
+        closeServer();
         try { stopForeground(STOP_FOREGROUND_REMOVE); } catch (Exception ignored) {}
         stopSelf();
-        notifyListeners();
+        publishState();
     }
 
     @Override public void onDestroy() {
-        stopWatchdog();
-        if (server != null) { server.stop(); server = null; }
-        releaseWifiLock();
-        notifyListeners();
+        closeServer();
+        main.removeCallbacksAndMessages(null);
+        publishState();
         super.onDestroy();
     }
 

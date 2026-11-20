@@ -46,6 +46,7 @@ public class Test {
             PORT = server.start();
             System.out.println("SERVER PORT=" + PORT + " ROOT=" + ROOT);
             try { runTests(); } finally { server.stop(); }
+            accessModeAndInboxTests();
             tlsTests();
         } finally {
             cleanupDir(TMP);
@@ -54,6 +55,107 @@ public class Test {
         for (String f : failures) System.out.println("FAILED -> " + f);
         for (String n : notes) System.out.println("NOTE   -> " + n);
         if (fail > 0) System.exit(1);
+    }
+
+    /* v4.0: actual shared-root boundary, read-only HTTP/WebDAV, and Android inbox writer. */
+    static void accessModeAndInboxTests() throws Exception {
+        Path base = Files.createDirectory(TMP.toPath().resolve("storage-v40"));
+        Path root = Files.createDirectories(base.resolve("Docs/Доступ"));
+        Path sibling = Files.createDirectory(base.resolve("Private"));
+        Files.writeString(sibling.resolve("private-note.txt"), "not shared");
+        Files.writeString(root.resolve("hello.txt"), "readable text");
+        Files.copy(ROOT.toPath().resolve("photo.jpg"), root.resolve("photo.jpg"));
+        Files.createSymbolicLink(root.resolve("external-link"), sibling.resolve("private-note.txt"));
+        Files.createSymbolicLink(base.resolve("linked-root"), root);
+        try (java.util.zip.ZipOutputStream zip = new java.util.zip.ZipOutputStream(Files.newOutputStream(root.resolve("demo.zip")))) {
+            zip.putNextEntry(new ZipEntry("included.txt"));
+            zip.write(new byte[]{1, 2, 3});
+            zip.closeEntry();
+        }
+        String selected = "Docs/Доступ";
+        File storage = base.toFile();
+        check("Корневой выбор: вложенная папка с Unicode", Files.isSameFile(root, StorageRoot.resolve(storage, selected).toPath()), "");
+        check("Корневой выбор: пустая настройка использует первичное хранилище", Files.isSameFile(base, StorageRoot.resolve(storage, "").toPath()), "");
+        for (String bad : new String[]{null, "/Docs", "Docs//Доступ", "Docs/../Private", "missing", "linked-root"}) {
+            boolean rejected = false;
+            try { StorageRoot.resolve(storage, bad); }
+            catch (IOException e) { rejected = true; }
+            check("Корневой выбор не расширяет доступ: " + bad, rejected, "");
+        }
+        byte[] sample = "строка\n".getBytes(StandardCharsets.UTF_8);
+        ShareInbox.Imported a = ShareInbox.copy(storage, selected, "отчёт.txt", new ByteArrayInputStream(sample), 100L);
+        ShareInbox.Imported b = ShareInbox.copy(storage, selected, "отчёт.txt", new ByteArrayInputStream(new byte[]{9}), 99L);
+        Path inbox = root.resolve(ShareInbox.DIRECTORY);
+        check("Импорт сохраняет UTF-8 в выбранный Inbox и не перезаписывает совпадение",
+                a.name.equals("отчёт.txt") && a.bytes == sample.length && b.name.equals("отчёт (1).txt")
+                        && Arrays.equals(sample, Files.readAllBytes(inbox.resolve(a.name))), "");
+        ShareInbox.Imported c = ShareInbox.copy(storage, selected, "подпапка/заметка\\.txt", new ByteArrayInputStream(sample), 100L);
+        check("Импорт нормализует имя из провайдера", c.name.equals("подпапка_заметка_.txt") && Files.isRegularFile(inbox.resolve(c.name)), c.name);
+        boolean limited = false;
+        try { ShareInbox.copy(storage, selected, "partial.txt", new ByteArrayInputStream(sample), 1L); }
+        catch (ShareInbox.TooLarge e) { limited = true; }
+        try (java.util.stream.Stream<Path> entries = Files.list(inbox)) {
+            check("Лимит импорта не оставляет файл или .part", limited && !Files.exists(inbox.resolve("partial.txt"))
+                    && entries.noneMatch(f -> FileServer.isTempName(f.getFileName().toString())), "");
+        }
+        Path outsideInboxRoot = Files.createDirectory(base.resolve("LinkedInbox"));
+        Files.createSymbolicLink(outsideInboxRoot.resolve(ShareInbox.DIRECTORY), sibling);
+        boolean denied = false;
+        try { ShareInbox.copy(storage, "LinkedInbox", "sample.txt", new ByteArrayInputStream(sample), 100L); }
+        catch (IOException e) { denied = true; }
+        check("Импорт отказывает при ссылке вместо Inbox", denied && !Files.exists(sibling.resolve("sample.txt")), "");
+
+        FileServer readOnly = new FileServer(new Context(new File(ASSETS)), StorageRoot.resolve(storage, selected), KEY,
+                null, null, 8765, true);
+        PORT = readOnly.start();
+        try {
+            Resp r = get("/api/list?path=/");
+            JSONObject listing = new JSONObject(r.text());
+            check("GET /api/list передаёт режим и виртуальный корень", r.status == 200 && listing.getBoolean("readOnly")
+                    && listing.getString("path").equals("/") && r.text().contains("hello.txt")
+                    && !r.text().contains("private-note.txt") && !r.text().contains("external-link"), r.text());
+            check("Inbox появляется в быстрых папках после локального импорта",
+                    listing.getJSONArray("quickDirs").toString().contains("PocketBridge Inbox"), "");
+            r = get("/api/text?path=/hello.txt");
+            check("В режиме чтения текст доступен, X-File-Editable=0", r.status == 200 && "0".equals(r.h.get("x-file-editable"))
+                    && r.text().equals("readable text"), r.text());
+            check("В режиме чтения разрешены GET /api/hash и GET /api/zip-list", get("/api/hash?path=/hello.txt").status == 200
+                    && get("/api/zip-list?path=/demo.zip").status == 200, "");
+            check("Доступ с соседним путём и внешней ссылкой закрыт",
+                    get("/api/download?path=/../../Private/private-note.txt").status == 400
+                    && get("/api/download?path=/external-link").status == 400, "");
+            String download = new JSONObject(post("/api/download-ticket?path=/hello.txt").text()).getString("url");
+            String zip = new JSONObject(postJson("/api/zip-ticket?base=/", "{\"paths\":[\"/hello.txt\"]}").text()).getString("url");
+            check("Билеты скачивания файла и ZIP не блокируются", req("GET", download, null, null).text().equals("readable text")
+                    && req("GET", zip, null, null).status == 200, "");
+            check("Билеты сессии и превью не блокируются", post("/api/session").status == 200
+                    && post("/api/preview-ticket?path=/photo.jpg").status == 200, "");
+            readOnly.updateClipboard("from phone", "phone");
+            check("Общий буфер доступен для чтения", get("/api/clipboard").text().contains("from phone"), "");
+            for (String mutation : new String[]{"mkdir", "mkdirs", "rename", "delete", "copy", "move", "save-text", "rotate-image",
+                    "zip-extract", "upload", "upload-init", "upload-chunk", "upload-finish", "upload-abort", "clipboard"}) {
+                Resp refused = post("/api/" + mutation + "?path=/hello.txt&name=changed");
+                check("Только чтение: POST /api/" + mutation, refused.status == 403
+                        && "1".equals(refused.h.get("x-pocketbridge-read-only")), refused.text());
+            }
+            r = req("POST", "/api/mkdir", null, null);
+            check("Проверка кода доступа предшествует проверке режима", r.status == 403 && !r.h.containsKey("x-pocketbridge-read-only"), r.text());
+            r = req("OPTIONS", "/dav/", null, null);
+            check("WebDAV OPTIONS сообщает только разрешённые методы", r.status == 200 && "1".equals(r.h.get("dav"))
+                    && "OPTIONS, GET, HEAD, PROPFIND".equals(r.h.get("allow")), r.h.toString());
+            r = req("PROPFIND", "/dav/", davAuth(), null);
+            check("WebDAV PROPFIND ограничивает видимость выбранным корнем", r.status == 207 && r.text().contains("hello.txt")
+                    && !r.text().contains("external-link") && !r.text().contains("private-note.txt"), "");
+            check("WebDAV GET и HEAD работают при чтении", req("GET", "/dav/hello.txt", davAuth(), null).text().equals("readable text")
+                    && req("HEAD", "/dav/hello.txt", davAuth(), null).status == 200, "");
+            for (String verb : new String[]{"PUT", "DELETE", "MKCOL", "MOVE", "COPY", "PROPPATCH", "LOCK", "UNLOCK"}) {
+                Resp refused = req(verb, "/dav/hello.txt", davAuth(), null);
+                check("Только чтение: WebDAV " + verb, refused.status == 403
+                        && "1".equals(refused.h.get("x-pocketbridge-read-only")), refused.text());
+            }
+            check("Запрещённые операции не меняют файл или буфер", Files.readString(root.resolve("hello.txt")).equals("readable text")
+                    && readOnly.clipboardText().equals("from phone"), "");
+        } finally { readOnly.stop(); }
     }
 
     static void cleanupDir(File f) {

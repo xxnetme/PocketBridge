@@ -9,6 +9,7 @@ const WORK = process.env.PB_WORK || path.join(os.tmpdir(), 'pocketbridge-ui');
 const ROOT = process.env.PB_ROOT || path.join(WORK, 'root');
 const shots = path.join(WORK, 'shots');
 const BASE = process.env.PB_BASE || 'http://127.0.0.1:8765';
+const RO_BASE = process.env.PB_RO_BASE;
 const ACCESS_KEY = process.env.PB_KEY || 'deadbeefcafe1234';
 fs.mkdirSync(WORK, { recursive: true });
 
@@ -989,6 +990,84 @@ function zipEntries(zipPath) {
   });
   rec('Мобильная вёрстка: окно свойств открывается из превью без вылезания за экран', !mPropsOverflow, '');
   await mctx.close();
+
+  /* ---------- v4.0: real read-only listener ---------- */
+  if (RO_BASE) {
+    const roContext = await browser.newContext({ viewport: { width: 1440, height: 900 }, acceptDownloads: true, ignoreHTTPSErrors: true });
+    const ro = await roContext.newPage();
+    ro.on('console', m => { if (m.type() === 'error') consoleErrors.push(m.text()); });
+    ro.on('pageerror', e => pageErrors.push(e.message || String(e)));
+    const writeRequests = [];
+    ro.on('request', r => {
+      if (r.method() !== 'POST') return;
+      const endpoint = new URL(r.url()).pathname;
+      if (!['/api/session', '/api/zip-ticket', '/api/download-ticket', '/api/preview-ticket'].includes(endpoint)) writeRequests.push(endpoint);
+    });
+    await ro.goto(RO_BASE + '/#k=' + encodeURIComponent(ACCESS_KEY));
+    await ro.waitForSelector('#readonlyNotice');
+    await ro.waitForSelector('#rows button.filename');
+    rec('Только чтение: видимое предупреждение, загрузка и создание скрыты',
+      (await ro.locator('#readonlyNotice').textContent()).includes('Только чтение')
+      && await ro.locator('#upload, #mkdir, #mkfile').evaluateAll(nodes => nodes.every(n => n.offsetWidth === 0)), '');
+    await ro.screenshot({ path: path.join(shots, '39-readonly-desktop.png') });
+    await openFolder(ro, 'Документы');
+    const note = ro.locator('#rows tr', { hasText: 'заметки.md' });
+    await note.locator('input[type=checkbox]').check();
+    rec('Только чтение: выделение и скачивание ZIP доступны, мутации скрыты',
+      await ro.locator('#downloadSelected').isVisible() && await ro.locator('#deleteSelected').isHidden()
+      && await ro.locator('#copySelected').isHidden() && await ro.locator('#cutSelected').isHidden()
+      && !(await note.getAttribute('draggable')), '');
+    await ro.keyboard.press('F2');
+    await ro.keyboard.press('Delete');
+    await ro.keyboard.press('Control+x');
+    await ro.keyboard.press('Control+v');
+    rec('Только чтение: клавиши записи не открывают диалоги или очередь',
+      await ro.locator('#actionDialog').isHidden() && await ro.locator('#clipBar').isHidden(), '');
+    await note.locator('.filename').click();
+    await ro.waitForSelector('#previewBody pre');
+    rec('Только чтение: текст открывается без редактора', await ro.locator('#previewEdit').isHidden()
+        && (await ro.locator('#previewBody').textContent()).includes('# Заметки'), '');
+    const getDownload = ro.waitForEvent('download');
+    await ro.click('#previewDownload');
+    const dl = await getDownload;
+    rec('Только чтение: файл скачивается по билету', dl.suggestedFilename() === 'заметки.md', dl.suggestedFilename());
+    await closePreview(ro);
+    await goRoot(ro);
+    await openFolder(ro, 'Загрузки');
+    await ro.locator('#rows tr', { hasText: 'архив.zip' }).locator('.filename').click();
+    await ro.waitForSelector('#zipFilter');
+    rec('Только чтение: ZIP просматривается, извлечение скрыто',
+        await ro.locator('#zipExtractHere').isHidden() && await ro.locator('#zipSelectAll').isHidden()
+        && (await ro.locator('.ziprow').count()) > 0, '');
+    await closePreview(ro);
+    await ro.click('#openClip');
+    const clipLocked = await ro.locator('#sharedClipInput').evaluate(n => n.readOnly);
+    rec('Только чтение: общий буфер читается без отправки и очистки', clipLocked && await ro.locator('#sharedClipSend').isHidden()
+        && await ro.locator('#sharedClipClear').isHidden(), '');
+    await ro.click('#sharedClipClose');
+    await ro.evaluate(() => {
+      const dataTransfer = new DataTransfer();
+      dataTransfer.items.add(new File(['test'], 'readonly.txt', { type: 'text/plain' }));
+      window.dispatchEvent(new DragEvent('dragenter', { dataTransfer, cancelable: true }));
+      window.dispatchEvent(new DragEvent('drop', { dataTransfer, cancelable: true }));
+    });
+    rec('Только чтение: перетаскивание не инициирует запись', await ro.locator('#dropOverlay').isHidden()
+        && writeRequests.length === 0, writeRequests.join(', '));
+    await roContext.close();
+
+    const roMobile = await browser.newContext({ ...devices['iPhone 13'], ignoreHTTPSErrors: true });
+    await roMobile.addInitScript(() => { localStorage.setItem('pb-lang', 'en'); localStorage.setItem('pb-theme', 'light'); });
+    const rom = await roMobile.newPage();
+    rom.on('pageerror', e => pageErrors.push(e.message || String(e)));
+    await rom.goto(RO_BASE + '/#k=' + encodeURIComponent(ACCESS_KEY));
+    await rom.waitForSelector('#readonlyNotice');
+    await rom.waitForSelector('#rows button.filename');
+    const widthOK = await rom.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1);
+    rec('Только чтение: iPhone 13, EN / light, без горизонтального переполнения', widthOK
+        && (await rom.locator('#readonlyNotice').textContent()).includes('Read only'), '');
+    await rom.screenshot({ path: path.join(shots, '40-readonly-mobile.png') });
+    await roMobile.close();
+  }
 
   /* ---------- итоги ---------- */
   rec('Ошибки выполнения JS (pageerror)', pageErrors.length === 0, pageErrors.slice(0, 3).join(' || '));

@@ -2,7 +2,7 @@
 # Автономные тесты серверной части PocketBridge (без Android SDK и эмулятора).
 # Требуется JDK 17+.
 #   Запуск тестов:       ./server-tests/run.sh
-#   Запуск демо-сервера: ./server-tests/run.sh --serve <root> <key> [tls]
+#   Запуск демо-сервера: ./server-tests/run.sh --serve <root> <key> [tls] [--read-only <test-root>]
 set -euo pipefail
 export LANG="${LANG:-C.UTF-8}" LC_ALL="${LC_ALL:-C.UTF-8}"
 cd "$(dirname "$0")/.."
@@ -21,6 +21,8 @@ echo "→ Компилирую сервер и заглушки Android API"
   echo app/src/main/java/com/local/wififiles/SelfSignedCertificate.java
   echo app/src/main/java/com/local/wififiles/Thumbnails.java
   echo app/src/main/java/com/local/wififiles/WebDav.java
+  echo app/src/main/java/com/local/wififiles/StorageRoot.java
+  echo app/src/main/java/com/local/wififiles/ShareInbox.java
   find server-tests/src -name '*.java'
 } > "$OUT/sources.txt"
 javac -encoding UTF-8 -d "$OUT" -cp "$JSON_JAR" @"$OUT/sources.txt"

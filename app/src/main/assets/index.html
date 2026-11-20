@@ -1127,6 +1127,18 @@ body.queue-open .totop{display:none}
   *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}
   .spinner,.page-loader.is-active::after,.panel-loader.is-active::after,.message.is-busy:not(:empty)::before,.progress .plabel::before,.size.is-loading::before,.iconbtn.is-busy::before{animation-duration:.9s!important;animation-iteration-count:infinite!important}
 }
+/* Session-level file permissions, enforced independently by the server. */
+body.is-readonly .pb-write { display: none !important; }
+body:not(.is-readonly) .pb-read-only { display: none !important; }
+.readonly-notice {
+  display:flex;align-items:flex-start;gap:10px;margin:0 0 14px;padding:10px 13px;
+  border:1px solid var(--border);border-radius:12px;background:var(--panel);color:var(--muted);
+  font-size:12px;line-height:1.45;
+}
+.readonly-notice strong{color:var(--text);display:block;font-size:13px}
+.readonly-notice svg{margin-top:2px;flex:none;color:var(--accent)}
+.is-readonly .ziprow { grid-template-columns:22px minmax(0, 1fr) auto; }
+.is-readonly .ziprow .zpath { cursor:default; }
 </style></head><body>
 <div id="pageLoader" class="page-loader" aria-hidden="true"></div>
 <main class="shell">
@@ -1182,7 +1194,8 @@ body.queue-open .totop{display:none}
     <div class="hero">
       <div class="heromain">
         <h1 data-i18n="heroTitle">Всё под рукой.</h1>
-        <p class="sub" data-i18n="heroSub">Просматривайте, скачивайте и загружайте файлы без проводов — или просто перетащите их в окно.</p>
+        <p class="sub pb-read-only" data-i18n="readOnlyHero">Просматривайте и скачивайте файлы без проводов.</p>
+        <p class="sub pb-write" data-i18n="heroSub">Просматривайте, скачивайте и загружайте файлы без проводов — или просто перетащите их в окно.</p>
       </div>
       <div class="herometa">
         <div id="storagePill" class="storagepill hidden" role="status">
@@ -1202,6 +1215,10 @@ body.queue-open .totop{display:none}
       </div>
     </div>
 
+    <div id="readonlyNotice" class="readonly-notice pb-read-only" role="status">
+      <svg class="svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4M12 15v2"/></svg>
+      <div><strong data-i18n="readOnlyTitle">Только чтение</strong><span data-i18n="readOnlyHint">Можно смотреть и скачивать. Режим доступа меняется на телефоне.</span></div>
+    </div>
     <div class="panel">
       <div id="panelLoader" class="panel-loader" aria-hidden="true"></div>
       <div class="bar">
@@ -1217,7 +1234,7 @@ body.queue-open .totop{display:none}
 
         <span class="vsep" aria-hidden="true"></span>
 
-        <div class="bargroup upload-grp">
+        <div class="bargroup upload-grp pb-write">
           <button class="btn primary" id="upload" type="button">
             <svg class="svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
             <span data-i18n="headerUpload">Загрузить</span>
@@ -1237,7 +1254,7 @@ body.queue-open .totop{display:none}
           <input id="dirInput" type="file" webkitdirectory multiple hidden>
         </div>
 
-        <span class="vsep" aria-hidden="true"></span>
+        <span class="vsep pb-write" aria-hidden="true"></span>
 
         <div class="bargroup util-grp">
           <button class="btn ghost" id="sizes" type="button" data-i18n-title="sizesBtnTitle" title="Посчитать размеры папок">
@@ -1289,11 +1306,11 @@ body.queue-open .totop{display:none}
           <svg class="svg-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           <span data-i18n="btnDownloadSelected">Скачать ZIP</span>
         </button>
-        <button id="copySelected" class="btn" type="button" data-i18n-title="btnCopyTitle" title="Копировать выбранное (Ctrl+C)">
+        <button id="copySelected" class="btn pb-write" type="button" data-i18n-title="btnCopyTitle" title="Копировать выбранное (Ctrl+C)">
           <svg class="svg-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
           <span data-i18n="btnCopySelected">Копировать</span>
         </button>
-        <button id="cutSelected" class="btn" type="button" data-i18n-title="btnCutTitle" title="Вырезать для перемещения (Ctrl+X)">
+        <button id="cutSelected" class="btn pb-write" type="button" data-i18n-title="btnCutTitle" title="Вырезать для перемещения (Ctrl+X)">
           <svg class="svg-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>
           <span data-i18n="btnCutSelected">Вырезать</span>
         </button>
@@ -1301,7 +1318,7 @@ body.queue-open .totop{display:none}
           <svg class="svg-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
           <span data-i18n="btnProps">Свойства</span>
         </button>
-        <button id="deleteSelected" class="btn danger" type="button">
+        <button id="deleteSelected" class="btn danger pb-write" type="button">
           <svg class="svg-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
           <span data-i18n="btnDeleteSelected">Удалить</span>
         </button>
@@ -1371,7 +1388,8 @@ body.queue-open .totop{display:none}
       </button>
     </div>
     <h2 id="clipModalTitle" data-i18n="sharedClipHeading">Общий буфер обмена</h2>
-    <p class="dialog-message" data-i18n="sharedClipDesc">Пересылайте ссылки, коды и заметки между браузером и телефоном. Данные хранятся только в памяти до остановки сервера.</p>
+    <p class="dialog-message pb-read-only" data-i18n="sharedClipReadOnly">Текст с телефона можно прочитать и скопировать.</p>
+    <p class="dialog-message pb-write" data-i18n="sharedClipDesc">Пересылайте ссылки, коды и заметки между браузером и телефоном. Данные хранятся только в памяти до остановки сервера.</p>
     <div class="clip-meta">
       <span id="sharedClipMeta"></span>
       <span id="sharedClipLen"></span>
@@ -1382,11 +1400,11 @@ body.queue-open .totop{display:none}
         <button id="sharedClipRefresh" class="btn ghost icon-only" type="button" data-i18n-title="headerRefreshTitle" data-i18n-aria="headerRefreshTitle" title="Обновить" aria-label="Обновить">
           <svg class="svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36L21 8"/><polyline points="21 3 21 8 16 8"/></svg>
         </button>
-        <button id="sharedClipClear" class="btn ghost" type="button" data-i18n="sharedClipClear">Очистить</button>
+        <button id="sharedClipClear" class="btn ghost pb-write" type="button" data-i18n="sharedClipClear">Очистить</button>
       </div>
       <div class="clip-actions-right">
         <button id="sharedClipCopy" class="btn" type="button" data-i18n="sharedClipCopy">Скопировать</button>
-        <button id="sharedClipSend" class="btn primary" type="button" data-i18n="sharedClipSend">Отправить</button>
+        <button id="sharedClipSend" class="btn primary pb-write" type="button" data-i18n="sharedClipSend">Отправить</button>
       </div>
     </div>
   </div>
@@ -1410,7 +1428,7 @@ body.queue-open .totop{display:none}
       <button id="previewRotate" class="btn ghost icon-only hidden" type="button" data-i18n-title="previewRotateTitle" data-i18n-aria="previewRotateTitle" title="Повернуть на 90° (R)" aria-label="Повернуть на 90° (R)">
         <svg class="svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36L21 8"/><polyline points="21 3 21 8 16 8"/></svg>
       </button>
-      <button id="previewSaveRotate" class="btn hidden" type="button" data-i18n-title="previewSaveRotateTitle" title="Сохранить поворот в файл на телефоне">
+      <button id="previewSaveRotate" class="btn hidden pb-write" type="button" data-i18n-title="previewSaveRotateTitle" title="Сохранить поворот в файл на телефоне">
         <svg class="svg-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
         <span class="btnlabel" data-i18n="previewSaveRotate">Сохранить поворот</span>
       </button>
@@ -1523,6 +1541,11 @@ const LANG = {
     brandShort: 'PocketBridge',
     wifiProvider: 'Wi-Fi ПРОВОДНИК',
     heroTitle: 'Всё под рукой.',
+    readOnlyHero: 'Просматривайте и скачивайте файлы без проводов.',
+    readOnlyTitle: 'Только чтение',
+    readOnlyHint: 'Можно смотреть и скачивать. Режим доступа меняется на телефоне.',
+    sharedClipReadOnly: 'Текст с телефона можно прочитать и скопировать.',
+    quickInbox: 'Входящие',
     heroSub: 'Просматривайте, скачивайте и загружайте файлы без проводов — или просто перетащите их в окно.',
     davLabel: 'Сетевой диск',
     davCopyTitle: 'Скопировать адрес WebDAV для Проводника Windows / macOS Finder',
@@ -1800,6 +1823,11 @@ const LANG = {
     brandShort: 'PocketBridge',
     wifiProvider: 'Wi-Fi EXPLORER',
     heroTitle: 'Everything at hand.',
+    readOnlyHero: 'Browse and download files wirelessly.',
+    readOnlyTitle: 'Read only',
+    readOnlyHint: 'Browse and download files. Change the access mode on your phone.',
+    sharedClipReadOnly: 'You can read and copy text shared from your phone.',
+    quickInbox: 'Inbox',
     heroSub: 'Browse, download, and upload files wirelessly — or simply drop them anywhere on the page.',
     davLabel: 'Network drive',
     davCopyTitle: 'Copy WebDAV address for Windows Explorer / macOS Finder',
@@ -2079,6 +2107,8 @@ function safeSet(k, v) { try { localStorage.setItem(k, v); } catch (_) {} }
 
 let currentLang = safeGet('pb-lang') === 'en' ? 'en' : 'ru';
 let key = '', sessionToken = null, current = '/', items = [], remoteResults = null;
+let readOnly = false;
+const READ_ONLY_POST = new Set(['session', 'preview-ticket', 'download-ticket', 'zip-ticket', 'download-zip']);
 const selected = new Set(), sizes = new Map();
 let viewMode = safeGet('pb-view') === 'grid' ? 'grid' : 'list';
 let sortFlip = false, scanning = false, generation = 0, previewSerial = 0, previewItem = null;
@@ -2102,6 +2132,7 @@ const ROTATE_MAX_BYTES = 40 * 1024 * 1024;
 const PB_DRAG_MIME = 'application/x-pb-items';
 const MAX_PINS = 12;
 const QUICK_DIR_LABELS = {
+  '/PocketBridge Inbox': 'quickInbox',
   '/DCIM/Camera': 'qdCamera',
   '/DCIM': 'qdDcim',
   '/Pictures': 'qdPictures',
@@ -2338,7 +2369,21 @@ el('copyDav').onclick = async () => {
   showToast('WebDAV: ' + url);
 };
 
+function applyAccessMode(value) {
+  readOnly = value;
+  document.body.classList.toggle('is-readonly', readOnly);
+  el('sharedClipInput').readOnly = readOnly;
+  if (readOnly) {
+    pbClip = null;
+    clearInternalDrag();
+  }
+}
+
 async function api(route, params = {}, options = {}) {
+  if (readOnly && options.method && options.method !== 'GET' && options.method !== 'HEAD'
+      && !(options.method === 'POST' && READ_ONLY_POST.has(route))) {
+    throw new Error(t('readOnlyTitle'));
+  }
   const silent = !!options.silent;
   const fetchOpts = { ...options };
   delete fetchOpts.silent;
@@ -2355,7 +2400,9 @@ async function api(route, params = {}, options = {}) {
       cache: 'no-store'
     });
     if (!r.ok) {
-      const err = new Error((await r.text()) || ('HTTP ' + r.status));
+      const text = await r.text();
+      const err = new Error(r.headers.get('X-PocketBridge-Read-Only') === '1'
+        ? t('readOnlyTitle') : text || ('HTTP ' + r.status));
       err.status = r.status;
       err.headers = r.headers;
       throw err;
@@ -2603,6 +2650,7 @@ function clearInternalDrag() {
 }
 
 function attachItemDrag(node, item) {
+  if (readOnly) return;
   node.draggable = true;
   node.addEventListener('dragstart', e => {
     const pool = remoteResults || items;
@@ -2624,6 +2672,7 @@ function attachItemDrag(node, item) {
 }
 
 function attachFolderDropTarget(node, targetPath) {
+  if (readOnly) return;
   node.addEventListener('dragover', e => {
     if (!draggingItems || !draggingItems.length) return;
     if (!draggingItems.some(x => canMoveItemTo(x, targetPath))) return;
@@ -2990,9 +3039,9 @@ function renderGrid(doAnim = false) {
       if (kind(item.name)) act(ICONS.eye, '', t('btnPreview'), '', () => openPreview(item));
       act(ICONS.dl, '', t('btnDownload'), '', b => download(item, b));
     }
-    act(ICONS.edit, '', t('btnRename'), '', () => rename(item));
+    if (!readOnly) act(ICONS.edit, '', t('btnRename'), '', () => rename(item));
     act(ICONS.info, '', t('btnPropsTitle'), '', () => openProps(item));
-    act(ICONS.trash, '', t('btnDelete'), 'del', () => removeItem(item));
+    if (!readOnly) act(ICONS.trash, '', t('btnDelete'), 'del', () => removeItem(item));
     card.append(thumb, cap, sub, acts);
     grid.append(card);
   }
@@ -3081,8 +3130,10 @@ function renderList(doAnim = false) {
     } else {
       addBtn(t('btnZip'), b => downloadFolderZip(item, b), t('btnZipFolder'));
     }
-    addBtn(t('btnRename'), () => rename(item));
-    addBtn(t('btnDelete'), () => removeItem(item), '', 'iconbtn del');
+    if (!readOnly) {
+      addBtn(t('btnRename'), () => rename(item));
+      addBtn(t('btnDelete'), () => removeItem(item), '', 'iconbtn del');
+    }
     const infoBtn = document.createElement('button');
     infoBtn.type = 'button';
     infoBtn.className = 'iconbtn infobtn';
@@ -3184,7 +3235,9 @@ async function show(path, preloaded = null) {
     const data = preloaded || await (await api('list', { path })).json();
     if (token !== generation) return;
     clearSkeleton();
+    applyAccessMode(data.readOnly === true);
     await ensureSession().catch(() => {});
+    if (token !== generation) return;
     current = data.path;
     items = data.items;
     if (Array.isArray(data.quickDirs)) quickDirs = data.quickDirs.slice();
@@ -3276,7 +3329,7 @@ function applyPreviewRotation(deltaDeg) {
 }
 
 async function savePreviewRotation() {
-  if (!previewItem || !previewRotation || rotateSaving || !canSaveRotation(previewItem)) return;
+  if (readOnly || !previewItem || !previewRotation || rotateSaving || !canSaveRotation(previewItem)) return;
   const target = previewItem;
   const deg = previewRotation;
   const saveBtn = el('previewSaveRotate');
@@ -3522,7 +3575,7 @@ function renderZipPreview(item, data) {
   }
 
   const acts = document.createElement('div');
-  acts.className = 'zipacts';
+  acts.className = 'zipacts pb-write';
   const btnSub = document.createElement('button');
   btnSub.id = 'zipExtractFolder';
   btnSub.type = 'button';
@@ -3551,6 +3604,7 @@ function renderZipPreview(item, data) {
   allChk.type = 'checkbox';
   const allSpan = document.createElement('span');
   allSpan.textContent = t('zipSelectAll');
+  allLbl.classList.add('pb-write');
   allLbl.append(allChk, allSpan);
 
   const filter = document.createElement('input');
@@ -3591,6 +3645,7 @@ function renderZipPreview(item, data) {
       row.dataset.entry = e.path;
       const chk = document.createElement('input');
       chk.type = 'checkbox';
+      chk.classList.add('pb-write');
       chk.checked = chosen.has(e.path);
       chk.setAttribute('aria-label', e.path);
       const toggle = () => {
@@ -3611,7 +3666,7 @@ function renderZipPreview(item, data) {
       p.className = 'zpath';
       p.textContent = e.path + (e.dir ? '/' : '');
       p.title = e.path;
-      p.onclick = () => { chk.checked = !chk.checked; toggle(); };
+      if (!readOnly) p.onclick = () => { chk.checked = !chk.checked; toggle(); };
       const m = document.createElement('span');
       m.className = 'zmeta';
       m.textContent = e.dir ? '—' : bytes(e.size || 0);
@@ -3630,6 +3685,7 @@ function renderZipPreview(item, data) {
   filter.oninput = paintRows;
 
   const runExtract = async (toSubfolder, opts = {}) => {
+    if (readOnly) return;
     const selList = chosen.size > 0 ? [...chosen] : null;
     const activeBtn = toSubfolder ? btnSub : btnHere;
     btnSub.disabled = true;
@@ -3994,23 +4050,23 @@ document.addEventListener('keydown', e => {
     }
     syncSelectionDom();
     if (capped) msg(t('msgMaxSelect'));
-  } else if (mod && e.code === 'KeyC' && !inField && !e.shiftKey) {
+  } else if (!readOnly && mod && e.code === 'KeyC' && !inField && !e.shiftKey) {
     const selTxt = window.getSelection ? String(window.getSelection()).trim() : '';
     if (selected.size > 0 && !selTxt) {
       e.preventDefault();
       copySelectedItems();
     }
-  } else if (mod && e.code === 'KeyX' && !inField && !e.shiftKey) {
+  } else if (!readOnly && mod && e.code === 'KeyX' && !inField && !e.shiftKey) {
     if (selected.size > 0) {
       e.preventDefault();
       cutSelectedItems();
     }
-  } else if (e.key === 'Delete' && !inField && !e.ctrlKey && !e.metaKey && !e.altKey) {
+  } else if (!readOnly && e.key === 'Delete' && !inField && !e.ctrlKey && !e.metaKey && !e.altKey) {
     if (selected.size > 0) {
       e.preventDefault();
       el('deleteSelected').click();
     }
-  } else if (e.key === 'F2' && !inField && !e.ctrlKey && !e.metaKey && !e.altKey) {
+  } else if (!readOnly && e.key === 'F2' && !inField && !e.ctrlKey && !e.metaKey && !e.altKey) {
     if (selected.size === 1) {
       const only = [...selected][0];
       const it = (remoteResults || items).find(x => x.path === only);
@@ -4181,6 +4237,7 @@ function prunePathRefs(oldPath, newPath = null) {
 }
 
 async function rename(item) {
+  if (readOnly) return;
   const name = await actionDialog({
     title: t('renameTitle'), message: t('renameMsg'), accept: t('renameAccept'),
     input: item.name, iconHtml: ICONS.pencil, selectStem: !item.dir
@@ -4197,6 +4254,7 @@ async function rename(item) {
 }
 
 async function removeItem(item) {
+  if (readOnly) return;
   const ok = await actionDialog({
     title: t(item.dir ? 'deleteFolderTitle' : 'deleteFileTitle'),
     message: t(item.dir ? 'deleteFolderMsg' : 'deleteFileMsg', { name: item.name }),
@@ -4229,6 +4287,7 @@ el('loginForm').onsubmit = async e => {
   }
   try {
     const data = await (await api('list', { path: '/' })).json();
+    applyAccessMode(data.readOnly === true);
     el('loginError').textContent = '';
     el('loginWrap').classList.add('hidden');
     el('app').classList.remove('hidden');
@@ -4268,6 +4327,7 @@ el('logout').onclick = () => {
   clearInternalDrag();
   generation++;
   key = '';
+  applyAccessMode(false);
   items = [];
   remoteResults = null;
   filterCat = 'all';
@@ -4592,6 +4652,7 @@ function closeSharedClip() {
 }
 
 async function sendSharedClip(textVal, btn = null) {
+  if (readOnly) return;
   await withBtnFeedback(btn, async () => {
     try {
       const r = await api('clipboard', {}, {
@@ -5518,6 +5579,7 @@ function summarizeBatch(results, kindKey) {
 }
 
 async function uploadFiles(list, nameOverrides = null) {
+  if (readOnly) return;
   const targetDir = current;
   const tasks = list.map((f, idx) => {
     const fname = (nameOverrides && nameOverrides[idx]) ? nameOverrides[idx] : f.name;
@@ -5530,6 +5592,7 @@ async function uploadFiles(list, nameOverrides = null) {
 }
 
 async function uploadRelativeEntries(fileEntries, emptyDirs = []) {
+  if (readOnly) return;
   const baseDir = current;
   const dirs = new Set();
   const results = [];
@@ -5694,6 +5757,7 @@ el('dirInput').onchange = async e => {
   window.addEventListener('dragenter', e => {
     if (el('app').classList.contains('hidden') || !isExternalFiles(e)) return;
     e.preventDefault();
+    if (readOnly) return;
     dragDepth++;
     overlay.classList.remove('hidden');
   });
@@ -5711,6 +5775,7 @@ el('dirInput').onchange = async e => {
     e.preventDefault();
     dragDepth = 0;
     overlay.classList.add('hidden');
+    if (readOnly) { showToast(t('readOnlyTitle'), true); return; }
     const dt = e.dataTransfer;
     if (!dt) return;
     const rawFiles = dt.files ? [...dt.files] : [];
@@ -5745,6 +5810,7 @@ window.addEventListener('beforeunload', e => {
 });
 
 window.addEventListener('paste', e => {
+  if (readOnly) return;
   if (el('app').classList.contains('hidden')) return;
   if (!el('actionDialog').classList.contains('hidden')) return;
   if (!el('propsModal').classList.contains('hidden')) return;

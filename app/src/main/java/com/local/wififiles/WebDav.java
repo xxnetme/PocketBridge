@@ -22,10 +22,13 @@ final class WebDav {
 
     private final File root;
     private final String key;
+    private final boolean readOnly;
+    private static final String READ_METHODS = "OPTIONS, GET, HEAD, PROPFIND";
 
-    WebDav(File root, String key) throws IOException {
+    WebDav(File root, String key, boolean readOnly) throws IOException {
         this.root = root.getCanonicalFile();
         this.key = key;
+        this.readOnly = readOnly;
     }
 
     static boolean matches(String endpoint) {
@@ -40,6 +43,12 @@ final class WebDav {
             Map<String, String> extra = new LinkedHashMap<>();
             extra.put("WWW-Authenticate", "Basic realm=\"" + REALM + "\", charset=\"UTF-8\"");
             send(out, 401, "text/plain; charset=utf-8", "Нужен код доступа".getBytes(StandardCharsets.UTF_8), extra);
+            return true;
+        }
+        if (readOnly && !"GET".equals(method) && !"HEAD".equals(method) && !"PROPFIND".equals(method)) {
+            Map<String, String> extra = new LinkedHashMap<>();
+            extra.put(FileServer.READ_ONLY_HEADER, "1");
+            send(out, 403, "text/plain; charset=utf-8", FileServer.READ_ONLY_MESSAGE.getBytes(StandardCharsets.UTF_8), extra);
             return true;
         }
         String raw = endpoint.length() > PREFIX.length() ? endpoint.substring(PREFIX.length()) : "/";
@@ -69,9 +78,10 @@ final class WebDav {
 
     private boolean options(OutputStream out) throws IOException {
         Map<String, String> extra = new LinkedHashMap<>();
-        extra.put("DAV", "1, 2");
+        extra.put("DAV", readOnly ? "1" : "1, 2");
         extra.put("MS-Author-Via", "DAV");
-        extra.put("Allow", "OPTIONS, GET, HEAD, PROPFIND, PUT, MKCOL, DELETE, MOVE, COPY, PROPPATCH, LOCK, UNLOCK");
+        extra.put("Allow", readOnly ? READ_METHODS
+                : READ_METHODS + ", PUT, MKCOL, DELETE, MOVE, COPY, PROPPATCH, LOCK, UNLOCK");
         send(out, 200, "text/plain; charset=utf-8", new byte[0], extra);
         return true;
     }
@@ -111,6 +121,11 @@ final class WebDav {
                 Arrays.sort(children, Comparator.comparing(File::getName));
                 for (File child : children) {
                     if (FileServer.isTempName(child.getName())) continue;
+                    if (Files.isSymbolicLink(child.toPath())) {
+                        try {
+                            if (!child.toPath().toRealPath().startsWith(root.toPath())) continue;
+                        } catch (IOException ignored) { continue; }
+                    }
                     appendEntry(body, child, joinRaw(raw, child.getName()), propnameOnly);
                 }
             }
