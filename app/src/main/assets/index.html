@@ -5493,7 +5493,12 @@ function qItem(file, parent, name, { overwrite = false, unique = false, interact
     status: 'waiting', loaded: 0, total: file ? file.size : 0, speed: 0,
     error: null, retries: 0, paused: false, aborted: false,
     controller: null, row: null, promise,
-    settle: res => { if (!done) { done = true; resolveRef(res); } }
+    settle: res => {
+      if (done) return false;
+      done = true;
+      resolveRef(res);
+      return true;
+    }
   };
 }
 
@@ -5704,8 +5709,10 @@ async function runChunk(item) {
     item.loaded = item.total;
     item.speed = 0;
     item.status = 'done';
-    item.settle({ status: 'done', name: item.name });
-    if (item.restored) await refreshListing();
+    const firstResult = item.settle({ status: 'done', name: item.name });
+    // A manually retried item may already have reported failure to the batch.
+    // Its original batch will not refresh the listing a second time.
+    if (item.restored || !firstResult) await refreshListing();
   } catch (e) {
     item.controller = null;
     item.speed = 0;

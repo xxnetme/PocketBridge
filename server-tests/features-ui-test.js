@@ -124,6 +124,116 @@ async function uploadAndRestart(context, page) {
   return page;
 }
 
+const CHUNK = 4 * 1024 * 1024;
+const chunkRoute = '**/api/upload-chunk?**';
+const queueRow = (page, name) => page.locator('#queueList .qrow').filter({ has: page.getByText(name, { exact: true }) });
+const params = url => new URL(url).searchParams;
+const uploadFile = (page, name, buffer) => page.locator('#fileInput').setInputFiles({ name, mimeType: 'application/octet-stream', buffer });
+function draftStatus(context, id) {
+  return context.request.get(`${serverUrl}/api/upload-status?id=${id}`, { headers: { 'X-Access-Key': newKey } });
+}
+
+async function pauseAfterPart(context, page, name, data) {
+  // Stop the second request before it reaches the live server; its XHR is aborted by Pause.
+  let parked;
+  const hold = route => {
+    if (Number(params(route.request().url()).get('offset')) !== CHUNK) return route.continue();
+    parked = route;
+  };
+  await page.route(chunkRoute, hold);
+  const second = page.waitForRequest(req => req.url().includes('/api/upload-chunk?') && params(req.url()).get('offset') === String(CHUNK));
+  await uploadFile(page, name, data);
+  const id = params((await second).url()).get('id');
+  const row = queueRow(page, name);
+  await row.getByRole('button', { name: 'Pause', exact: true }).click();
+  await row.getByRole('button', { name: 'Resume', exact: true }).waitFor();
+  // The intercepted request may have already been cancelled by Chromium.
+  if (parked) await parked.abort().catch(() => {});
+  await page.unroute(chunkRoute, hold);
+  const status = await draftStatus(context, id);
+  assert.equal(status.status(), 200);
+  assert.equal((await status.json()).received, CHUNK);
+  assert.ok(!fs.existsSync(path.join(root, name)));
+  return { id, row };
+}
+
+async function transferControls(context, page) {
+  const bytes = crypto.randomBytes(CHUNK + 1067);
+  let name = 'pause-retry.bin';
+  const paused = await pauseAfterPart(context, page, name, bytes);
+  const offline = route => route.abort('internetdisconnected');
+  await page.route(chunkRoute, offline);
+  await paused.row.getByRole('button', { name: 'Resume', exact: true }).click();
+  const retry = paused.row.getByRole('button', { name: 'Retry', exact: true });
+  await retry.waitFor({ timeout: 16_000 });
+  await page.unroute(chunkRoute, offline);
+  assert.equal((await (await draftStatus(context, paused.id)).json()).received, CHUNK);
+  const resumed = page.waitForRequest(req => req.url().includes('/api/upload-chunk?'));
+  await retry.click();
+  const request = params((await resumed).url());
+  assert.equal(request.get('id'), paused.id);
+  assert.equal(request.get('offset'), String(CHUNK));
+  await page.locator('#rows').getByRole('button', { name, exact: true }).waitFor();
+  assert.ok(bytes.equals(fs.readFileSync(path.join(root, name))));
+  report('Pause and exhausted network retries keep confirmed bytes; Retry continues the same draft');
+
+  name = 'discard.bin';
+  const discard = await pauseAfterPart(context, page, name, bytes);
+  await page.route('**/api/upload-abort?**', offline, { times: 1 });
+  await discard.row.getByRole('button', { name: 'Cancel', exact: true }).click();
+  const again = discard.row.getByRole('button', { name: 'Retry discard', exact: true });
+  await again.waitFor();
+  assert.equal((await draftStatus(context, discard.id)).status(), 200);
+  assert.equal(await page.evaluate(id => Drafts.all().then(rs => rs.find(r => r.id === id)?.cancelPending), discard.id), true);
+  await again.click();
+  await page.waitForFunction(id => Drafts.all().then(rs => !rs.some(r => r.id === id)), discard.id);
+  assert.equal((await draftStatus(context, discard.id)).status(), 404);
+  assert.ok(!fs.existsSync(path.join(root, '.pocketbridge-uploads', discard.id + '.part')));
+  assert.ok(!fs.existsSync(path.join(root, name)));
+  report('Lost discard request gives a retry; retry removes the phone part and browser record');
+
+  name = 'late-conflict.bin';
+  const occupied = path.join(root, name), alternate = 'late-kept.bin', occupiedBytes = Buffer.from('new file on phone');
+  const small = bytes.subarray(0, 5000);
+  let finalId;
+  await page.route('**/api/upload-finish?**', route => {
+    finalId = params(route.request().url()).get('id');
+    fs.writeFileSync(occupied, occupiedBytes, { flag: 'wx' });
+    return route.continue();
+  }, { times: 1 });
+  await uploadFile(page, name, small);
+  await page.getByRole('heading', { name: 'File already exists', exact: true }).waitFor();
+  assert.equal((await (await draftStatus(context, finalId)).json()).received, small.length);
+  const retarget = page.waitForRequest(req => req.url().includes('/api/upload-retarget?'));
+  await page.fill('#dialogInput', alternate);
+  await page.click('#dialogAccept');
+  assert.equal(params((await retarget).url()).get('id'), finalId);
+  await page.locator('#rows').getByRole('button', { name: alternate, exact: true }).waitFor();
+  assert.ok(small.equals(fs.readFileSync(path.join(root, alternate))));
+  assert.ok(occupiedBytes.equals(fs.readFileSync(occupied)));
+  report('Collision at finalization keeps the occupied file and retargets the verified draft');
+
+  name = 'missing-draft.bin';
+  const missing = await pauseAfterPart(context, page, name, bytes);
+  const abort = await context.request.post(`${serverUrl}/api/upload-abort?id=${missing.id}`, { headers: { 'X-Access-Key': newKey } });
+  assert.equal(abort.status(), 200);
+  const resent = [];
+  const record = req => { if (/\/api\/upload-(init|chunk)\?/.test(req.url())) resent.push(req.url()); };
+  context.on('request', record);
+  await page.close();
+  page = await login(context, newKey);
+  const missingRow = queueRow(page, name);
+  await missingRow.getByText(/Draft is missing or expired/).waitFor();
+  assert.equal(await missingRow.getByRole('button', { name: /^(Retry|Select file)$/ }).count(), 0);
+  await missingRow.getByRole('button', { name: 'Remove from queue', exact: true }).click();
+  await page.waitForFunction(id => Drafts.all().then(rs => !rs.some(r => r.id === id)), missing.id);
+  context.off('request', record);
+  assert.deepEqual(resent, []);
+  assert.ok(!fs.existsSync(path.join(root, name)));
+  report('A missing initialized draft is shown as missing after reload, never silently restarted');
+  return page;
+}
+
 async function toolsTest(context, page) {
   await folder(page, 'Tools');
   await waitCount(page, 2);
@@ -235,10 +345,23 @@ async function mobile() {
   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
   await page.click('#view');
   await waitCount(page, 120);
+  const checkbox = name => page.locator('#rows tr').filter({
+    has: page.getByRole('button', { name, exact: true })
+  }).getByRole('checkbox');
+  await checkbox('item_00000.txt').check();
   await page.fill('#pageJump', '84');
   await page.click('#pageGo');
   await waitCount(page, 40);
-  await page.locator('#rows').getByRole('button', { name: 'item_09999.txt', exact: true }).waitFor();
+  await checkbox('item_09999.txt').check();
+  await page.click('#pbBatch');
+  await page.fill('#renameTemplate', 'Page_{n:3}{ext}');
+  await page.click('#renamePreview');
+  await tools(page).getByText(/^item_00000\.txt → Page_/).waitFor();
+  await tools(page).getByText(/^item_09999\.txt → Page_/).waitFor();
+  await page.click('#wbClose');
+  assert.ok(fs.existsSync(path.join(root, 'Large/item_00000.txt')) && fs.existsSync(path.join(root, 'Large/item_09999.txt')));
+  await page.click('#clearSelected');
+  report('Selection across pages survives into batch preview without altering unconfirmed files');
   const more = page.locator('#rows .more-actions').last();
   const box = await more.boundingBox();
   assert.ok(box && box.width >= 44 && box.height >= 44);
@@ -269,7 +392,8 @@ async function mobile() {
   browser = await chromium.launch();
   const context = await browser.newContext({ ignoreHTTPSErrors: true, acceptDownloads: true });
   await context.addInitScript(() => localStorage.setItem('pb-lang', 'en'));
-  await toolsTest(context, await uploadAndRestart(context, await login(context, oldKey)));
+  const page = await uploadAndRestart(context, await login(context, oldKey));
+  await toolsTest(context, await transferControls(context, page));
   await context.close();
   await mobile();
   assert.deepEqual(events, [], 'browser JS errors');

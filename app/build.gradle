@@ -13,8 +13,8 @@ android {
         applicationId 'com.local.wififiles'
         minSdk 26
         targetSdk 36
-        versionCode 27
-        versionName '4.9-dev'
+        versionCode 28
+        versionName '4.9.0'
     }
 
     buildFeatures {
