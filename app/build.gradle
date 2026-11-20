@@ -1,7 +1,7 @@
 plugins { id 'com.android.application' }
 
-// Подпись release-сборки: задаётся переменными окружения, чтобы ключ не попадал в репозиторий.
-//   PB_KEYSTORE=/path/to/pocketbridge.jks PB_KEYSTORE_PASSWORD=... ./gradlew assembleRelease bundleRelease
+// Ключ передаётся через окружение, не через исходники. Для публикации используйте
+// tools/sign-release.sh: обычный Gradle release без ключа не является официальным APK.
 def pbKeystore = System.getenv('PB_KEYSTORE')
 def hasReleaseKeystore = pbKeystore != null && !pbKeystore.trim().isEmpty() && file(pbKeystore).isFile()
 
@@ -13,8 +13,12 @@ android {
         applicationId 'com.local.wififiles'
         minSdk 26
         targetSdk 36
-        versionCode 25
-        versionName '4.0'
+        versionCode 26
+        versionName '4.0.1'
+    }
+
+    buildFeatures {
+        buildConfig true
     }
 
     signingConfigs {

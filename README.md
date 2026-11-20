@@ -20,6 +20,9 @@
 **PocketBridge** — Android-приложение для работы с файлами телефона с компьютера по Wi-Fi. Запустите доступ на телефоне, откройте адрес в браузере (или подключите как сетевой диск по WebDAV) и введите код. Отдельная программа на компьютере не нужна.
 
 > [!NOTE]
+> **v4.0.1 «Обновление без переустановки»:** стабильные APK подписываются постоянным ключом владельца. APK с тем же сертификатом можно обновить поверх, сохранив настройки. Для перехода с несовместимых debug-сборок v3.9/v4.0 потребуется одна чистая установка. [Инструкция перехода](docs/RELEASE.md#migrate).
+
+> [!NOTE]
 > **v4.0 «Доступ под контролем»:** плитка PocketBridge в быстрых настройках, приём файлов и текста через Android «Поделиться», подключение через точку доступа и Bonjour/mDNS, выбор общей папки и серверный режим «Только чтение» для браузера и WebDAV. Подробнее — в [CHANGELOG.md](CHANGELOG.md).
 
 > [!IMPORTANT]
@@ -115,30 +118,14 @@ PocketBridge принимает подключения только из лок�
 gradlew.bat assembleDebug
 ```
 
-**Подписанный release (APK + AAB для Google Play):**
-
-```bash
-export PB_KEYSTORE=/path/to/pocketbridge.jks
-export PB_KEYSTORE_PASSWORD=...
-# опционально, если отличаются от значений по умолчанию:
-export PB_KEY_ALIAS=pocketbridge
-export PB_KEY_PASSWORD=...
-
-./gradlew assembleRelease bundleRelease
-# -> app/build/outputs/apk/release/app-release.apk
-# -> app/build/outputs/bundle/release/app-release.aab
-```
-
-Ключ подписи не хранится в репозитории и передаётся только через переменные окружения (или GitHub Actions Secrets: `PB_KEYSTORE_BASE64`, `PB_KEYSTORE_PASSWORD`, опционально `PB_KEY_ALIAS`, `PB_KEY_PASSWORD`).
+**Подписанный release (APK + AAB):** настройте постоянный ключ и отпечаток сертификата по [инструкции выпуска](docs/RELEASE.md). Для QA без ключа владельца есть отдельная [проверка обновления и чек-лист телефонов](docs/DEVICE-CHECKS.md).
 
 <details>
 <summary><strong>Сборка через GitHub Actions</strong></summary>
 <br>
 
-1. Откройте вкладку **Actions** в репозитории.
-2. Выберите workflow **Build & Test** и нажмите **Run workflow**.
-3. После прохождения серверных и браузерных тестов скачайте артефакт **PocketBridge-debug-apk** (или **PocketBridge-release**, если настроены секреты подписи).
-4. При отправке тега `v*` автоматически создаётся GitHub Release с файлами сборки и `SHA256SUMS.txt`.
+- На ветке или по **Actions → Build & Test → Run workflow** доступен артефакт **PocketBridge-debug-apk** для тестов, не для стабильного обновления.
+- Стабильный APK публикуется только по тегу `v<версия>` с коммита `main` после тестов, проверки обновления на Android и проверки подписи в окружении `release`. Если ключ или отпечаток не настроен, GitHub Release **не создаётся**: debug-сборка не подставляется.
 
 </details>
 

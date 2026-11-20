@@ -1,0 +1,23 @@
+name: Set up PocketBridge Android SDK
+description: Install the pinned Android platform and tools used for builds and signing checks
+runs:
+  using: composite
+  steps:
+    - name: Install Android SDK 36
+      shell: bash
+      run: |
+        set -euo pipefail
+        SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+        SDKM="$SDK/cmdline-tools/latest/bin/sdkmanager"
+        if [[ ! -x "$SDKM" ]]; then
+          tmp=$(mktemp -d "$RUNNER_TEMP/android-tools.XXXXXXXX")
+          trap 'rm -rf -- "$tmp"' EXIT
+          mkdir -p "$SDK/cmdline-tools"
+          curl -fsSL -o "$tmp/cmdline-tools.zip" https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+          unzip -qo "$tmp/cmdline-tools.zip" -d "$tmp"
+          mv "$tmp/cmdline-tools" "$SDK/cmdline-tools/latest"
+        fi
+        yes | "$SDKM" --sdk_root="$SDK" --licenses >/dev/null || true
+        "$SDKM" --sdk_root="$SDK" 'platform-tools' 'platforms;android-36' 'build-tools;36.0.0' >/dev/null
+        printf 'ANDROID_HOME=%s\nANDROID_SDK_ROOT=%s\n' "$SDK" "$SDK" >> "$GITHUB_ENV"
+        printf '%s\n' "$SDK/platform-tools" >> "$GITHUB_PATH"

@@ -10,6 +10,11 @@ on:
 permissions:
   contents: read
 
+# A newer tag must not publish while another run is still checking the update baseline.
+concurrency:
+  group: ${{ startsWith(github.ref, 'refs/tags/v') && 'pocketbridge-stable-release' || format('pocketbridge-{0}', github.ref) }}
+  cancel-in-progress: false
+
 jobs:
   server-tests:
     name: Server tests (JVM)
@@ -20,6 +25,8 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+      - name: Test release verification rules
+        run: python3 -m unittest discover -s tools -p 'test_*.py'
       - name: Run server & WebDAV tests
         env:
           LC_ALL: C.UTF-8
@@ -94,9 +101,6 @@ jobs:
     name: Build & Test Android APK
     runs-on: ubuntu-latest
     needs: server-tests
-    outputs:
-      signed: ${{ steps.signcheck.outputs.signed }}
-      version: ${{ steps.meta.outputs.version }}
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-java@v5
@@ -113,21 +117,7 @@ jobs:
           key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', 'gradle/wrapper/gradle-wrapper.properties') }}
           restore-keys: |
             ${{ runner.os }}-gradle-
-      - name: Setup Android SDK (API 36)
-        run: |
-          SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
-          SDKM="$SDK/cmdline-tools/latest/bin/sdkmanager"
-          if [[ ! -x "$SDKM" ]]; then
-            mkdir -p "$SDK/cmdline-tools"
-            curl -fsSL -o "$RUNNER_TEMP/cmdline-tools.zip" https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
-            unzip -qo "$RUNNER_TEMP/cmdline-tools.zip" -d "$RUNNER_TEMP/cmd-extract"
-            mv "$RUNNER_TEMP/cmd-extract/cmdline-tools" "$SDK/cmdline-tools/latest"
-            SDKM="$SDK/cmdline-tools/latest/bin/sdkmanager"
-          fi
-          yes | "$SDKM" --sdk_root="$SDK" --licenses >/dev/null || true
-          "$SDKM" --sdk_root="$SDK" "platform-tools" "platforms;android-36" "build-tools;36.0.0" >/dev/null
-          echo "ANDROID_HOME=$SDK" >> "$GITHUB_ENV"
-          echo "ANDROID_SDK_ROOT=$SDK" >> "$GITHUB_ENV"
+      - uses: ./.github/actions/setup-android
       - name: Read app version
         id: meta
         run: |
@@ -149,76 +139,132 @@ jobs:
           path: ${{ runner.temp }}/debug-out/*.apk
           if-no-files-found: error
           retention-days: 14
-      - name: Check release signing secrets
-        id: signcheck
-        env:
-          KEYSTORE_B64: ${{ secrets.PB_KEYSTORE_BASE64 }}
-          KEYSTORE_PASS: ${{ secrets.PB_KEYSTORE_PASSWORD }}
+
+  upgrade-smoke:
+    name: Verify Android upgrade without reinstall (API ${{ matrix.api }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+    strategy:
+      fail-fast: false
+      matrix:
+        api: [29, 36]
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: ./.github/actions/setup-android
+      - name: Build previous and candidate APKs with a disposable key
         run: |
-          if [[ -n "$KEYSTORE_B64" && -n "$KEYSTORE_PASS" ]]; then
-            printf '%s' "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/pocketbridge.jks"
-            echo "signed=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "signed=false" >> "$GITHUB_OUTPUT"
-            echo "Release signing secrets (PB_KEYSTORE_BASE64 / PB_KEYSTORE_PASSWORD) are not configured; skipping signed release build."
-          fi
-      - name: Build & verify signed release APK + AAB
-        if: steps.signcheck.outputs.signed == 'true'
+          set -euo pipefail
+          VERSION=$(sed -n "s/^[[:space:]]*versionName '\([^']*\)'.*/\1/p" app/build.gradle)
+          BASE=$(git describe --tags --match 'v[0-9]*' --exclude "v$VERSION" --abbrev=0 HEAD)
+          tools/build-upgrade-pair.sh "$BASE" "$RUNNER_TEMP/upgrade-apks"
+      - name: Verify a preserved preference on a clean emulator
         env:
-          PB_KEYSTORE: ${{ runner.temp }}/pocketbridge.jks
+          SMOKE_API: ${{ matrix.api }}
+        run: |
+          set -euo pipefail
+          if [[ ! -c /dev/kvm ]]; then echo 'Android upgrade smoke requires a KVM-enabled runner' >&2; exit 1; fi
+          sudo chmod a+rw /dev/kvm
+          SDK_TOOLS="$ANDROID_HOME/cmdline-tools/latest/bin"
+          IMAGE="system-images;android-${SMOKE_API};google_apis;x86_64"
+          "$SDK_TOOLS/sdkmanager" 'emulator' "$IMAGE" >/dev/null
+          echo no | "$SDK_TOOLS/avdmanager" create avd --name pb-upgrade --package "$IMAGE" --force
+          "$ANDROID_HOME/emulator/emulator" -avd pb-upgrade -port 5554 -accel on \
+            -no-window -no-audio -no-boot-anim -no-snapshot -gpu swiftshader_indirect \
+            > "$RUNNER_TEMP/pb-emulator.log" 2>&1 &
+          PID=$!
+          trap 'adb -s emulator-5554 emu kill >/dev/null 2>&1 || true; kill "$PID" 2>/dev/null || true' EXIT
+          if ! timeout 300 bash -c 'adb -s emulator-5554 wait-for-device; until [[ $(adb -s emulator-5554 shell getprop sys.boot_completed | tr -d "\r") == 1 ]]; do sleep 2; done'; then
+            tail -60 "$RUNNER_TEMP/pb-emulator.log"
+            exit 1
+          fi
+          adb -s emulator-5554 shell input keyevent 224
+          adb -s emulator-5554 shell wm dismiss-keyguard
+          python3 tools/verify-update.py --serial emulator-5554 \
+            "$RUNNER_TEMP/upgrade-apks/previous.apk" "$RUNNER_TEMP/upgrade-apks/candidate.apk"
+
+  sign-release:
+    name: Build and verify the permanently signed APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: [build, browser-tests, upgrade-smoke]
+    if: startsWith(github.ref, 'refs/tags/v')
+    environment: release
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Require a release tag from main and a pinned certificate
+        env:
+          PB_SIGNER_SHA256: ${{ vars.PB_SIGNER_SHA256 }}
+        run: |
+          git merge-base --is-ancestor HEAD refs/remotes/origin/main
+          python3 tools/release.py metadata "$GITHUB_REF_NAME" --check-pin
+      - name: Fetch the previous published stable APK, if any
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 tools/release.py baseline "$GITHUB_REF_NAME" "$RUNNER_TEMP/previous-stable.apk"
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: ./.github/actions/setup-android
+      - name: Build with the owner's key and verify identity and version
+        env:
+          PB_KEYSTORE_BASE64: ${{ secrets.PB_KEYSTORE_BASE64 }}
           PB_KEYSTORE_PASSWORD: ${{ secrets.PB_KEYSTORE_PASSWORD }}
           PB_KEY_ALIAS: ${{ secrets.PB_KEY_ALIAS }}
           PB_KEY_PASSWORD: ${{ secrets.PB_KEY_PASSWORD }}
+          PB_SIGNER_SHA256: ${{ vars.PB_SIGNER_SHA256 }}
         run: |
-          ./gradlew --no-daemon assembleRelease bundleRelease
-          APK="app/build/outputs/apk/release/app-release.apk"
-          AAB="app/build/outputs/bundle/release/app-release.aab"
-          "$ANDROID_HOME/build-tools/36.0.0/zipalign" -c 4 "$APK"
-          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose "$APK"
-          mkdir -p "$RUNNER_TEMP/release-out"
-          cp "$APK" "$RUNNER_TEMP/release-out/PocketBridge-v${{ steps.meta.outputs.version }}.apk"
-          cp "$AAB" "$RUNNER_TEMP/release-out/PocketBridge-v${{ steps.meta.outputs.version }}.aab"
-      - name: Remove temporary keystore
-        if: always()
-        run: rm -f "$RUNNER_TEMP/pocketbridge.jks"
-      - name: Upload signed release APK + AAB
-        if: steps.signcheck.outputs.signed == 'true'
-        uses: actions/upload-artifact@v6
+          args=()
+          if [[ -f "$RUNNER_TEMP/previous-stable.apk" ]]; then args+=("$RUNNER_TEMP/previous-stable.apk"); fi
+          tools/sign-release.sh "$GITHUB_REF_NAME" "$RUNNER_TEMP/release-assets" "${args[@]}"
+      - name: Upload only verified signed assets
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: PocketBridge-release
-          path: ${{ runner.temp }}/release-out/*
+          path: ${{ runner.temp }}/release-assets/*
           if-no-files-found: error
-          retention-days: 30
+          retention-days: 14
 
   release:
-    name: Publish GitHub Release
+    name: Publish the verified GitHub Release
     runs-on: ubuntu-latest
-    needs: [build, browser-tests]
+    needs: sign-release
     if: startsWith(github.ref, 'refs/tags/v')
     permissions:
       contents: write
     steps:
-      - name: Download signed release assets
-        if: needs.build.outputs.signed == 'true'
-        uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
         with:
           name: PocketBridge-release
           path: release-assets
-      - name: Download debug APK fallback
-        if: needs.build.outputs.signed != 'true'
-        uses: actions/download-artifact@v7
-        with:
-          name: PocketBridge-debug-apk
-          path: release-assets
-      - name: Compute SHA-256 checksums
+      - name: Publish signed assets without replacing an existing release
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
+          set -euo pipefail
+          existing=$(gh api --paginate "repos/$GITHUB_REPOSITORY/releases?per_page=100" --jq '.[].tag_name')
+          if grep -Fxq -- "$GITHUB_REF_NAME" <<< "$existing"; then
+            echo 'A release or draft already exists for this tag; no assets were replaced.' >&2
+            exit 1
+          fi
           cd release-assets
-          sha256sum * > SHA256SUMS.txt
-          cat SHA256SUMS.txt
-      - name: Create or update GitHub Release
-        uses: softprops/action-gh-release@v3
-        with:
-          tag_name: ${{ github.ref_name }}
-          name: PocketBridge ${{ github.ref_name }}
-          generate_release_notes: true
-          files: release-assets/*
+          artifacts=("PocketBridge-$GITHUB_REF_NAME.apk" "PocketBridge-$GITHUB_REF_NAME.aab" APK-SIGNER-SHA256.txt SHA256SUMS.txt)
+          for file in "${artifacts[@]}"; do test -s "$file"; done
+          sha256sum --strict --check SHA256SUMS.txt
+          gh release create "$GITHUB_REF_NAME" "${artifacts[@]}" --repo "$GITHUB_REPOSITORY" \
+            --verify-tag --title "PocketBridge $GITHUB_REF_NAME" --generate-notes \
+            --notes 'Стабильные APK с тем же сертификатом обновляются без переустановки. Старые debug-APK могут быть подписаны другим ключом и не обновляются поверх.'
