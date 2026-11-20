@@ -85,6 +85,7 @@ jobs:
           fi
 
           node server-tests/ui-test.js
+          node server-tests/features-ui-test.js
       - name: Upload UI screenshots & diagnostics
         if: always()
         uses: actions/upload-artifact@v6

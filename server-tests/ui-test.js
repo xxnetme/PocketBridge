@@ -113,8 +113,9 @@ function zipEntries(zipPath) {
   /* ---------- 2. большая папка и поиск ---------- */
   let t = Date.now();
   await openFolder(page, 'Много файлов');
-  while ((await rowsCount(page)) < 300 && Date.now() - t < 15000) await page.waitForTimeout(50);
-  rec('Папка с 300 файлами открывается', (await rowsCount(page)) === 300, (Date.now() - t) + ' мс');
+  await page.waitForSelector('#listPager:not([hidden])');
+  rec('Папка с 300 файлами открывается постранично', (await rowsCount(page)) === 120
+      && (await page.locator('#itemCount').textContent()).includes('300'), (Date.now() - t) + ' мс');
   await page.fill('#search', 'file_01');
   await page.waitForTimeout(200);
   rec('Поиск фильтрует список', (await rowsCount(page)) === 10, 'строк=' + (await rowsCount(page)));
@@ -330,13 +331,13 @@ function zipEntries(zipPath) {
   await page.waitForTimeout(500);
   rec('Удаление с подтверждением работает', (await page.locator('#rows tr', { hasText: 'переименован.txt' }).count()) === 0, '');
 
-  // Групповое удаление проверяет сообщение «Удалено: 1»
+  // Групповое удаление проверяет сообщение «В корзине: 1»
   await page.locator('#rows tr', { hasText: 'zero.txt' }).locator('input[type=checkbox]').check();
   await page.click('#deleteSelected');
   await page.waitForTimeout(200);
   await page.click('#dialogAccept');
-  const delMsg = await waitMsg(page, 'Удалено');
-  rec('Групповое удаление удаляет файл и сообщает результат', delMsg.includes('Удалено: 1') && (await page.locator('#rows tr', { hasText: 'zero.txt' }).count()) === 0, delMsg);
+  const delMsg = await waitMsg(page, 'В корзине');
+  rec('Групповое удаление удаляет файл и сообщает результат', delMsg.includes('В корзине: 1') && (await page.locator('#rows tr', { hasText: 'zero.txt' }).count()) === 0, delMsg);
 
   /* ---------- 10. ZIP выбранного ---------- */
   await goRoot(page);
@@ -958,11 +959,14 @@ function zipEntries(zipPath) {
     return b.width >= 34 && b.right <= p.right - 8;
   });
   rec('Мобильная вёрстка: список и кнопка #mkfile без горизонтального скролла и обрезки', !mOverflow && mkfileFits, mOverflow ? 'есть overflow' : 'ok');
-  const delBox = await mp.locator('#rows tr').first().getByText('Удалить').boundingBox();
-  const actBox = await mp.locator('#rows tr .rowactions').first().boundingBox();
-  rec('Мобильная вёрстка: действия строки видны без скролла',
-      !!delBox && delBox.x + delBox.width <= 391 && !!actBox && actBox.height <= 32,
-      (delBox ? ('x=' + Math.round(delBox.x) + ' w=' + Math.round(delBox.width)) : 'нет кнопки') + ' actH=' + (actBox ? Math.round(actBox.height) : 0));
+  const act = mp.locator('#rows tr .more-actions').first();
+  const actBox = await act.boundingBox();
+  await act.click();
+  const visibleActions = await mp.locator('#workbench .wb-actions').getByText('В корзину', { exact: true }).isVisible();
+  rec('Мобильная вёрстка: меню действий доступно без горизонтального скролла',
+      visibleActions && !!actBox && actBox.x + actBox.width <= 391 && actBox.width >= 44 && actBox.height >= 44,
+      'target=' + (actBox ? `${actBox.width}×${actBox.height}px` : 'нет'));
+  await mp.click('#wbClose');
   const mSearchBox = await mp.locator('#search').boundingBox();
   const mTopBox = await mp.locator('header.top').boundingBox();
   rec('Мобильная вёрстка: поиск на всю ширину и шапка в одну строку',
@@ -973,8 +977,10 @@ function zipEntries(zipPath) {
   await mp.screenshot({ path: path.join(shots, '28-mobile-dark.png') });
   await mp.locator('#rows tr', { hasText: 'Фото' }).locator('button.filename').click();
   await mp.waitForTimeout(400);
-  const fActBox = await mp.locator('#rows tr', { hasText: 'обложка' }).locator('.rowactions').boundingBox();
-  rec('Мобильная вёрстка: действия файла в одну строку', !!fActBox && fActBox.height <= 32, fActBox ? ('h=' + Math.round(fActBox.height) + 'px') : 'нет');
+  const fileActions = mp.locator('#rows tr', { hasText: 'обложка' }).locator('.more-actions');
+  await fileActions.click();
+  rec('Мобильная вёрстка: меню файла открывает свойства', await mp.locator('#workbench').getByText('Свойства', { exact: true }).isVisible(), '');
+  await mp.click('#wbClose');
   await mp.screenshot({ path: path.join(shots, '29-mobile-files.png') });
   await mp.locator('#rows tr', { hasText: 'обложка' }).locator('button.filename').click();
   await mp.waitForTimeout(900);
@@ -1030,7 +1036,16 @@ function zipEntries(zipPath) {
     const getDownload = ro.waitForEvent('download');
     await ro.click('#previewDownload');
     const dl = await getDownload;
-    rec('Только чтение: файл скачивается по билету', dl.suggestedFilename() === 'заметки.md', dl.suggestedFilename());
+    // Some headless Chromium builds report a generic suggested filename. Check the actual
+    // attachment, UTF-8 header, and bytes rather than that browser-only label.
+    const attachment = await roContext.request.get(dl.url());
+    const disposition = attachment.headers()['content-disposition'] || '';
+    const utf8Name = /filename\*=UTF-8''([^;]+)/i.exec(disposition);
+    const downloaded = fs.readFileSync(await dl.path());
+    rec('Только чтение: файл скачивается по билету', attachment.status() === 200 && /^attachment/i.test(disposition)
+      && !!utf8Name && decodeURIComponent(utf8Name[1]) === 'заметки.md'
+      && downloaded.equals(await attachment.body()) && downloaded.toString('utf8').includes('# Заметки'),
+      'UTF-8 + ' + downloaded.length + ' bytes');
     await closePreview(ro);
     await goRoot(ro);
     await openFolder(ro, 'Загрузки');

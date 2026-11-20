@@ -18,7 +18,7 @@ public final class ServerMain {
             context = SelfSignedCertificate.createContext(dir);
         }
         File cache = new File(System.getProperty("java.io.tmpdir"), "pb-thumbs");
-        FileServer server = new FileServer(new Context(new File(assets)), root, key, context, cache, 8765);
+        FileServer server = new FileServer(new Context(new File(assets)), root, key, context, cache, Integer.getInteger("pb.port", 8765));
         int port = server.start();
         System.out.println("PORT=" + port + " ROOT=" + root + " KEY=" + key + " TLS=" + tls);
         if (a.length > 4 && "--read-only".equals(a[3])) {

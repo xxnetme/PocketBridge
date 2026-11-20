@@ -18,7 +18,7 @@ final class StorageRoot {
         Path path = base;
         if (!selection.isEmpty()) {
             for (String part : selection.split("/", -1)) {
-                if (part.isEmpty() || part.equals(".") || part.equals("..")) throw unavailable();
+                if (part.isEmpty() || part.equals(".") || part.equals("..") || ManagedFiles.hiddenName(part)) throw unavailable();
                 path = path.resolve(part);
                 if (!Files.isDirectory(path, LinkOption.NOFOLLOW_LINKS)) throw unavailable();
             }

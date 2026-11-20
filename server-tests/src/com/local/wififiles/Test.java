@@ -47,6 +47,7 @@ public class Test {
             System.out.println("SERVER PORT=" + PORT + " ROOT=" + ROOT);
             try { runTests(); } finally { server.stop(); }
             accessModeAndInboxTests();
+            SelectedFeaturesTest.run();
             tlsTests();
         } finally {
             cleanupDir(TMP);
@@ -591,7 +592,7 @@ public class Test {
         long offset = 0;
         while (offset < data.length) {
             int len = Math.min(4096, (int)(data.length - offset));
-            HttpURLConnection uc = (HttpURLConnection) new URL("http://127.0.0.1:8765/api/upload-chunk?id=" + uploadId + "&offset=" + offset).openConnection();
+            HttpURLConnection uc = (HttpURLConnection) new URL("http://127.0.0.1:" + PORT + "/api/upload-chunk?id=" + uploadId + "&offset=" + offset).openConnection();
             uc.setRequestMethod("POST");
             uc.setRequestProperty("X-Access-Key", KEY);
             uc.setRequestProperty("Content-Length", String.valueOf(len));

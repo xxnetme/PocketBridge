@@ -93,6 +93,12 @@ final class FileServer {
     private final Set<String> failedVideoThumbs = ConcurrentHashMap.newKeySet();
     private final AtomicLong lastThumbCleanup = new AtomicLong(0);
     private final WebDav dav;
+    private final TrashStore trash;
+    private final RetainedUploads retained;
+    private final BatchRenames renames;
+    private final FolderScans scans;
+    private ScheduledExecutorService maintenance;
+    private volatile boolean stopped;
 
     /** Докачиваемая загрузка: файл пишется по частям в .part и переименовывается в конце. */
     private static final class Upload {
@@ -156,7 +162,11 @@ final class FileServer {
         this.cacheDir = cacheDir;
         this.portStart = Math.max(1024, Math.min(65000, portStart));
         this.readOnly = readOnly;
-        this.dav = new WebDav(this.root, key, readOnly);
+        this.trash = new TrashStore(this.root);
+        this.renames = new BatchRenames(this.root);
+        this.scans = new FolderScans(this.root, trash);
+        this.retained = new RetainedUploads(this.root, context.getFilesDir());
+        this.dav = new WebDav(this.root, key, readOnly, trash);
     }
 
     String key() { return key; }
@@ -223,6 +233,7 @@ final class FileServer {
                     if (!allowedAddress(s.getInetAddress())) { s.close(); continue; }
                     s.setSoTimeout(HEAD_TIMEOUT_MS);
                     connections.add(s);
+                    if (stopped) { connections.remove(s); s.close(); break; }
                     try {
                         workers.execute(() -> { try { handle(s); } finally { connections.remove(s); } });
                     } catch (RejectedExecutionException busy) {
@@ -237,6 +248,18 @@ final class FileServer {
         t.setDaemon(true);
         t.start();
         startedAt = System.currentTimeMillis();
+        if (!readOnly) {
+            maintenance = Executors.newSingleThreadScheduledExecutor(r -> {
+                Thread thread = new Thread(r, "pocketbridge-storage-cleanup");
+                thread.setDaemon(true);
+                return thread;
+            });
+            maintenance.scheduleWithFixedDelay(() -> {
+                if (stopped) return;
+                retained.cleanup();
+                try { trash.cleanup(); } catch (Exception ignored) {}
+            }, 0, 30, TimeUnit.MINUTES);
+        }
         return listener.getLocalPort();
     }
 
@@ -255,6 +278,11 @@ final class FileServer {
     }
 
     void stop() {
+        stopped = true;
+        retained.stop();
+        scans.stop();
+        renames.clear();
+        if (maintenance != null) maintenance.shutdownNow();
         try { if (listener != null) listener.close(); } catch (IOException ignored) {}
         for (Socket s : connections) try { s.close(); } catch (IOException ignored) {}
         if (workers != null) workers.shutdownNow();
@@ -296,6 +324,7 @@ final class FileServer {
             }
             URI uri = new URI(parts[1]);
             String endpoint = uri.getPath();
+            if (stopped) return;
             if (endpoint == null || endpoint.isEmpty()) endpoint = "/";
             Map<String, String> q = parseQuery(uri.getRawQuery());
             boolean body = "/api/upload".equals(endpoint) || "/api/download-zip".equals(endpoint)
@@ -303,15 +332,18 @@ final class FileServer {
                     || ("PUT".equals(parts[0]) && WebDav.matches(endpoint));
             s.setSoTimeout(body ? BODY_TIMEOUT_MS : REQUEST_TIMEOUT_MS);
 
-            if ("GET".equals(parts[0]) && "/".equals(endpoint)) {
-                byte[] html;
-                try (InputStream a = context.getAssets().open("index.html")) {
+            if ("GET".equals(parts[0]) && ("/".equals(endpoint) || "/hash-worker.js".equals(endpoint)
+                    || "/sha256.min.js".equals(endpoint) || "/transfers.js".equals(endpoint) || "/workbench.js".equals(endpoint))) {
+                boolean page = "/".equals(endpoint);
+                byte[] bytes;
+                try (InputStream a = context.getAssets().open(page ? "index.html" : endpoint.substring(1))) {
                     ByteArrayOutputStream b = new ByteArrayOutputStream();
                     byte[] buf = new byte[8192]; int n;
                     while ((n = a.read(buf)) != -1) b.write(buf, 0, n);
-                    html = b.toByteArray();
+                    bytes = b.toByteArray();
                 }
-                send(out, 200, "text/html; charset=utf-8", html, APP_CSP);
+                send(out, 200, page ? "text/html; charset=utf-8" : "application/javascript; charset=utf-8", bytes,
+                        page ? APP_CSP : "Content-Security-Policy: default-src 'none'; script-src 'self'\r\n");
                 return;
             }
             if ("GET".equals(parts[0]) && "/preview".equals(endpoint)) {
@@ -348,11 +380,11 @@ final class FileServer {
                     throw new ApiException(403, READ_ONLY_MESSAGE, READ_ONLY_HEADER + ": 1\r\n");
                 }
                 if ("GET".equals(parts[0]) && "/api/list".equals(endpoint)) { list(out, q.getOrDefault("path", "/")); }
-                else if ("GET".equals(parts[0]) && "/api/search".equals(endpoint)) { search(out, q.getOrDefault("path", "/"), q.get("q")); }
+                else if ("GET".equals(parts[0]) && "/api/search".equals(endpoint)) { search(out, q); }
                 else if ("GET".equals(parts[0]) && "/api/download".equals(endpoint)) { download(out, q.getOrDefault("path", "/"), headers.get("range")); }
                 else if ("GET".equals(parts[0]) && "/api/size".equals(endpoint)) { folderSize(out, q.getOrDefault("path", "/")); }
                 else if ("POST".equals(parts[0]) && "/api/session".equals(endpoint)) { session(out); }
-                else if ("POST".equals(parts[0]) && "/api/mkdirs".equals(endpoint)) { mkdirs(out, q.get("path")); }
+                else if ("POST".equals(parts[0]) && "/api/mkdirs".equals(endpoint)) { synchronized (ManagedFiles.NAMESPACE) { checkRunning(); mkdirs(out, q.get("path")); } }
                 else if ("POST".equals(parts[0]) && "/api/preview-ticket".equals(endpoint)) { previewTicket(out, q.get("path")); }
                 else if ("POST".equals(parts[0]) && "/api/download-ticket".equals(endpoint)) { downloadTicket(out, q.get("path")); }
                 else if ("POST".equals(parts[0]) && "/api/zip-ticket".equals(endpoint)) { zipTicket(out, in, headers, q.getOrDefault("base", "/")); }
@@ -360,31 +392,53 @@ final class FileServer {
                 else if ("GET".equals(parts[0]) && "/api/docx".equals(endpoint)) { previewDocx(out, q.get("path")); }
                 else if ("POST".equals(parts[0]) && "/api/download-zip".equals(endpoint)) { downloadZip(out, in, headers, q.getOrDefault("base", "/")); }
                 else if ("POST".equals(parts[0]) && "/api/mkdir".equals(endpoint)) {
-                    File dir = child(q);
-                    if (dir.exists() || !dir.mkdir()) throw new ApiException(409, "Не удалось создать папку (возможно, имя занято)");
+                    synchronized (ManagedFiles.NAMESPACE) {
+                        checkRunning();
+                        File dir = child(q);
+                        if (dir.exists() || !dir.mkdir()) throw new ApiException(409, "Не удалось создать папку (возможно, имя занято)");
+                    }
                     ok(out);
                 }
                 else if ("POST".equals(parts[0]) && "/api/rename".equals(endpoint)) {
-                    File from = resolve(q.getOrDefault("path", "/"));
-                    if (from.equals(root) || !from.exists()) throw new ApiException(400, "Нельзя переименовать этот объект");
-                    File target = safeChild(from.getParentFile(), q.get("name"));
-                    if (target.exists() || !from.renameTo(target)) throw new ApiException(409, "Не удалось переименовать (возможно, имя занято)");
+                    synchronized (ManagedFiles.NAMESPACE) {
+                        checkRunning();
+                        File from = resolve(q.getOrDefault("path", "/"));
+                        if (from.equals(root) || !from.exists() || isRawSymlink(q.getOrDefault("path", "/"))) throw new ApiException(400, "Нельзя переименовать этот объект");
+                        File target = safeChild(from.getParentFile(), q.get("name"));
+                        ManagedFiles.movableTree(from.toPath());
+                        if (target.exists()) throw new ApiException(409, "Имя занято");
+                        Files.move(from.toPath(), target.toPath());
+                    }
                     ok(out);
                 }
                 else if ("POST".equals(parts[0]) && "/api/delete".equals(endpoint)) {
                     File target = resolve(q.getOrDefault("path", "/"));
                     if (target.equals(root) || !target.exists()) throw new ApiException(400, "Нельзя удалить этот объект");
-                    deleteTree(target);
+                    if (isRawSymlink(q.getOrDefault("path", "/"))) throw new ApiException(400, "Нельзя удалить ссылку");
+                    synchronized (ManagedFiles.NAMESPACE) { checkRunning(); json(out, trash.put(target).put("ok", true)); }
+                }
+                else if ("POST".equals(parts[0]) && "/api/rename-preview".equals(endpoint)) { json(out, renames.preview(jsonRequest(in, headers, 256 * 1024))); }
+                else if ("POST".equals(parts[0]) && "/api/rename-apply".equals(endpoint)) { json(out, renames.apply(q.get("id"))); }
+                else if ("POST".equals(parts[0]) && "/api/scan-start".equals(endpoint)) { json(out, scans.start(q.get("mode"), q.getOrDefault("path", "/"), q.get("other"))); }
+                else if ("GET".equals(parts[0]) && "/api/scan".equals(endpoint)) { json(out, scans.status(q.get("id"), "1".equals(q.get("result")))); }
+                else if ("POST".equals(parts[0]) && "/api/scan-cancel".equals(endpoint)) { scans.cancel(q.get("id")); ok(out); }
+                else if ("POST".equals(parts[0]) && "/api/duplicate-trash".equals(endpoint)) { json(out, scans.trashDuplicate(q.get("id"), q.get("path"), q.get("keep"))); }
+                else if ("GET".equals(parts[0]) && "/api/trash".equals(endpoint)) { json(out, trash.list()); }
+                else if ("POST".equals(parts[0]) && "/api/trash-restore".equals(endpoint)) {
+                    synchronized (ManagedFiles.NAMESPACE) { checkRunning(); json(out, trash.restore(q.get("id"), q.get("name"), q.get("path"))); }
+                }
+                else if ("POST".equals(parts[0]) && "/api/trash-purge".equals(endpoint)) {
+                    synchronized (ManagedFiles.NAMESPACE) { checkRunning(); trash.purge(q.get("id")); }
                     ok(out);
                 }
-                else if ("POST".equals(parts[0]) && "/api/copy".equals(endpoint)) { copyOrMove(out, q, false); }
-                else if ("POST".equals(parts[0]) && "/api/move".equals(endpoint)) { copyOrMove(out, q, true); }
+                else if ("POST".equals(parts[0]) && "/api/copy".equals(endpoint)) { synchronized (ManagedFiles.NAMESPACE) { checkRunning(); copyOrMove(out, q, false); } }
+                else if ("POST".equals(parts[0]) && "/api/move".equals(endpoint)) { synchronized (ManagedFiles.NAMESPACE) { checkRunning(); copyOrMove(out, q, true); } }
                 else if ("GET".equals(parts[0]) && "/api/clipboard".equals(endpoint)) { getClipboard(out); }
                 else if ("POST".equals(parts[0]) && "/api/clipboard".equals(endpoint)) { postClipboard(out, in, headers); }
                 else if ("POST".equals(parts[0]) && "/api/save-text".equals(endpoint)) { saveText(out, in, headers, q); }
-                else if ("POST".equals(parts[0]) && "/api/rotate-image".equals(endpoint)) { rotateImage(out, q); }
+                else if ("POST".equals(parts[0]) && "/api/rotate-image".equals(endpoint)) { synchronized (ManagedFiles.NAMESPACE) { checkRunning(); rotateImage(out, q); } }
                 else if ("GET".equals(parts[0]) && "/api/zip-list".equals(endpoint)) { zipList(out, q.get("path")); }
-                else if ("POST".equals(parts[0]) && "/api/zip-extract".equals(endpoint)) { zipExtract(out, in, headers, q); }
+                else if ("POST".equals(parts[0]) && "/api/zip-extract".equals(endpoint)) { synchronized (ManagedFiles.NAMESPACE) { checkRunning(); zipExtract(out, in, headers, q); } }
                 else if ("GET".equals(parts[0]) && "/api/stat".equals(endpoint)) { statEntry(out, q.get("path")); }
                 else if ("GET".equals(parts[0]) && "/api/hash".equals(endpoint)) { hashFile(out, q.get("path")); }
                 else if ("POST".equals(parts[0]) && "/api/upload".equals(endpoint)) { upload(out, in, headers, q); }
@@ -393,6 +447,9 @@ final class FileServer {
                 else if ("POST".equals(parts[0]) && "/api/upload-chunk".equals(endpoint)) { uploadChunk(out, in, headers, q); }
                 else if ("POST".equals(parts[0]) && "/api/upload-finish".equals(endpoint)) { uploadFinish(out, q); }
                 else if ("POST".equals(parts[0]) && "/api/upload-abort".equals(endpoint)) { uploadAbort(out, q); }
+                else if ("POST".equals(parts[0]) && "/api/upload-retarget".equals(endpoint)) {
+                    json(out, retained.retarget(q.get("id"), q.get("name"), "1".equals(q.get("overwrite"))));
+                }
                 else sendText(out, 404, "Not found");
             } catch (ApiException e) {
                 send(out, e.status, "text/plain; charset=utf-8", e.getMessage().getBytes(StandardCharsets.UTF_8), e.extraHeaders);
@@ -408,9 +465,13 @@ final class FileServer {
 
     /** Разрешаем чтение и POST, которые создают только временные билеты скачивания/просмотра. */
     private static boolean readOnlyApiAllowed(String method, String endpoint) {
-        if ("GET".equals(method) || "HEAD".equals(method)) return true;
+        if ("GET".equals(method) || "HEAD".equals(method)) {
+            return !"/api/upload-status".equals(endpoint) && !"/api/trash".equals(endpoint);
+        }
         if (!"POST".equals(method)) return false;
         switch (endpoint) {
+            case "/api/scan-start":
+            case "/api/scan-cancel":
             case "/api/session":
             case "/api/preview-ticket":
             case "/api/download-ticket":
@@ -420,6 +481,10 @@ final class FileServer {
             default:
                 return false;
         }
+    }
+
+    private void checkRunning() throws IOException {
+        if (stopped || Thread.currentThread().isInterrupted()) throw new ApiException(503, "Доступ остановлен");
     }
 
     private static int safeStatus(Exception e) {
@@ -444,6 +509,7 @@ final class FileServer {
         if (path == null || path.indexOf('\0') >= 0) throw new ApiException(400, "Недопустимый путь");
         while (path.startsWith("/")) path = path.substring(1);
         File raw = new File(root, path);
+        ManagedFiles.publicPath(root.toPath().relativize(raw.toPath()));
         File f;
         if (raw.exists()) {
             f = raw.toPath().toRealPath().toFile();
@@ -457,13 +523,14 @@ final class FileServer {
         if (!f.getPath().equals(base) && !f.getPath().startsWith(prefix)) {
             throw new ApiException(400, "Путь вне доступного хранилища");
         }
+        ManagedFiles.publicPath(root.toPath().relativize(f.toPath()));
         return f;
     }
 
     private File safeChild(File parent, String name) throws IOException {
         if (parent == null || !parent.isDirectory() || name == null || name.isEmpty()
                 || name.equals(".") || name.equals("..") || name.contains("/") || name.contains("\\")
-                || name.indexOf('\0') >= 0 || name.length() > 200) {
+                || name.indexOf('\0') >= 0 || name.length() > 200 || isTempName(name)) {
             throw new ApiException(400, "Недопустимое имя");
         }
         File child = new File(parent, name);
@@ -482,6 +549,7 @@ final class FileServer {
         if (p.equals(base)) return "/";
         String prefix = base.endsWith(File.separator) ? base : base + File.separator;
         if (!p.startsWith(prefix)) throw new ApiException(400, "Путь вне доступного хранилища");
+        ManagedFiles.publicPath(root.toPath().relativize(new File(p).toPath()));
         return ("/" + p.substring(prefix.length())).replace(File.separatorChar, '/');
     }
 
@@ -491,25 +559,31 @@ final class FileServer {
         catch (Exception e) { return text.toLowerCase(Locale.ROOT); }
     }
 
-    static boolean isTempName(String name) { return name.startsWith(".wifi-upload-") && name.endsWith(".part"); }
+    static boolean isTempName(String name) { return ManagedFiles.hiddenName(name); }
 
     private void list(OutputStream out, String path) throws Exception {
         File d = resolve(path);
         if (!d.isDirectory()) throw new ApiException(400, "Папка недоступна");
-        File[] files = d.listFiles();
-        if (files == null) throw new ApiException(400, "Нет доступа к папке");
-        Arrays.sort(files, (a, b) -> {
-            if (a.isDirectory() != b.isDirectory()) return a.isDirectory() ? -1 : 1;
-            return a.getName().compareToIgnoreCase(b.getName());
-        });
-        JSONArray arr = new JSONArray();
-        for (File f : files) {
-            if (isTempName(f.getName())) continue;
-            try { arr.put(item(f)); } catch (IOException ignored) {}
+        Path folder = ManagedFiles.directory(d.toPath());
+        List<JSONObject> entries = new ArrayList<>();
+        try (DirectoryStream<Path> stream = Files.newDirectoryStream(folder)) {
+            for (Path f : stream) {
+                if (Thread.currentThread().isInterrupted()) throw new IOException("Доступ остановлен");
+                if (isTempName(f.getFileName().toString())) continue;
+                try {
+                    java.nio.file.attribute.BasicFileAttributes a = ManagedFiles.attrs(f);
+                    if (a.isDirectory() || a.isRegularFile()) entries.add(item(f, a));
+                } catch (IOException ignored) { /* entry disappeared during listing */ }
+            }
         }
+        entries.sort(Comparator.comparing((JSONObject entry) -> !entry.optBoolean("dir"))
+                .thenComparing(entry -> entry.optString("name"), String.CASE_INSENSITIVE_ORDER)
+                .thenComparing(entry -> entry.optString("name")));
+        JSONArray arr = new JSONArray(entries);
         JSONObject data = new JSONObject();
         data.put("path", relative(d));
         data.put("readOnly", readOnly);
+        if (!readOnly) data.put("uploadScope", retained.scope());
         data.put("items", arr);
         long total = root.getTotalSpace();
         if (total > 0L) {
@@ -541,46 +615,81 @@ final class FileServer {
         send(out, 200, "application/json; charset=utf-8", data.toString().getBytes(StandardCharsets.UTF_8), null);
     }
 
-    private JSONObject item(File f) throws Exception {
-        JSONObject x = new JSONObject();
-        x.put("name", f.getName());
-        x.put("path", relative(f));
-        x.put("dir", f.isDirectory());
-        x.put("size", f.isDirectory() ? 0 : f.length());
-        x.put("modified", f.lastModified());
-        return x;
+    private JSONObject item(Path f, java.nio.file.attribute.BasicFileAttributes a) throws Exception {
+        return new JSONObject().put("name", f.getFileName().toString()).put("path", ManagedFiles.virtual(root.toPath(), f))
+                .put("dir", a.isDirectory()).put("size", a.isDirectory() ? 0L : a.size())
+                .put("modified", a.lastModifiedTime().toMillis());
     }
 
-    private void search(OutputStream out, String path, String query) throws Exception {
-        File base = resolve(path);
-        if (!base.isDirectory()) throw new ApiException(400, "Папка недоступна");
-        String needle = query == null ? "" : normalize(query.trim());
-        if (needle.length() < 2) throw new ApiException(400, "Введите минимум 2 символа");
-        ArrayDeque<File> queue = new ArrayDeque<>();
-        queue.add(base);
-        JSONArray arr = new JSONArray();
-        long visited = 0; boolean truncated = false;
-        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(8);
-        while (!queue.isEmpty()) {
-            if (visited >= 20000 || arr.length() >= 200 || System.nanoTime() > deadline) { truncated = true; break; }
-            File dir = queue.poll();
-            File[] children = dir.listFiles();
-            if (children == null) continue;
-            for (File f : children) {
-                if (++visited >= 20000) { truncated = true; break; }
-                String name = f.getName();
-                if (isTempName(name)) continue;
-                if (normalize(name).contains(needle)) {
-                    try { arr.put(item(f)); } catch (IOException ignored) {}
-                    if (arr.length() >= 200) { truncated = true; break; }
-                }
-                if (f.isDirectory() && !Files.isSymbolicLink(f.toPath())) queue.add(f);
-            }
+    private static long numericFilter(Map<String, String> q, String key, long fallback) throws IOException {
+        String raw = q.get(key);
+        if (raw == null || raw.isEmpty()) return fallback;
+        try {
+            long value = Long.parseLong(raw);
+            if (value < 0 && !"after".equals(key) && !"before".equals(key)) throw new NumberFormatException();
+            return value;
+        } catch (NumberFormatException bad) { throw new ApiException(400, "Некорректный фильтр: " + key); }
+    }
+
+    private static String searchType(Path path, boolean folder) {
+        if (folder) return "folder";
+        File f = path.toFile();
+        String mime = mediaMime(f);
+        if (mime != null && mime.indexOf('/') > 0 && !"application/pdf".equals(mime)) return mime.substring(0, mime.indexOf('/'));
+        switch (extension(f)) {
+            case "zip": case "rar": case "7z": case "tar": case "gz": case "bz2": case "xz": return "archive";
+            case "doc": case "docx": case "xls": case "xlsx": case "ppt": case "pptx": case "odt": case "ods": case "pdf": return "document";
+            case "mkv": case "avi": case "wmv": case "3gp": return "video";
+            case "aac": case "aiff": case "wma": case "m4b": return "audio";
+            case "tiff": case "tif": case "ico": return "image";
+            default: return TEXT_EXTS.contains(extension(f)) ? "document" : "other";
         }
-        JSONObject data = new JSONObject();
-        data.put("items", arr);
-        data.put("truncated", truncated);
-        send(out, 200, "application/json; charset=utf-8", data.toString().getBytes(StandardCharsets.UTF_8), null);
+    }
+
+    private void search(OutputStream out, Map<String, String> q) throws Exception {
+        File base = resolve(q.getOrDefault("path", "/"));
+        Path folder = ManagedFiles.directory(base.toPath());
+        String needle = normalize(q.getOrDefault("q", "").trim());
+        String type = q.getOrDefault("type", "all"), ext = normalize(q.getOrDefault("ext", "").trim().replaceFirst("^\\.", ""));
+        if (!Arrays.asList("all", "folder", "file", "image", "video", "audio", "document", "archive", "other").contains(type)
+                || (!ext.isEmpty() && !ext.matches("[a-z0-9_-]{1,24}"))) throw new ApiException(400, "Некорректный тип файла");
+        long min = numericFilter(q, "minBytes", 0), max = numericFilter(q, "maxBytes", Long.MAX_VALUE);
+        long after = numericFilter(q, "after", Long.MIN_VALUE), before = numericFilter(q, "before", Long.MAX_VALUE);
+        boolean hasSize = q.containsKey("minBytes") || q.containsKey("maxBytes");
+        boolean hasFilters = hasSize || !"all".equals(type) || !ext.isEmpty() || after != Long.MIN_VALUE || before != Long.MAX_VALUE;
+        boolean deep = !"0".equals(q.get("deep"));
+        if (needle.length() < 2 && !hasFilters) throw new ApiException(400, "Введите минимум 2 символа или добавьте фильтр");
+        if (min > max || after >= before || needle.length() > 200) throw new ApiException(400, "Некорректный диапазон фильтра");
+        ArrayDeque<Path> queue = new ArrayDeque<>();
+        queue.add(folder);
+        JSONArray found = new JSONArray();
+        int visited = 0;
+        boolean truncated = false;
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(8);
+        outer: while (!queue.isEmpty()) {
+            Path dir = queue.remove();
+            try (DirectoryStream<Path> children = Files.newDirectoryStream(ManagedFiles.directory(dir))) {
+                for (Path f : children) {
+                    if (++visited > 50_000 || System.nanoTime() > deadline || Thread.currentThread().isInterrupted()) { truncated = true; break outer; }
+                    String name = f.getFileName().toString();
+                    if (isTempName(name)) continue;
+                    try {
+                        java.nio.file.attribute.BasicFileAttributes a = ManagedFiles.attrs(f);
+                        boolean isDir = a.isDirectory();
+                        if (!isDir && !a.isRegularFile()) continue;
+                        if (deep && isDir) queue.add(f);
+                        if (!needle.isEmpty() && !normalize(name).contains(needle)) continue;
+                        if (hasSize && (isDir || a.size() < min || a.size() > max)) continue;
+                        if (a.lastModifiedTime().toMillis() < after || a.lastModifiedTime().toMillis() >= before) continue;
+                        if (!"all".equals(type) && !("file".equals(type) && !isDir) && !type.equals(searchType(f, isDir))) continue;
+                        if (!ext.isEmpty() && (isDir || !extension(f.toFile()).equals(ext))) continue;
+                        if (found.length() >= 200) { truncated = true; break outer; }
+                        found.put(item(f, a));
+                    } catch (IOException unreadable) { truncated = true; }
+                }
+            } catch (IOException unreadable) { truncated = true; }
+        }
+        json(out, new JSONObject().put("items", found).put("truncated", truncated));
     }
 
     private void download(OutputStream out, String path, String range) throws Exception {
@@ -823,14 +932,16 @@ final class FileServer {
             }
         }
         long count = total == 0 ? 0 : end - start + 1;
-        String name = URLEncoder.encode(f.getName(), "UTF-8").replace("+", "%20");
+        String name = URLEncoder.encode(f.getName(), "UTF-8").replace("+", "%20").replace("*", "%2A");
+        String asciiName = f.getName().replaceAll("[^a-zA-Z0-9 ._()-]", "_");
         StringBuilder h = new StringBuilder();
         h.append("HTTP/1.1 ").append(partial ? "206 Partial Content" : "200 OK").append("\r\n");
         h.append("Content-Type: ").append(mime).append("\r\n");
         h.append("Content-Length: ").append(count).append("\r\n");
         h.append("Accept-Ranges: bytes\r\n");
         if (partial) h.append("Content-Range: bytes ").append(start).append('-').append(end).append('/').append(total).append("\r\n");
-        h.append("Content-Disposition: ").append(attachment ? "attachment" : "inline").append("; filename*=UTF-8''").append(name).append("\r\n");
+        h.append("Content-Disposition: ").append(attachment ? "attachment" : "inline")
+                .append("; filename=\"").append(asciiName).append("\"; filename*=UTF-8''").append(name).append("\r\n");
         if (!attachment && "image/svg+xml".equals(mime)) {
             h.append(SANDBOX_CSP);
         }
@@ -962,11 +1073,15 @@ final class FileServer {
                 fout.write(body);
                 fout.flush();
             }
-            try {
-                Files.move(tmp.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING);
-            } catch (Exception moveErr) {
-                if (target.exists() && !target.delete()) throw new ApiException(400, "Не удалось заменить файл");
-                if (!tmp.renameTo(target)) throw new ApiException(400, "Не удалось сохранить файл");
+            synchronized (ManagedFiles.NAMESPACE) {
+                checkRunning();
+                ManagedFiles.directory(parent.toPath());
+                if (unique || (create && !overwrite)) {
+                    if (Files.exists(target.toPath(), ManagedFiles.NOFOLLOW)) throw new ApiException(409, "Имя занято");
+                    Files.move(tmp.toPath(), target.toPath());
+                } else {
+                    Files.move(tmp.toPath(), target.toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+                }
             }
             if (prevMod > 0L && target.lastModified() == prevMod) {
                 //noinspection ResultOfMethodCallIgnored
@@ -1741,8 +1856,10 @@ final class FileServer {
             }
         }
 
+        if (move) ManagedFiles.movableTree(src.toPath());
         if (target.exists()) {
             if (!overwrite) throw new ApiException(409, "Объект с таким именем уже существует");
+            ManagedFiles.movableTree(target.toPath());
             String dstPrefix = dstCanon.endsWith(File.separator) ? dstCanon : dstCanon + File.separator;
             if (srcCanon.startsWith(dstPrefix)) {
                 throw new ApiException(400, "Нельзя заменить родительскую папку");
@@ -1912,14 +2029,15 @@ final class FileServer {
                     remaining -= n;
                 }
             }
-            if (overwrite && !unique) {
-                try { Files.move(tmp.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING); }
-                catch (Exception moveError) {
-                    if (target.exists() && !target.delete()) throw new ApiException(400, "Не удалось заменить файл");
-                    if (!tmp.renameTo(target)) throw new ApiException(400, "Не удалось сохранить файл");
+            synchronized (ManagedFiles.NAMESPACE) {
+                checkRunning();
+                ManagedFiles.directory(parent.toPath());
+                if (overwrite && !unique) {
+                    Files.move(tmp.toPath(), target.toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+                } else {
+                    if (Files.exists(target.toPath(), ManagedFiles.NOFOLLOW)) throw new ApiException(409, "Файл с таким именем уже существует");
+                    Files.move(tmp.toPath(), target.toPath());
                 }
-            } else {
-                if (target.exists() || !tmp.renameTo(target)) throw new ApiException(409, "Файл с таким именем уже существует");
             }
             ok = true;
         } finally { if (!ok) tmp.delete(); }
@@ -1979,6 +2097,14 @@ final class FileServer {
     }
 
     private void uploadInit(OutputStream out, Map<String, String> q) throws Exception {
+        if (q.containsKey("id") || q.containsKey("sha256")) {
+            File parent = resolve(q.getOrDefault("path", "/"));
+            if (isRawSymlink(q.getOrDefault("path", "/"))) throw new ApiException(400, "Папка является ссылкой");
+            if (q.get("scope") == null || !q.get("scope").equals(retained.scope())) throw new ApiException(409, "Общая папка изменилась");
+            json(out, retained.init(q.get("id"), parent, q.get("name"), Long.parseLong(q.getOrDefault("size", "-1")),
+                    q.get("sha256"), "1".equals(q.get("overwrite")), "1".equals(q.get("unique"))));
+            return;
+        }
         cleanupUploads();
         File parent = resolve(q.getOrDefault("path", "/"));
         if (!parent.isDirectory()) throw new ApiException(400, "Папка недоступна");
@@ -2008,6 +2134,7 @@ final class FileServer {
     }
 
     private void uploadStatus(OutputStream out, Map<String, String> q) throws Exception {
+        if (RetainedUploads.isId(q.get("id"))) { json(out, retained.status(q.get("id"))); return; }
         Upload upload = requireUpload(q.get("id"));
         JSONObject json = new JSONObject();
         json.put("uploadId", upload.id);
@@ -2018,13 +2145,18 @@ final class FileServer {
     }
 
     private void uploadChunk(OutputStream out, InputStream in, Map<String, String> headers, Map<String, String> q) throws Exception {
-        Upload upload = requireUpload(q.get("id"));
         long offset;
         try { offset = Long.parseLong(q.getOrDefault("offset", "-1")); } catch (Exception e) { offset = -1; }
         int length;
         try { length = Integer.parseInt(headers.getOrDefault("content-length", "-1")); } catch (Exception e) { length = -1; }
         if (length <= 0 || length > CHUNK_MAX) throw new ApiException(400, "Некорректный размер части (до 32 МБ)");
 
+        if (RetainedUploads.isId(q.get("id"))) {
+            JSONObject result = retained.chunk(q.get("id"), offset, length, in);
+            json(out, result, "X-Upload-Received: " + result.getLong("received") + "\r\n");
+            return;
+        }
+        Upload upload = requireUpload(q.get("id"));
         long newReceived;
         synchronized (upload) {
             if (offset != upload.received) {
@@ -2056,6 +2188,7 @@ final class FileServer {
     }
 
     private void uploadFinish(OutputStream out, Map<String, String> q) throws Exception {
+        if (RetainedUploads.isId(q.get("id"))) { json(out, retained.finish(q.get("id"))); return; }
         Upload upload = requireUpload(q.get("id"));
         synchronized (upload) {
             if (upload.received != upload.size) {
@@ -2065,16 +2198,12 @@ final class FileServer {
             File target = new File(upload.parent, upload.name);
             boolean ok = false;
             try {
-                if (target.exists() && !upload.overwrite) throw new ApiException(409, "Файл с таким именем уже существует");
-                if (upload.overwrite) {
-                    try { Files.move(upload.tmp.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING); }
-                    catch (Exception moveError) {
-                        if (target.exists() && !target.delete()) throw new ApiException(400, "Не удалось заменить файл");
-                        if (!upload.tmp.renameTo(target)) throw new ApiException(400, "Не удалось сохранить файл");
-                    }
-                } else {
-                    try { Files.move(upload.tmp.toPath(), target.toPath(), StandardCopyOption.ATOMIC_MOVE); }
-                    catch (Exception e) { if (!upload.tmp.renameTo(target)) throw new ApiException(409, "Не удалось сохранить файл: " + e.getMessage()); }
+                synchronized (ManagedFiles.NAMESPACE) {
+                    checkRunning();
+                    ManagedFiles.directory(upload.parent.toPath());
+                    if (Files.exists(target.toPath(), ManagedFiles.NOFOLLOW) && !upload.overwrite) throw new ApiException(409, "Файл с таким именем уже существует");
+                    if (upload.overwrite) Files.move(upload.tmp.toPath(), target.toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+                    else Files.move(upload.tmp.toPath(), target.toPath());
                 }
                 ok = true;
             } finally {
@@ -2091,11 +2220,25 @@ final class FileServer {
 
     private void uploadAbort(OutputStream out, Map<String, String> q) throws Exception {
         String id = q.get("id");
+        if (RetainedUploads.isId(id)) { json(out, retained.abort(id)); return; }
         Upload upload = id == null ? null : uploads.remove(id);
         if (upload != null) {
             synchronized (upload) { upload.tmp.delete(); }
         }
         ok(out);
+    }
+
+    private JSONObject jsonRequest(InputStream in, Map<String, String> headers, int limit) throws Exception {
+        int length = Integer.parseInt(headers.getOrDefault("content-length", "0"));
+        if (length < 2 || length > limit) throw new ApiException(400, "Некорректный размер JSON");
+        byte[] bytes = new byte[length];
+        new DataInputStream(in).readFully(bytes);
+        return new JSONObject(new String(bytes, StandardCharsets.UTF_8));
+    }
+
+    private void json(OutputStream out, JSONObject data) throws IOException { json(out, data, null); }
+    private void json(OutputStream out, JSONObject data, String headers) throws IOException {
+        send(out, 200, "application/json; charset=utf-8", data.toString().getBytes(StandardCharsets.UTF_8), headers);
     }
 
     private void ok(OutputStream out) throws IOException { send(out, 200, "application/json; charset=utf-8", "{\"ok\":true}".getBytes(StandardCharsets.UTF_8), null); }
@@ -2125,6 +2268,7 @@ final class FileServer {
             case 429: return "Too Many Requests";
             case 500: return "Internal Server Error";
             case 503: return "Service Unavailable";
+            case 507: return "Insufficient Storage";
             default: return "Error";
         }
     }

@@ -1139,6 +1139,43 @@ body:not(.is-readonly) .pb-read-only { display: none !important; }
 .readonly-notice svg{margin-top:2px;flex:none;color:var(--accent)}
 .is-readonly .ziprow { grid-template-columns:22px minmax(0, 1fr) auto; }
 .is-readonly .ziprow .zpath { cursor:default; }
+/* Local tools and bounded file views */
+.pb-tools,.list-pager{display:flex;align-items:center;flex-wrap:wrap;gap:7px;padding:8px 16px;border-top:1px solid var(--border)}
+.pb-tools button[aria-pressed="true"]{border-color:var(--accent);color:var(--accent-text)}
+.list-pager{justify-content:flex-end;color:var(--muted);font-size:13px}
+.list-pager input{width:4.5em;text-align:center}
+.wb-dialog{width:min(690px,calc(100vw - 24px));max-height:calc(100dvh - 24px);padding:0;border:1px solid var(--border);border-radius:16px;background:var(--panel);color:var(--text);box-shadow:0 24px 70px #0006;overflow:hidden}
+.wb-dialog[open]{display:flex;flex-direction:column}
+.wb-dialog::backdrop{background:#081218b0}
+.wb-header{display:flex;gap:12px;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border)}
+.wb-header h2{font-size:18px;margin:0;overflow-wrap:anywhere}
+.wb-body{padding:14px 16px;overflow:auto;overscroll-behavior:contain;min-height:0;display:grid;gap:12px}
+.wb-status{margin:0;color:var(--danger);padding:0 16px 12px;overflow-wrap:anywhere}
+.wb-status:empty{display:none}
+.wb-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.wb-field{display:grid;gap:4px;margin:4px 0;font-size:13px;min-width:0}
+.wb-field input,.wb-field select,.list-pager input{background:var(--panel2);border:1px solid var(--border);border-radius:8px;color:inherit;font:inherit;min-height:36px;padding:6px 8px;min-width:0;max-width:100%;color-scheme:inherit}
+.wb-actions{display:flex;flex-wrap:wrap;align-items:center;gap:7px;margin:5px 0;min-width:0}
+.wb-actions .btn{white-space:normal;text-align:start;min-height:36px}
+.wb-note{color:var(--muted);font-size:13px;margin:.15em 0;overflow-wrap:anywhere}
+.wb-row{display:grid;gap:4px;border-top:1px solid var(--border);padding:8px 0;min-width:0}
+.wb-path{overflow-wrap:anywhere;min-width:0}
+.wb-copy{display:flex;align-items:center;gap:8px;min-height:35px;padding:4px 0;cursor:pointer}
+.wb-copy input{width:18px;height:18px;flex:none}
+.more-actions.btn{display:none}
+.wb-dialog [hidden],.pb-tools [hidden],.list-pager[hidden]{display:none!important}
+.qdest{overflow-wrap:anywhere;white-space:normal}
+@media(max-width:600px){
+  .pb-tools,.list-pager{padding:8px 12px}
+  .pb-tools .btn,.list-pager .btn{min-height:40px}
+  .wb-header,.wb-body{padding:10px 12px}
+  .wb-actions .btn{min-height:44px}
+  .wb-fields{grid-template-columns:minmax(0,1fr)}
+  tbody tr{grid-template-columns:24px minmax(0,1fr) auto 44px;grid-template-areas:"check name size actions" "check meta meta actions";row-gap:3px}
+  tbody td.rowactions{align-self:center}
+  tbody td.rowactions > :not(.more-actions),.card .acts > :not(.more-actions){display:none}
+  .more-actions.btn{display:inline-flex;align-items:center;justify-content:center;width:44px;min-height:44px;padding:0;font-size:22px;flex:none}
+}
 </style></head><body>
 <div id="pageLoader" class="page-loader" aria-hidden="true"></div>
 <main class="shell">
@@ -1300,6 +1337,14 @@ body:not(.is-readonly) .pb-read-only { display: none !important; }
       <div id="bookmarksBar" class="bookmarksbar hidden" role="navigation" data-i18n-aria="bookmarksAria" aria-label="Быстрые папки"></div>
       <div id="filterBar" class="filterbar hidden" role="toolbar" data-i18n-aria="filterAria" aria-label="Фильтр по типу"></div>
 
+      <div class="pb-tools" role="group" data-i18n-aria="pbTools" aria-label="Инструменты папки">
+        <button id="pbFilters" class="btn" type="button" aria-pressed="false" data-i18n="pbFilters">Точный поиск</button>
+        <button id="clearPrecise" class="btn ghost" type="button" hidden data-i18n="pbResetFilters">Сбросить фильтры</button>
+        <button id="pbTrash" class="btn pb-write" type="button" data-i18n="pbTrash">Корзина</button>
+        <button id="pbVerify" class="btn" type="button" data-i18n="pbVerify">Проверка папки</button>
+        <button id="pbDuplicates" class="btn" type="button" data-i18n="pbDuplicates">Поиск дублей</button>
+      </div>
+
       <div id="selection" class="selection hidden">
         <strong id="selectedCount"></strong>
         <button id="downloadSelected" class="btn primary" type="button">
@@ -1318,6 +1363,7 @@ body:not(.is-readonly) .pb-read-only { display: none !important; }
           <svg class="svg-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
           <span data-i18n="btnProps">Свойства</span>
         </button>
+        <button id="pbBatch" class="btn pb-write hidden" type="button" data-i18n="pbBatch">Переименовать группой</button>
         <button id="deleteSelected" class="btn danger pb-write" type="button">
           <svg class="svg-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
           <span data-i18n="btnDeleteSelected">Удалить</span>
@@ -1346,6 +1392,14 @@ body:not(.is-readonly) .pb-read-only { display: none !important; }
         <button class="btn ghost" id="progressCancel" data-i18n="btnQueueCancel" type="button">Отмена</button>
       </div>
 
+      <nav id="listPager" class="list-pager" data-i18n-aria="pbPages" aria-label="Страницы списка" hidden>
+        <button id="pageBack" class="btn ghost" type="button" data-i18n="pbPrev">Назад</button>
+        <label for="pageJump" data-i18n="pbPage">Страница</label>
+        <input id="pageJump" type="number" min="1" value="1" step="1" inputmode="numeric">
+        <span id="pageTotal" aria-live="polite"></span>
+        <button id="pageGo" class="btn ghost" type="button" data-i18n="pbGo">Перейти</button>
+        <button id="pageNext" class="btn ghost" type="button" data-i18n="pbNext">Далее</button>
+      </nav>
       <div id="grid" class="grid hidden"></div>
       <div class="tablewrap" id="tableWrap">
         <table>
@@ -1498,6 +1552,14 @@ body:not(.is-readonly) .pb-read-only { display: none !important; }
   </form>
 </div>
 
+<dialog id="workbench" class="wb-dialog" aria-labelledby="wbTitle">
+  <header class="wb-header"><h2 id="wbTitle"></h2><button id="wbClose" class="btn ghost" type="button" autofocus>Закрыть</button></header>
+  <div id="wbBody" class="wb-body"></div>
+  <p id="wbStatus" class="wb-status" role="status" aria-live="polite"></p>
+</dialog>
+
+<script src="/transfers.js"></script>
+<script src="/workbench.js"></script>
 <script>
 'use strict';
 
@@ -1537,6 +1599,19 @@ const ICONS = {
 
 const LANG = {
   ru: {
+    pbTools: 'Инструменты папки',
+    pbFilters: 'Точный поиск',
+    pbResetFilters: 'Сбросить фильтры',
+    pbTrash: 'Корзина',
+    pbVerify: 'Проверка папки',
+    pbDuplicates: 'Поиск дублей',
+    pbBatch: 'Переименовать группой',
+    pbPages: 'Страницы списка',
+    pbPrev: 'Назад',
+    pbNext: 'Далее',
+    pbPage: 'Страница',
+    pbGo: 'Перейти',
+
     appTitle: 'PocketBridge · Файлы телефона',
     brandShort: 'PocketBridge',
     wifiProvider: 'Wi-Fi ПРОВОДНИК',
@@ -1599,8 +1674,8 @@ const LANG = {
     renameAccept: 'Сохранить',
     deleteFolderTitle: 'Удалить папку?',
     deleteFileTitle: 'Удалить файл?',
-    deleteFolderMsg: '«{name}» и всё её содержимое будут удалены. Отменить это действие нельзя.',
-    deleteFileMsg: '«{name}» будет удалён. Отменить это действие нельзя.',
+    deleteFolderMsg: '«{name}» и её содержимое будут перемещены в корзину.',
+    deleteFileMsg: '«{name}» будет перемещён в корзину.',
     dialogInputError: 'Введите корректное имя без символов / и \\.',
     mkdirTitle: 'Новая папка',
     mkdirMsg: 'Как назвать новую папку?',
@@ -1677,8 +1752,8 @@ const LANG = {
     msgSearching: 'Ищем во всех папках…',
     msgSearchTruncated: 'Показаны первые 200 результатов — уточните запрос',
     msgSearchFound: 'Найдено: {n}',
-    msgDeleting: 'Удаление {i} из {n}…',
-    msgDeleted: 'Удалено: {n}',
+    msgDeleting: 'В корзину: {i} из {n}…',
+    msgDeleted: 'В корзине: {n}',
     msgUploadingFiles: 'Файлы загружены: {n}',
     msgUploadingFolder: 'Папка загружена: {n} файлов',
     msgUploadCancelledAll: 'Загрузка отменена',
@@ -1819,6 +1894,19 @@ const LANG = {
     unitSec: 'с'
   },
   en: {
+    pbTools: 'Folder tools',
+    pbFilters: 'Advanced search',
+    pbResetFilters: 'Reset filters',
+    pbTrash: 'Trash',
+    pbVerify: 'Verify folder',
+    pbDuplicates: 'Find duplicates',
+    pbBatch: 'Batch rename',
+    pbPages: 'File list pages',
+    pbPrev: 'Previous',
+    pbNext: 'Next',
+    pbPage: 'Page',
+    pbGo: 'Go',
+
     appTitle: 'PocketBridge · Phone Files',
     brandShort: 'PocketBridge',
     wifiProvider: 'Wi-Fi EXPLORER',
@@ -1881,8 +1969,8 @@ const LANG = {
     renameAccept: 'Save',
     deleteFolderTitle: 'Delete folder?',
     deleteFileTitle: 'Delete file?',
-    deleteFolderMsg: '“{name}” and all its contents will be deleted. This cannot be undone.',
-    deleteFileMsg: '“{name}” will be deleted. This cannot be undone.',
+    deleteFolderMsg: '“{name}” and its contents will move to Trash.',
+    deleteFileMsg: '“{name}” will move to Trash.',
     dialogInputError: 'Enter a valid name without / and \\ characters.',
     mkdirTitle: 'New folder',
     mkdirMsg: 'What should the new folder be named?',
@@ -1959,8 +2047,8 @@ const LANG = {
     msgSearching: 'Searching all folders…',
     msgSearchTruncated: 'Showing first 200 results — refine your query',
     msgSearchFound: 'Found: {n}',
-    msgDeleting: 'Deleting {i} of {n}…',
-    msgDeleted: 'Deleted: {n}',
+    msgDeleting: 'Moving to trash: {i} of {n}…',
+    msgDeleted: 'Moved to trash: {n}',
     msgUploadingFiles: 'Files uploaded: {n}',
     msgUploadingFolder: 'Folder uploaded: {n} files',
     msgUploadCancelledAll: 'Upload cancelled',
@@ -2106,9 +2194,10 @@ function safeGet(k) { try { return localStorage.getItem(k); } catch (_) { return
 function safeSet(k, v) { try { localStorage.setItem(k, v); } catch (_) {} }
 
 let currentLang = safeGet('pb-lang') === 'en' ? 'en' : 'ru';
+let uploadScope = null;
 let key = '', sessionToken = null, current = '/', items = [], remoteResults = null;
 let readOnly = false;
-const READ_ONLY_POST = new Set(['session', 'preview-ticket', 'download-ticket', 'zip-ticket', 'download-zip']);
+const READ_ONLY_POST = new Set(['session', 'preview-ticket', 'download-ticket', 'zip-ticket', 'download-zip', 'scan-start', 'scan-cancel']);
 const selected = new Set(), sizes = new Map();
 let viewMode = safeGet('pb-view') === 'grid' ? 'grid' : 'list';
 let sortFlip = false, scanning = false, generation = 0, previewSerial = 0, previewItem = null;
@@ -2496,8 +2585,8 @@ function itemSizeForSort(x) {
 }
 
 function baseItems() {
-  const s = el('search').value.trim().toLocaleLowerCase();
-  return remoteResults ? remoteResults.slice() : items.filter(x => x.name.toLocaleLowerCase().includes(s));
+  const s = el('search').value.trim().normalize('NFC').toLowerCase();
+  return remoteResults ? remoteResults.slice() : (s ? items.filter(x => x.name.normalize('NFC').toLowerCase().includes(s)) : items);
 }
 
 function matchesFilter(x, cat) {
@@ -2509,7 +2598,11 @@ function matchesFilter(x, cat) {
   return vk === cat;
 }
 
-function visible() {
+const LIST_PAGE_SIZE = 120;
+let listPage = 0, viewSorted = [];
+const NAME_COLLATOR = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
+function visible() { return viewSorted.slice(listPage * LIST_PAGE_SIZE, (listPage + 1) * LIST_PAGE_SIZE); }
+function sortedItems() {
   const arr = baseItems().filter(x => matchesFilter(x, filterCat));
   const mode = el('sort') ? el('sort').value : 'name';
   const loc = currentLang === 'en' ? 'en' : 'ru';
@@ -2520,10 +2613,10 @@ function visible() {
     if (mode === 'size') { const d = itemSizeForSort(a) - itemSizeForSort(b); if (d) return d * mul; }
     if (mode === 'date') { const d = (a.modified || 0) - (b.modified || 0); if (d) return d * mul; }
     if (mode === 'type') { const d = extOf(a.name).localeCompare(extOf(b.name), loc); if (d) return d * mul; }
-    const nd = a.name.localeCompare(b.name, loc, { numeric: true, sensitivity: 'base' });
+    const nd = NAME_COLLATOR.compare(a.name, b.name);
     return mode === 'name' ? nd * mul : nd;
   };
-  return arr.slice().sort(cmp);
+  return arr.sort(cmp);
 }
 
 function renderFilterBar() {
@@ -2867,6 +2960,7 @@ function updateSelection() {
   el('downloadSelected').disabled = num === 0;
   if (el('copySelected')) el('copySelected').disabled = num === 0;
   if (el('cutSelected')) el('cutSelected').disabled = num === 0;
+  el('pbBatch').classList.toggle('hidden', readOnly || num < 2 || num > 200);
   if (el('propsSelected')) el('propsSelected').classList.toggle('hidden', num !== 1);
 }
 
@@ -2896,7 +2990,7 @@ function makeEmptyNode() {
 }
 
 function renderCounters(view) {
-  el('itemCount').textContent = t('itemCount') + view.length;
+  el('itemCount').textContent = t('itemCount') + viewSorted.length;
   const dropDest = el('dropDest');
   if (dropDest) dropDest.textContent = current || '/';
   const empty = el('empty');
@@ -2906,6 +3000,15 @@ function renderCounters(view) {
 }
 
 function render() {
+  viewSorted = sortedItems();
+  const pages = Math.max(1, Math.ceil(viewSorted.length / LIST_PAGE_SIZE));
+  listPage = Math.min(Math.max(0, listPage), pages - 1);
+  el('listPager').hidden = pages <= 1;
+  el('pageJump').value = String(listPage + 1);
+  el('pageJump').max = String(pages);
+  el('pageTotal').textContent = '/ ' + pages;
+  el('pageBack').disabled = listPage === 0;
+  el('pageNext').disabled = listPage + 1 >= pages;
   renderBookmarksBar();
   renderPinButton();
   renderFilterBar();
@@ -2916,10 +3019,23 @@ function render() {
   else renderList(doAnim);
 }
 
+function setListPage(n) {
+  if (!Number.isFinite(n)) return;
+  listPage = Math.trunc(n);
+  lastCheckIdx = -1;
+  render();
+  el('listPager').scrollIntoView({ block: 'nearest' });
+}
+el('pageBack').onclick = () => setListPage(listPage - 1);
+el('pageNext').onclick = () => setListPage(listPage + 1);
+el('pageGo').onclick = () => setListPage(el('pageJump').valueAsNumber - 1);
+el('pageJump').onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); el('pageGo').click(); } };
+
 function renderGrid(doAnim = false) {
   const grid = el('grid'), view = visible();
   grid.replaceChildren();
   el('tableWrap').classList.add('hidden');
+  el('rows').replaceChildren();
   grid.classList.remove('hidden');
   renderCounters(view);
   if (!view.length) {
@@ -3043,6 +3159,7 @@ function renderGrid(doAnim = false) {
     if (!readOnly) act(ICONS.edit, '', t('btnRename'), '', () => rename(item));
     act(ICONS.info, '', t('btnPropsTitle'), '', () => openProps(item));
     if (!readOnly) act(ICONS.trash, '', t('btnDelete'), 'del', () => removeItem(item));
+    acts.append(mobileActionsButton(item));
     card.append(thumb, cap, sub, acts);
     grid.append(card);
   }
@@ -3052,10 +3169,13 @@ function renderGrid(doAnim = false) {
 function renderList(doAnim = false) {
   const rows = el('rows'), view = visible();
   el('grid').classList.add('hidden');
+  el('grid').replaceChildren();
   el('tableWrap').classList.remove('hidden');
   rows.replaceChildren();
   renderCounters(view);
   const dateLocale = currentLang === 'en' ? 'en-GB' : 'ru-RU';
+  const dateShort = new Intl.DateTimeFormat(dateLocale);
+  const dateFull = new Intl.DateTimeFormat(dateLocale, { dateStyle: 'short', timeStyle: 'medium' });
   let idx = 0;
   for (const item of view) {
     const i = idx++;
@@ -3111,8 +3231,8 @@ function renderList(doAnim = false) {
 
     const date = document.createElement('td');
     date.className = 'detail datecol';
-    date.textContent = item.modified ? new Date(item.modified).toLocaleDateString(dateLocale) : '—';
-    if (item.modified) date.title = new Date(item.modified).toLocaleString(dateLocale);
+    date.textContent = item.modified ? dateShort.format(item.modified) : '—';
+    if (item.modified) date.title = dateFull.format(item.modified);
 
     const a = document.createElement('td');
     a.className = 'rowactions';
@@ -3142,7 +3262,7 @@ function renderList(doAnim = false) {
     infoBtn.title = t('btnPropsTitle');
     infoBtn.setAttribute('aria-label', t('btnPropsTitle'));
     infoBtn.onclick = () => openProps(item);
-    a.append(infoBtn);
+    a.append(infoBtn, mobileActionsButton(item));
 
     tr.append(checkcell, n, size, date, a);
     rows.append(tr);
@@ -3225,9 +3345,12 @@ function renderPath(path) {
 
 async function show(path, preloaded = null) {
   const token = ++generation;
+  remoteRevision++; clearTimeout(searchTimer);
   const folderChanged = path !== current || !!preloaded;
   if (folderChanged) {
     filterCat = 'all';
+    quickCriteria = {}; updateFilterBadge();
+    listPage = 0;
     animateNextRender = true;
     if (!preloaded) scheduleSkeleton();
   }
@@ -3237,6 +3360,7 @@ async function show(path, preloaded = null) {
     if (token !== generation) return;
     clearSkeleton();
     applyAccessMode(data.readOnly === true);
+    uploadScope = data.uploadScope || null;
     await ensureSession().catch(() => {});
     if (token !== generation) return;
     current = data.path;
@@ -3977,6 +4101,7 @@ function isTextEntryElement(node) {
 }
 
 document.addEventListener('keydown', e => {
+  if (el('workbench').open) return;
   if (!el('actionDialog').classList.contains('hidden')) return;
   if (!el('propsModal').classList.contains('hidden')) {
     if (e.key === 'Escape') { e.preventDefault(); closeProps(); }
@@ -4068,7 +4193,8 @@ document.addEventListener('keydown', e => {
       el('deleteSelected').click();
     }
   } else if (!readOnly && e.key === 'F2' && !inField && !e.ctrlKey && !e.metaKey && !e.altKey) {
-    if (selected.size === 1) {
+    if (selected.size > 1 && selected.size <= 200) { e.preventDefault(); openBatchRename(); }
+    else if (selected.size === 1) {
       const only = [...selected][0];
       const it = (remoteResults || items).find(x => x.path === only);
       if (it) { e.preventDefault(); rename(it); }
@@ -4294,6 +4420,7 @@ el('loginForm').onsubmit = async e => {
     el('app').classList.remove('hidden');
     el('logout').classList.remove('hidden');
     await show('/', data);
+    void restoreDraftQueue().catch(e => msg(e.message));
   } catch (e) {
     el('loginError').textContent = e.message;
     pulseShake(el('loginWrap').querySelector('.loginbox'));
@@ -4313,14 +4440,18 @@ el('refresh').onclick = async () => {
   btn.classList.add('is-spinning');
   const started = performance.now();
   try {
-    await show(current);
+    await refreshListing();
   } finally {
     const remain = Math.max(0, 420 - (performance.now() - started));
     setTimeout(() => btn.classList.remove('is-spinning'), remain);
   }
 };
 el('logout').onclick = () => {
-  cancelAllUploads();
+  detachUploadQueue();
+  wbClose();
+  quickCriteria = {}; updateFilterBadge();
+  remoteRevision++; clearTimeout(searchTimer);
+  uploadScope = null;
   closePreviewNow();
   closeProps();
   closeSharedClip();
@@ -4360,51 +4491,55 @@ el('logout').onclick = () => {
 
 function scheduleRemote() {
   clearTimeout(searchTimer);
+  const token = ++remoteRevision;
   const q = el('search').value.trim();
   const sb = el('searchBox');
-  if (el('scope').value !== 'global' || q.length < 2) {
+  if (!isPreciseSearch() && (el('scope').value !== 'global' || q.length < 2)) {
     if (sb) sb.classList.remove('is-searching');
     remoteResults = null;
     render();
+    msg('', false);
     return;
   }
   if (sb) sb.classList.add('is-searching');
-  searchTimer = setTimeout(runRemoteSearch, 280);
+  searchTimer = setTimeout(() => { if (token === remoteRevision) void runRemoteSearch(); }, 280);
 }
 
 async function runRemoteSearch() {
   const q = el('search').value.trim();
   const sb = el('searchBox');
-  if (q.length < 2) {
+  if (!isPreciseSearch() && q.length < 2) {
     if (sb) sb.classList.remove('is-searching');
     remoteResults = null;
     render();
     return;
   }
+  const token = ++remoteRevision;
+  const startedIn = current;
+  const params = { path: current, q, deep: el('scope').value === 'global' ? 1 : 0, ...toFilterQuery(quickCriteria) };
   filterCat = 'all';
   animateNextRender = true;
   if (sb) sb.classList.add('is-searching');
-  scheduleSkeleton();
   try {
     msg(t('msgSearching'), false);
-    const data = await (await api('search', { path: current, q })).json();
-    clearSkeleton();
-    if (el('search').value.trim() !== q) return;
+    const data = await (await api('search', params)).json();
+    if (token !== remoteRevision || current !== startedIn || !key) return;
     remoteResults = data.items;
+    listPage = 0;
     selected.clear();
     sizes.clear();
     render();
     msg(data.truncated ? t('msgSearchTruncated') : t('msgSearchFound', { n: data.items.length }), false);
   } catch (e) {
-    clearSkeleton();
-    msg(e.message);
+    if (token === remoteRevision) msg(e.message);
   } finally {
-    if (sb && el('search').value.trim() === q) sb.classList.remove('is-searching');
+    if (sb && token === remoteRevision) sb.classList.remove('is-searching');
   }
 }
 
 async function refreshListing() {
-  if (remoteResults !== null) await runRemoteSearch();
+  if (!key) return;
+  if (remoteResults !== null || isPreciseSearch()) await runRemoteSearch();
   else await show(current);
 }
 
@@ -4412,14 +4547,15 @@ function syncSearchBox() {
   const sb = el('searchBox');
   if (sb) sb.classList.toggle('has-val', !!el('search').value);
 }
-el('search').oninput = () => { lastCheckIdx = -1; syncSearchBox(); if (el('scope').value === 'global') scheduleRemote(); else render(); };
+el('search').oninput = () => { listPage = 0; lastCheckIdx = -1; syncSearchBox(); if (el('scope').value === 'global' || isPreciseSearch()) scheduleRemote(); else render(); };
 el('scope').onchange = () => {
   remoteResults = null;
   lastCheckIdx = -1;
-  if (el('scope').value === 'global') scheduleRemote();
-  else { el('search').value = ''; syncSearchBox(); msg('', false); render(); }
+  listPage = 0;
+  if (el('scope').value === 'global' || isPreciseSearch()) scheduleRemote();
+  else { remoteRevision++; clearTimeout(searchTimer); el('search').value = ''; syncSearchBox(); msg('', false); render(); }
 };
-el('sort').onchange = () => { sortFlip = false; lastCheckIdx = -1; updateSortHeaders(); render(); };
+el('sort').onchange = () => { listPage = 0; sortFlip = false; lastCheckIdx = -1; updateSortHeaders(); render(); };
 el('selectAll').onchange = e => {
   let capped = false;
   for (const item of visible()) {
@@ -5096,6 +5232,7 @@ function abortUploadOnServer(uploadId) {
 }
 
 function cancelQueueItem(item) {
+  if (item.durable) { void discardDraft(item); return; }
   item.aborted = true;
   item.paused = false;
   if (item.controller) { try { item.controller.abort(); } catch (_) {} }
@@ -5114,8 +5251,8 @@ function cancelAllUploads() {
   for (const item of queue.slice()) {
     if (!isTerminal(item.status)) cancelQueueItem(item);
   }
-  queue = [];
-  if (running === 0) queueHide();
+  queue = queue.filter(i => i.durable && !isTerminal(i.status));
+  if (!queue.length && running === 0) queueHide();
 }
 
 el('progressCancel').onclick = cancelAllUploads;
@@ -5147,7 +5284,7 @@ el('queueResumeAll').onclick = () => {
 };
 
 el('queueClear').onclick = () => {
-  queue = queue.filter(i => !isTerminal(i.status) && i.status !== 'error');
+  queue = queue.filter(i => !isTerminal(i.status) && (i.durable || i.status !== 'error'));
   renderQueue();
   if (!queue.length && running === 0) queueHide();
 };
@@ -5189,6 +5326,11 @@ function updateProgressBar() {
 }
 
 function stateLabel(item) {
+  if (item.verifying) return 'SHA-256';
+  if (item.finalizing) return trTransfer('Проверка на телефоне', 'Verifying on phone');
+  if (item.status === 'source') return trTransfer('Нужен исходный файл', 'Source file needed');
+  if (item.status === 'discarding') return trTransfer('Удаление черновика…', 'Discarding draft…');
+  if (item.status === 'retrying') return trTransfer('Повтор подключения…', 'Reconnecting…');
   if (item.status === 'waiting') return t('queueWaiting');
   if (item.status === 'paused' || (item.status === 'uploading' && (item.paused || globalPaused))) return t('queuePaused');
   if (item.status === 'uploading') return t('queueUploading');
@@ -5228,7 +5370,14 @@ function renderQueue() {
       b.onclick = fn;
       actions.append(b);
     };
-    if (item.status === 'waiting') {
+    if (item.status === 'source' || (item.status === 'error' && !item.file)) {
+      addBtn(trTransfer('Выбрать файл', 'Select file'), 'qstart', () => chooseDraftFile(item));
+      addBtn(trTransfer('Удалить черновик', 'Discard draft'), 'qcancel', () => discardDraft(item));
+    } else if (item.status === 'missing') {
+      addBtn(trTransfer('Убрать из очереди', 'Remove from queue'), 'qcancel', () => discardDraft(item));
+    } else if (item.status === 'discardError') {
+      addBtn(trTransfer('Повторить удаление', 'Retry discard'), 'qcancel', () => discardDraft(item));
+    } else if (item.status === 'waiting' || item.status === 'retrying') {
       addBtn(t('btnQueueCancel'), 'qcancel', () => cancelQueueItem(item));
     } else if (item.status === 'uploading') {
       addBtn(t('btnQueuePause'), 'qpause', () => {
@@ -5256,7 +5405,8 @@ function renderQueue() {
         renderQueue();
         drain();
       });
-      addBtn(t('btnDelete'), 'qcancel', () => {
+      addBtn(item.durable ? trTransfer('Удалить черновик', 'Discard draft') : t('btnDelete'), 'qcancel', () => {
+        if (item.durable) { void discardDraft(item); return; }
         abortUploadOnServer(item.uploadId);
         item.uploadId = null;
         const idx = queue.indexOf(item);
@@ -5279,7 +5429,9 @@ function renderQueue() {
 
     const info = document.createElement('span');
     info.className = 'qinfo';
-    if (item.status === 'done') {
+    if (item.verifying) {
+      info.textContent = 'SHA-256 · ' + bytes(item.hashed || 0) + ' / ' + bytes(item.total);
+    } else if (item.status === 'done') {
       info.textContent = bytes(item.total) + ' · ' + t('queueDone');
     } else if (item.error) {
       info.textContent = bytes(item.loaded) + ' / ' + bytes(item.total) + ' — ' + item.error;
@@ -5291,6 +5443,12 @@ function renderQueue() {
     }
     meta.append(bar, info);
 
+    if (item.durable && !isTerminal(item.status)) {
+      const dest = document.createElement('span');
+      dest.className = 'qinfo qdest';
+      dest.textContent = trTransfer('Папка: ', 'Folder: ') + item.parent;
+      meta.append(dest);
+    }
     row.append(head, actions, meta);
     item.row = row;
     list.append(row);
@@ -5324,14 +5482,15 @@ function askConflict(name) {
   return next;
 }
 
-function qItem(file, parent, name, { overwrite = false, unique = false, interactive = true } = {}) {
+function qItem(file, parent, name, { overwrite = false, unique = false, interactive = true, durable = false } = {}) {
   let done = false, resolveRef = null;
   const promise = new Promise(resolve => { resolveRef = resolve; });
   return {
     id: 'u' + Math.random().toString(36).slice(2),
-    file, parent, name, overwrite, unique, interactive,
+    file, parent, name, overwrite, unique, interactive, durable, scope: uploadScope, auth: key,
+    requested: name, verified: false, initialized: false,
     uploadId: null, chunk: 4 * 1024 * 1024,
-    status: 'waiting', loaded: 0, total: file.size, speed: 0,
+    status: 'waiting', loaded: 0, total: file ? file.size : 0, speed: 0,
     error: null, retries: 0, paused: false, aborted: false,
     controller: null, row: null, promise,
     settle: res => { if (!done) { done = true; resolveRef(res); } }
@@ -5347,9 +5506,9 @@ function enqueue(item) {
 }
 
 function drain() {
-  if (globalPaused) return;
+  if (globalPaused || !key || readOnly) return;
   while (running < QMAX) {
-    const item = queue.find(x => x.status === 'waiting' && !x.paused && !x.aborted);
+    const item = queue.find(x => x.status === 'waiting' && !x.paused && !x.aborted && queueOwns(x));
     if (!item) break;
     item.status = 'uploading';
     running++;
@@ -5419,6 +5578,7 @@ function sendUploadChunk(item, baseOffset, piece, onProgress) {
     item.controller = { abort: () => { try { xhr.abort(); } catch (_) {} } };
     xhr.open('POST', '/api/upload-chunk?' + q.toString(), true);
     xhr.setRequestHeader('X-Access-Key', key);
+    xhr.timeout = 120000;
     if (xhr.upload && onProgress) {
       xhr.upload.onprogress = e => {
         if (e.lengthComputable) onProgress(baseOffset + Math.min(e.loaded, piece.size));
@@ -5436,6 +5596,7 @@ function sendUploadChunk(item, baseOffset, piece, onProgress) {
       reject(err);
     };
     xhr.onerror = () => reject(new Error('Network error'));
+    xhr.ontimeout = () => reject(new Error(trTransfer('Нет ответа от телефона', 'No response from the phone')));
     xhr.onabort = () => {
       const err = new Error('Aborted');
       err.name = 'AbortError';
@@ -5453,7 +5614,8 @@ function updateLiveItemRow(item) {
     if (info) {
       const spd = item.speed > 0 ? ' · ' + humanSpeed(item.speed) : '';
       const etaTxt = item.speed > 0 ? humanEta(Math.max(0, item.total - item.loaded), item.speed) : '';
-      info.textContent = bytes(item.loaded) + ' / ' + bytes(item.total) + spd + (etaTxt ? ' · ' + etaTxt : '');
+      info.textContent = item.verifying ? ('SHA-256 · ' + bytes(item.hashed || 0) + ' / ' + bytes(item.total))
+        : bytes(item.loaded) + ' / ' + bytes(item.total) + spd + (etaTxt ? ' · ' + etaTxt : '');
     }
   }
   updateProgressBar();
@@ -5461,8 +5623,9 @@ function updateLiveItemRow(item) {
 
 async function runChunk(item) {
   try {
-    const ready = await initOrResume(item);
+    const ready = await (item.durable ? initRetained(item) : initOrResume(item));
     if (!ready) return;
+    assertQueueItem(item);
 
     let offset = item.loaded;
     let lastBytes = offset;
@@ -5480,17 +5643,22 @@ async function runChunk(item) {
         lastBytes = curBytes;
         lastTime = now;
       }
-      item.loaded = Math.max(offset, Math.min(curBytes, item.total));
+      if (!item.durable) item.loaded = Math.max(offset, Math.min(curBytes, item.total));
       lastPaint = now;
       updateLiveItemRow(item);
     };
 
-    while (offset < item.file.size && !item.aborted && !item.paused && !globalPaused) {
+    while (!item.published && offset < item.file.size) {
+      assertQueueItem(item);
       const piece = item.file.slice(offset, Math.min(offset + item.chunk, item.file.size));
       try {
         const rd = await sendUploadChunk(item, offset, piece, b => sampleProgress(b, false));
+        if (item.durable) {
+          confirmed(item, rd);
+          if (!item.aborted) void Drafts.save(item).catch(() => {});
+        }
         offset = Number(rd.received);
-        item.total = Number(rd.size || item.total);
+        item.total = Number(rd.size ?? item.total);
         item.retries = 0;
         sampleProgress(offset, true);
         item.loaded = offset;
@@ -5528,15 +5696,20 @@ async function runChunk(item) {
       return;
     }
 
-    await api('upload-finish', { id: item.uploadId }, { method: 'POST' });
+    assertQueueItem(item);
+    if (item.durable) await finishRetained(item);
+    else await api('upload-finish', { id: item.uploadId }, { method: 'POST' });
+    if (!queueOwns(item) || item.aborted) return;
     item.uploadId = null;
     item.loaded = item.total;
     item.speed = 0;
     item.status = 'done';
     item.settle({ status: 'done', name: item.name });
+    if (item.restored) await refreshListing();
   } catch (e) {
     item.controller = null;
     item.speed = 0;
+    if (!queueOwns(item) || (item.durable && item.aborted)) return;
     if (item.aborted) {
       const id = item.uploadId;
       item.uploadId = null;
@@ -5549,15 +5722,17 @@ async function runChunk(item) {
     const clientErr = e.status && e.status >= 400 && e.status < 500 && e.status !== 429;
     if (!clientErr && item.retries < 3) {
       item.retries++;
-      item.status = 'waiting';
-      setTimeout(() => drain(), 1200 * item.retries);
+      item.status = 'retrying';
+      setTimeout(() => {
+        if (item.status === 'retrying' && queueOwns(item)) { item.status = 'waiting'; drain(); }
+      }, 900 * item.retries);
       return;
     }
-    if (clientErr && item.uploadId) {
+    if (clientErr && item.uploadId && !item.durable) {
       abortUploadOnServer(item.uploadId);
       item.uploadId = null;
     }
-    item.status = 'error';
+    item.status = item.durable && item.initialized && e.status === 404 ? 'missing' : 'error';
     item.error = e.message || t('queueErrorDefault');
     item.settle({ status: 'error', error: item.error });
   }
@@ -5591,7 +5766,7 @@ async function uploadFiles(list, nameOverrides = null) {
   const targetDir = current;
   const tasks = list.map((f, idx) => {
     const fname = (nameOverrides && nameOverrides[idx]) ? nameOverrides[idx] : f.name;
-    const item = qItem(f, targetDir, fname, { interactive: true });
+    const item = qItem(f, targetDir, fname, { interactive: true, durable: true });
     return enqueue(item).then(res => ({ ...res, label: fname }));
   });
   const results = await Promise.all(tasks);
@@ -5814,12 +5989,12 @@ el('dirInput').onchange = async e => {
 })();
 
 window.addEventListener('beforeunload', e => {
-  if (uploadBusy || isEditorDirty()) { e.preventDefault(); e.returnValue = ''; }
+  if (queue.some(i => (i.status === 'uploading' || i.status === 'waiting') && !i.durable) || isEditorDirty()) { e.preventDefault(); e.returnValue = ''; }
 });
 
 window.addEventListener('paste', e => {
   if (readOnly) return;
-  if (el('app').classList.contains('hidden')) return;
+  if (el('app').classList.contains('hidden') || el('workbench').open) return;
   if (!el('actionDialog').classList.contains('hidden')) return;
   if (!el('propsModal').classList.contains('hidden')) return;
   if (!el('clipModal').classList.contains('hidden')) return;
@@ -5852,6 +6027,8 @@ window.addEventListener('paste', e => {
     pasteFileClip();
   }
 });
+
+initWorkbench();
 
 /* ---------- ссылка с кодом: /#k=XXXX входит автоматически ---------- */
 (function initHashLogin() {

@@ -108,6 +108,8 @@ public final class MainActivity extends Activity {
     private static final int RIPPLE_LIGHT = 0x26ffffff;
     private static final int RIPPLE_DARK = 0x29071015;
 
+    private TextView profileName, profileHint, settingsProfile;
+
     private static final String APP_VERSION = BuildConfig.VERSION_NAME;
     private static final String PREF_LANG = "ui_lang";
 
@@ -619,6 +621,12 @@ public final class MainActivity extends Activity {
 
         TextView[] r5 = addSettingRow(settingsCard, this::editAccessMode, true);
         modeName = r5[0]; modeHint = r5[1]; settingsMode = r5[2];
+
+        TextView[] profilesRow = addSettingRow(settingsCard, this::openProfiles, true);
+        profileName = profilesRow[0]; profileHint = profilesRow[1]; settingsProfile = profilesRow[2];
+        settingsProfile.setMaxWidth(dp(116));
+        settingsProfile.setSingleLine(true);
+        settingsProfile.setEllipsize(TextUtils.TruncateAt.END);
 
         TextView[] r6 = addSettingRow(settingsCard, this::toggleDiscovery, true);
         mdnsName = r6[0]; mdnsHint = r6[1]; settingsDiscovery = r6[2];
@@ -1205,6 +1213,8 @@ public final class MainActivity extends Activity {
         rootHint.setText(tr("Видна в браузере и WebDAV", "Visible in the browser and WebDAV"));
         modeName.setText(tr("Режим доступа", "Access mode"));
         modeHint.setText(tr("Разрешения клиентов в сети", "Permissions for network clients"));
+        profileName.setText(tr("Профили доступа", "Access profiles"));
+        profileHint.setText(tr("Папка и режим одним выбором", "Folder and permissions in one step"));
         mdnsName.setText(tr("Обнаружение mDNS", "mDNS discovery"));
         mdnsHint.setText(tr("Показывать HTTPS в Bonjour/DNS-SD", "Announce HTTPS via Bonjour/DNS-SD"));
         tileName.setText(tr("Плитка PocketBridge", "PocketBridge tile"));
@@ -1525,6 +1535,8 @@ public final class MainActivity extends Activity {
         String root = BridgeOptions.root(this);
         settingsRoot.setText(root == null ? tr("Недоступна", "Unavailable") : root.isEmpty() ? tr("Хранилище", "Storage") : "/" + root);
         settingsMode.setText(BridgeOptions.readOnly(this) ? tr("Чтение", "Read only") : tr("Чтение и запись", "Read/write"));
+        AccessProfiles.Profile profile = AccessProfiles.active(this);
+        settingsProfile.setText(profile == null ? tr("Вручную", "Custom") : profile.name);
         settingsDiscovery.setText(BridgeOptions.discovery(this) ? tr("Вкл", "On") : tr("Выкл", "Off"));
     }
 
@@ -1601,7 +1613,7 @@ public final class MainActivity extends Activity {
             try {
                 File folder = StorageRoot.resolve(Environment.getExternalStorageDirectory(), selection);
                 entries = folder.listFiles(f -> f.isDirectory() && f.canRead()
-                        && !f.getName().contains("\\") && !Files.isSymbolicLink(f.toPath()));
+                        && !f.getName().contains("\\") && !ManagedFiles.hiddenName(f.getName()) && !Files.isSymbolicLink(f.toPath()));
             } catch (Exception unavailable) { entries = null; }
             if (entries != null) Arrays.sort(entries, (a, b) -> a.getName().compareToIgnoreCase(b.getName()));
             final File[] dirs = entries;
@@ -1634,8 +1646,7 @@ public final class MainActivity extends Activity {
                                 return;
                             }
                             if (selection.equals(BridgeOptions.root(this))) return;
-                            prefs.edit().putString(BridgeOptions.ROOT, selection).apply();
-                            applyAccessChange();
+                            applyAccessChange(selection, BridgeOptions.readOnly(this), null);
                         })
                         .setNegativeButton(tr("Отмена", "Cancel"), null).show();
             });
@@ -1650,16 +1661,93 @@ public final class MainActivity extends Activity {
                 .setSingleChoiceItems(choices, ro ? 1 : 0, (dialog, which) -> {
                     dialog.dismiss();
                     if (ro == (which == 1)) return;
-                    prefs.edit().putBoolean(BridgeOptions.READ_ONLY, which == 1).apply();
-                    applyAccessChange();
+                    applyAccessChange(BridgeOptions.root(this), which == 1, null);
                 })
                 .setNegativeButton(tr("Отмена", "Cancel"), null).show();
     }
 
-    private void applyAccessChange() {
-        if (isRunning()) {
-            // Close the old listener and invalidate its sessions before the new scope goes live.
-            service.stopFromUi();
+    private void openProfiles() {
+        List<AccessProfiles.Profile> profiles = AccessProfiles.list(this);
+        AccessProfiles.Profile active = AccessProfiles.active(this);
+        String[] names = new String[profiles.size()];
+        for (int i = 0; i < names.length; i++) {
+            AccessProfiles.Profile p = profiles.get(i);
+            names[i] = (active != null && active.id.equals(p.id) ? "✓  " : "") + p.name + "\n/" + p.root + " · "
+                    + (p.readOnly ? tr("Чтение", "Read only") : tr("Чтение и запись", "Read/write"));
+        }
+        AlertDialog.Builder dialog = new AlertDialog.Builder(this, R.style.AppDialogTheme)
+                .setTitle(tr("Профили доступа", "Access profiles"))
+                .setPositiveButton(tr("Сохранить текущие", "Save current"), (d, w) -> saveProfile())
+                .setNegativeButton(tr("Закрыть", "Close"), null);
+        if (names.length == 0) dialog.setMessage(tr("Выберите общую папку и режим, затем сохраните их как профиль.",
+                "Choose the shared folder and access mode, then save them as a profile."));
+        else dialog.setItems(names, (d, w) -> profileAction(profiles.get(w)));
+        dialog.show();
+    }
+
+    private void saveProfile() {
+        if (!hasAccess()) { requestAccess(); return; }
+        LinearLayout box = column();
+        box.setPadding(dp(22), dp(8), dp(22), dp(4));
+        EditText name = new EditText(this);
+        name.setSingleLine(true);
+        name.setTextColor(WHITE);
+        name.setFilters(new android.text.InputFilter[]{ new android.text.InputFilter.LengthFilter(48) });
+        name.setHint(tr("Например, Фото", "For example, Photos"));
+        box.addView(name, new LinearLayout.LayoutParams(-1, -2));
+        AlertDialog dialog = new AlertDialog.Builder(this, R.style.AppDialogTheme)
+                .setTitle(tr("Имя профиля", "Profile name"))
+                .setView(box)
+                .setPositiveButton(tr("Сохранить", "Save"), null)
+                .setNegativeButton(tr("Отмена", "Cancel"), null).create();
+        dialog.setOnShowListener(d -> dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
+            try {
+                AccessProfiles.saveCurrent(this, name.getText().toString());
+                dialog.dismiss();
+                refreshSettings();
+            } catch (Exception unavailable) {
+                name.setError(tr("Укажите уникальное имя. Проверьте папку и лимит 16 профилей.",
+                        "Use a unique name. Check the folder and the 16-profile limit."));
+            }
+        }));
+        dialog.show();
+    }
+
+    private void profileAction(AccessProfiles.Profile profile) {
+        new AlertDialog.Builder(this, R.style.AppDialogTheme)
+                .setTitle(profile.name)
+                .setMessage("/" + profile.root + " · " + (profile.readOnly ? tr("Только чтение", "Read only") : tr("Чтение и запись", "Read/write"))
+                        + "\n\n" + tr("При переключении активные подключения будут закрыты. Понадобится новый код.",
+                                "Switching closes active connections. Sign in with the new code."))
+                .setPositiveButton(tr("Применить", "Apply"), (d, w) -> {
+                    if (!hasAccess()) { requestAccess(); return; }
+                    AccessProfiles.Profile active = AccessProfiles.active(this);
+                    if (active == null || !active.id.equals(profile.id)) applyAccessChange(profile.root, profile.readOnly, profile.id);
+                })
+                .setNeutralButton(tr("Удалить профиль", "Delete profile"), (d, w) -> {
+                    try { AccessProfiles.delete(this, profile); refreshSettings(); }
+                    catch (Exception failed) { Toast.makeText(this, tr("Не удалось удалить профиль", "Could not delete profile"), Toast.LENGTH_SHORT).show(); }
+                })
+                .setNegativeButton(tr("Отмена", "Cancel"), null).show();
+    }
+
+    private void applyAccessChange(String folder, boolean readOnly, String profileId) {
+        try { AccessProfiles.validate(folder); }
+        catch (Exception unavailable) {
+            Toast.makeText(this, tr("Папка недоступна. Настройки не изменены.", "Folder unavailable. Settings unchanged."), Toast.LENGTH_LONG).show();
+            return;
+        }
+        ServerService running = ServerService.active();
+        if (running == null && isRunning()) running = service;
+        if (running != null) running.stopFromUi();
+        try { AccessProfiles.configure(this, folder, readOnly, profileId); }
+        catch (Exception failed) {
+            Toast.makeText(this, tr("Не удалось применить настройки. Доступ не запущен.",
+                    "Could not apply settings. Access was not started."), Toast.LENGTH_LONG).show();
+            refreshView();
+            return;
+        }
+        if (running != null) {
             key = ServerService.newKey();
             setPending(PENDING_STARTING);
             try { dispatchStartService(key); }
