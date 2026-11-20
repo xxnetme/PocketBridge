@@ -308,7 +308,7 @@ final class FileServer {
 
             if ("GET".equals(parts[0]) && ("/".equals(endpoint) || "/hash-worker.js".equals(endpoint)
                     || "/sha256.min.js".equals(endpoint) || "/transfers.js".equals(endpoint) || "/workbench.js".equals(endpoint)
-                    || "/thumb-session.js".equals(endpoint))) {
+                    || "/thumb-session.js".equals(endpoint) || "/app.css".equals(endpoint))) {
                 boolean page = "/".equals(endpoint);
                 byte[] bytes;
                 try (InputStream a = context.getAssets().open(page ? "index.html" : endpoint.substring(1))) {
@@ -317,7 +317,8 @@ final class FileServer {
                     while ((n = a.read(buf)) != -1) b.write(buf, 0, n);
                     bytes = b.toByteArray();
                 }
-                send(out, 200, page ? "text/html; charset=utf-8" : "application/javascript; charset=utf-8", bytes,
+                String type = page ? "text/html" : "/app.css".equals(endpoint) ? "text/css" : "application/javascript";
+                send(out, 200, type + "; charset=utf-8", bytes,
                         page ? APP_CSP : "Content-Security-Policy: default-src 'none'; script-src 'self'\r\n");
                 return;
             }
