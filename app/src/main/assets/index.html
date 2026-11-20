@@ -1560,6 +1560,7 @@ body:not(.is-readonly) .pb-read-only { display: none !important; }
 
 <script src="/transfers.js"></script>
 <script src="/workbench.js"></script>
+<script src="/thumb-session.js"></script>
 <script>
 'use strict';
 
@@ -2195,7 +2196,10 @@ function safeSet(k, v) { try { localStorage.setItem(k, v); } catch (_) {} }
 
 let currentLang = safeGet('pb-lang') === 'en' ? 'en' : 'ru';
 let uploadScope = null;
-let key = '', sessionToken = null, current = '/', items = [], remoteResults = null;
+let key = '', current = '/', items = [], remoteResults = null;
+const thumbSession = PocketBridgeThumbSession.create(async previous => (await api('session', {}, {
+  method: 'POST', silent: true, headers: previous ? { 'X-PocketBridge-Session': previous } : {}
+})).json());
 let readOnly = false;
 const READ_ONLY_POST = new Set(['session', 'preview-ticket', 'download-ticket', 'zip-ticket', 'download-zip', 'scan-start', 'scan-cancel']);
 const selected = new Set(), sizes = new Map();
@@ -2964,19 +2968,6 @@ function updateSelection() {
   if (el('propsSelected')) el('propsSelected').classList.toggle('hidden', num !== 1);
 }
 
-async function ensureSession(force = false) {
-  if (sessionToken && !force) return sessionToken;
-  const d = await (await api('session', {}, { method: 'POST' })).json();
-  sessionToken = d.token;
-  return sessionToken;
-}
-
-function thumbUrl(item) {
-  return '/thumb?token=' + encodeURIComponent(sessionToken || '')
-    + '&path=' + encodeURIComponent(item.path)
-    + '&w=320&v=' + encodeURIComponent(String(item.modified || 0));
-}
-
 function makeEmptyNode() {
   const searching = remoteResults !== null || !!el('search').value.trim() || filterCat !== 'all';
   const frag = document.createDocumentFragment();
@@ -3069,25 +3060,7 @@ function renderGrid(doAnim = false) {
     };
     const k = item.dir ? '' : kind(item.name);
     if (k === 'image' || k === 'video') {
-      thumb.classList.add('is-loading');
-      const img = document.createElement('img');
-      img.alt = item.name;
-      img.loading = 'lazy';
-      img.onload = () => { img.classList.add('is-ready'); thumb.classList.remove('is-loading'); };
-      img.onerror = async () => {
-        if (!img.dataset.retried && key && (k === 'image' || !sessionToken)) {
-          img.dataset.retried = '1';
-          try {
-            await ensureSession(true);
-            img.src = thumbUrl(item);
-            return;
-          } catch (_) {}
-        }
-        img.remove();
-        showIcon();
-      };
-      img.src = thumbUrl(item);
-      thumb.append(img);
+      thumbSession.append(thumb, item, showIcon);
       if (k === 'video') {
         const pb = document.createElement('span');
         pb.className = 'playbadge';
@@ -3361,7 +3334,7 @@ async function show(path, preloaded = null) {
     clearSkeleton();
     applyAccessMode(data.readOnly === true);
     uploadScope = data.uploadScope || null;
-    await ensureSession().catch(() => {});
+    await thumbSession.ensure().catch(() => {});
     if (token !== generation) return;
     current = data.path;
     items = data.items;
@@ -4470,7 +4443,7 @@ el('logout').onclick = () => {
   lastCheckIdx = -1;
   selected.clear();
   sizes.clear();
-  sessionToken = null;
+  thumbSession.reset();
   clearSkeleton();
   renderStorage();
   updateClipDot(false);

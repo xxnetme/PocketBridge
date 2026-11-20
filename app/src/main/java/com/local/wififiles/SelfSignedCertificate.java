@@ -7,9 +7,13 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.math.BigInteger;
+import java.net.Inet4Address;
+import java.net.InetAddress;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.KeyStore;
@@ -19,27 +23,39 @@ import java.security.cert.Certificate;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Calendar;
+import java.util.Collection;
 import java.util.Date;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import java.util.TimeZone;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 
 /**
  * Самоподписанный сертификат X.509 v3 для HTTPS: генерируется при первом запуске
- * (и автоматически пересоздаётся при истечении срока) в приватном каталоге приложения.
+ * в приватном каталоге приложения. Обновляется при изменении адресов или истечении срока.
  * Кодирование DER реализовано без внешних библиотек по RFC 5280.
  */
 final class SelfSignedCertificate {
     private static final char[] PASSWORD = "wififiles".toCharArray();
     private static final String ALIAS = "server";
+    private static final String[] DNS_NAMES = {"pocketbridge.local", "localhost"};
     private static final long RENEW_BEFORE_MS = 7L * 24 * 3600 * 1000;
 
     private SelfSignedCertificate() {}
 
-    static SSLContext createContext(File dir) throws Exception {
-        KeyStore store = loadOrCreate(dir);
+    static SSLContext createContext(File dir, List<InetAddress> advertised) throws Exception {
+        Set<InetAddress> ipNames = new LinkedHashSet<>();
+        ipNames.add(InetAddress.getByAddress(new byte[]{127, 0, 0, 1}));
+        for (InetAddress ip : advertised) {
+            if (ip instanceof Inet4Address && LanAddresses.allowed(ip)) ipNames.add(ip);
+        }
+        KeyStore store = loadOrCreate(dir, ipNames);
         KeyManagerFactory factory = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
         factory.init(store, PASSWORD);
         SSLContext context = SSLContext.getInstance("TLS");
@@ -47,7 +63,7 @@ final class SelfSignedCertificate {
         return context;
     }
 
-    private static KeyStore loadOrCreate(File dir) throws Exception {
+    private static synchronized KeyStore loadOrCreate(File dir, Set<InetAddress> ipNames) throws Exception {
         if (!dir.isDirectory() && !dir.mkdirs()) throw new IOException("Нет доступа к каталогу сертификата");
         File file = new File(dir, "server-identity.p12");
         KeyStore store = KeyStore.getInstance("PKCS12");
@@ -59,7 +75,7 @@ final class SelfSignedCertificate {
                     X509Certificate x509 = (X509Certificate) existing;
                     x509.checkValidity();
                     x509.checkValidity(new Date(System.currentTimeMillis() + RENEW_BEFORE_MS));
-                    return store;
+                    if (matchesNames(x509, ipNames)) return store;
                 }
             } catch (Exception ignored) {
                 // повреждённый или истёкший сертификат — пересоздаём
@@ -70,17 +86,32 @@ final class SelfSignedCertificate {
         KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
         generator.initialize(2048, new SecureRandom());
         KeyPair pair = generator.generateKeyPair();
-        X509Certificate certificate = build(pair);
+        X509Certificate certificate = build(pair, ipNames);
         store.setKeyEntry(ALIAS, pair.getPrivate(), PASSWORD, new Certificate[]{certificate});
-        try (OutputStream out = new FileOutputStream(file)) {
-            store.store(out, PASSWORD);
+        Path tmp = Files.createTempFile(dir.toPath(), "server-identity-", ".tmp");
+        try {
+            try (FileOutputStream out = new FileOutputStream(tmp.toFile())) {
+                store.store(out, PASSWORD);
+                out.getFD().sync();
+            }
+            Files.move(tmp, file.toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+        } finally {
+            Files.deleteIfExists(tmp);
         }
         return store;
     }
 
+    private static boolean matchesNames(X509Certificate certificate, Set<InetAddress> ipNames) throws Exception {
+        Set<List<?>> expected = new LinkedHashSet<>();
+        for (String name : DNS_NAMES) expected.add(Arrays.asList(2, name));
+        for (InetAddress ip : ipNames) expected.add(Arrays.asList(7, ip.getHostAddress()));
+        Collection<List<?>> actual = certificate.getSubjectAlternativeNames();
+        return actual != null && expected.equals(new LinkedHashSet<>(actual));
+    }
+
     /* ---------- X.509 v3, DER (RFC 5280) ---------- */
 
-    private static X509Certificate build(KeyPair pair) throws Exception {
+    private static X509Certificate build(KeyPair pair, Set<InetAddress> ipNames) throws Exception {
         byte[] sha256Rsa = oid("1.2.840.113549.1.1.11");
         byte[] algId = seq(sha256Rsa, der(0x05, new byte[0])); // NULL
 
@@ -100,10 +131,10 @@ final class SelfSignedCertificate {
         byte[] extBasicConstraints = seq(oid("2.5.29.19"), boolTrue(), octet(seq()));
         byte[] extKeyUsage = seq(oid("2.5.29.15"), boolTrue(), octet(der(0x03, new byte[]{0x05, (byte) 0xA0})));
         byte[] extEku = seq(oid("2.5.29.37"), octet(seq(oid("1.3.6.1.5.5.7.3.1"))));
-        byte[] extSan = seq(oid("2.5.29.17"), octet(seq(
-                der(0x82, "pocketbridge.local".getBytes(StandardCharsets.US_ASCII)),
-                der(0x82, "localhost".getBytes(StandardCharsets.US_ASCII)),
-                der(0x87, new byte[]{127, 0, 0, 1}))));
+        List<byte[]> names = new ArrayList<>();
+        for (String name : DNS_NAMES) names.add(der(0x82, name.getBytes(StandardCharsets.US_ASCII)));
+        for (InetAddress ip : ipNames) names.add(der(0x87, ip.getAddress()));
+        byte[] extSan = seq(oid("2.5.29.17"), octet(seq(names.toArray(new byte[0][]))));
         byte[] extensions = der(0xA3, seq(extBasicConstraints, extKeyUsage, extEku, extSan));
 
         byte[] tbs = seq(

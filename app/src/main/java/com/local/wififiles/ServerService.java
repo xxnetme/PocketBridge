@@ -17,9 +17,11 @@ import android.util.Log;
 import android.widget.Toast;
 
 import java.io.File;
+import java.net.InetAddress;
 import java.security.SecureRandom;
+import java.util.Collections;
+import java.util.List;
 import java.util.Locale;
-
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -49,6 +51,7 @@ public final class ServerService extends Service {
     private static ServerService active;
     private final Handler main = new Handler(Looper.getMainLooper());
     private volatile FileServer server;
+    private List<InetAddress> certifiedAddresses = Collections.emptyList();
     private LanDiscovery discovery;
     private String discoveryName;
     private String key = "";
@@ -67,6 +70,7 @@ public final class ServerService extends Service {
     boolean isRunning() { return server != null; }
     boolean isReadOnly() { FileServer s = server; return s != null && s.isReadOnly(); }
     String discoveryName() { return discoveryName; }
+    List<InetAddress> certifiedAddresses() { return certifiedAddresses; }
 
     static String newKey() {
         byte[] bytes = new byte[8];
@@ -135,11 +139,13 @@ public final class ServerService extends Service {
             return START_NOT_STICKY;
         }
         try {
-            SSLContext ssl = SelfSignedCertificate.createContext(getFilesDir());
+            List<InetAddress> addresses = LanAddresses.advertised();
+            SSLContext ssl = SelfSignedCertificate.createContext(getFilesDir(), addresses);
             int preferredPort = safePrefInt(PREF_PORT, DEFAULT_PORT);
             server = new FileServer(this, root, key, ssl, getCacheDir(), preferredPort, BridgeOptions.readOnly(this));
             server.setClipboardListener(this::notifyListeners);
             port = server.start();
+            certifiedAddresses = addresses;
             acquireWifiLock();
             startWatchdog();
         } catch (Exception e) {
@@ -252,6 +258,7 @@ public final class ServerService extends Service {
         stopDiscovery();
         FileServer old = server;
         server = null;
+        certifiedAddresses = Collections.emptyList();
         if (active == this) active = null;
         if (old != null) old.stop();
         releaseWifiLock();

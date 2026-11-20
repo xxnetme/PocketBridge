@@ -49,6 +49,7 @@ public class Test {
             accessModeAndInboxTests();
             SelectedFeaturesTest.run();
             tlsTests();
+            ReviewRegressionTest.run();
         } finally {
             cleanupDir(TMP);
         }
@@ -1577,7 +1578,7 @@ public class Test {
     /* ---------------- HTTPS ---------------- */
     static void tlsTests() throws Exception {
         File tlsDir = new File(TMP, "tls");
-        SSLContext serverTls = SelfSignedCertificate.createContext(tlsDir);
+        SSLContext serverTls = SelfSignedCertificate.createContext(tlsDir, Collections.emptyList());
         FileServer server = new FileServer(new Context(new File(ASSETS)), ROOT, KEY, serverTls);
         int port = server.start();
         SSLContext clientTls = SSLContext.getInstance("TLS");
@@ -1612,7 +1613,7 @@ public class Test {
             check("сертификат действует ~2 года", notAfter.after(new java.util.Date(System.currentTimeMillis() + 365L * 24 * 3600 * 1000)), notAfter.toString());
         } finally { server.stop(); }
 
-        SSLContext second = SelfSignedCertificate.createContext(tlsDir);
+        SSLContext second = SelfSignedCertificate.createContext(tlsDir, Collections.emptyList());
         java.security.KeyStore a = java.security.KeyStore.getInstance("PKCS12");
         java.security.KeyStore b = java.security.KeyStore.getInstance("PKCS12");
         a.load(new FileInputStream(new File(tlsDir, "server-identity.p12")), "wififiles".toCharArray());

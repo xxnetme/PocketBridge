@@ -23,7 +23,7 @@ echo "→ Компилирую сервер и заглушки Android API"
   echo app/src/main/java/com/local/wififiles/WebDav.java
   echo app/src/main/java/com/local/wififiles/StorageRoot.java
   echo app/src/main/java/com/local/wififiles/ShareInbox.java
-  for class in ManagedFiles TrashStore RetainedUploads BatchRenames FolderScans; do echo "app/src/main/java/com/local/wififiles/$class.java"; done
+  for class in ManagedFiles TrashStore RetainedUploads BatchRenames FolderScans LanAddresses ThumbnailSessions LegacyUploads DavFiles; do echo "app/src/main/java/com/local/wififiles/$class.java"; done
   find server-tests/src -name '*.java'
 } > "$OUT/sources.txt"
 javac -encoding UTF-8 -d "$OUT" -cp "$JSON_JAR" @"$OUT/sources.txt"

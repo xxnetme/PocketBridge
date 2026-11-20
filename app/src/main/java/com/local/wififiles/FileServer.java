@@ -40,11 +40,8 @@ final class FileServer {
     private static final int REQUEST_TIMEOUT_MS = 120000;
     private static final int BODY_TIMEOUT_MS = 600000;
     private static final int ZIP_MAX_FILES = 5000;
-    private static final long SESSION_TTL = 2L * 60 * 60 * 1000;
-    private static final int SESSION_LIMIT = 16;
     private static final int THUMB_WIDTH = 320;
     private static final int CHUNK_MAX = 32 * 1024 * 1024;
-    private static final long UPLOAD_TTL = 6L * 60 * 60 * 1000;
     private static final long THUMB_CACHE_LIMIT = 200L * 1024 * 1024;
     private static final long THUMB_CLEANUP_INTERVAL_MS = 60_000L;
     static final int CLIPBOARD_MAX_CHARS = 65_536;
@@ -88,8 +85,8 @@ final class FileServer {
     private ThreadPoolExecutor workers;
     private final Set<Socket> connections = ConcurrentHashMap.newKeySet();
     private final Map<String, Ticket> tickets = new ConcurrentHashMap<>();
-    private final Map<String, Long> sessions = new ConcurrentHashMap<>();
-    private final Map<String, Upload> uploads = new ConcurrentHashMap<>();
+    private final ThumbnailSessions sessions = new ThumbnailSessions();
+    private final LegacyUploads uploads = new LegacyUploads();
     private final Set<String> failedVideoThumbs = ConcurrentHashMap.newKeySet();
     private final AtomicLong lastThumbCleanup = new AtomicLong(0);
     private final WebDav dav;
@@ -99,20 +96,6 @@ final class FileServer {
     private final FolderScans scans;
     private ScheduledExecutorService maintenance;
     private volatile boolean stopped;
-
-    /** Докачиваемая загрузка: файл пишется по частям в .part и переименовывается в конце. */
-    private static final class Upload {
-        final String id, name;
-        final File parent, tmp;
-        final long size;
-        final boolean overwrite;
-        final long created;
-        volatile long received;
-        Upload(String id, String name, File parent, File tmp, long size, boolean overwrite) {
-            this.id = id; this.name = name; this.parent = parent; this.tmp = tmp;
-            this.size = size; this.overwrite = overwrite; this.created = System.currentTimeMillis();
-        }
-    }
 
     private volatile long lastActivity = System.currentTimeMillis();
     private volatile long startedAt;
@@ -180,7 +163,7 @@ final class FileServer {
     }
     boolean isRecentlyActive(long windowMs) {
         if (windowMs <= 0L) return false;
-        if (!connections.isEmpty() || !uploads.isEmpty()) return true;
+        if (!connections.isEmpty() || uploads.size() != 0) return true;
         long t = lastClientTouch;
         return t > 0L && (System.currentTimeMillis() - t) <= windowMs;
     }
@@ -230,7 +213,7 @@ final class FileServer {
             while (!listener.isClosed()) {
                 try {
                     Socket s = listener.accept();
-                    if (!allowedAddress(s.getInetAddress())) { s.close(); continue; }
+                    if (!LanAddresses.allowed(s.getInetAddress())) { s.close(); continue; }
                     s.setSoTimeout(HEAD_TIMEOUT_MS);
                     connections.add(s);
                     if (stopped) { connections.remove(s); s.close(); break; }
@@ -256,20 +239,12 @@ final class FileServer {
             });
             maintenance.scheduleWithFixedDelay(() -> {
                 if (stopped) return;
+                uploads.expire();
                 retained.cleanup();
                 try { trash.cleanup(); } catch (Exception ignored) {}
             }, 0, 30, TimeUnit.MINUTES);
         }
         return listener.getLocalPort();
-    }
-
-    /** Локальные сети: RFC1918, loopback, CGNAT 100.64/10, IPv6 ULA и link-local. */
-    static boolean allowedAddress(InetAddress ip) {
-        if (ip.isLoopbackAddress() || ip.isSiteLocalAddress()) return true;
-        byte[] b = ip.getAddress();
-        if (b.length == 4) { int second = b[1] & 0xff; return (b[0] & 0xff) == 100 && second >= 64 && second <= 127; }
-        if (b.length == 16) { int first = b[0] & 0xff; if (first == 0xfc || first == 0xfd) return true; return first == 0xfe && (b[1] & 0xc0) == 0x80; }
-        return false;
     }
 
     private static void rejectBusy(Socket s) {
@@ -279,6 +254,8 @@ final class FileServer {
 
     void stop() {
         stopped = true;
+        uploads.close();
+        sessions.close();
         retained.stop();
         scans.stop();
         renames.clear();
@@ -287,9 +264,6 @@ final class FileServer {
         for (Socket s : connections) try { s.close(); } catch (IOException ignored) {}
         if (workers != null) workers.shutdownNow();
         tickets.clear();
-        sessions.clear();
-        for (Upload upload : uploads.values()) try { upload.tmp.delete(); } catch (Exception ignored) {}
-        uploads.clear();
         failedVideoThumbs.clear();
         synchronized (clipLock) { clipText = ""; clipUpdatedAt = 0L; clipSource = ""; }
         clipboardListener = null;
@@ -333,7 +307,8 @@ final class FileServer {
             s.setSoTimeout(body ? BODY_TIMEOUT_MS : REQUEST_TIMEOUT_MS);
 
             if ("GET".equals(parts[0]) && ("/".equals(endpoint) || "/hash-worker.js".equals(endpoint)
-                    || "/sha256.min.js".equals(endpoint) || "/transfers.js".equals(endpoint) || "/workbench.js".equals(endpoint))) {
+                    || "/sha256.min.js".equals(endpoint) || "/transfers.js".equals(endpoint) || "/workbench.js".equals(endpoint)
+                    || "/thumb-session.js".equals(endpoint))) {
                 boolean page = "/".equals(endpoint);
                 byte[] bytes;
                 try (InputStream a = context.getAssets().open(page ? "index.html" : endpoint.substring(1))) {
@@ -383,7 +358,7 @@ final class FileServer {
                 else if ("GET".equals(parts[0]) && "/api/search".equals(endpoint)) { search(out, q); }
                 else if ("GET".equals(parts[0]) && "/api/download".equals(endpoint)) { download(out, q.getOrDefault("path", "/"), headers.get("range")); }
                 else if ("GET".equals(parts[0]) && "/api/size".equals(endpoint)) { folderSize(out, q.getOrDefault("path", "/")); }
-                else if ("POST".equals(parts[0]) && "/api/session".equals(endpoint)) { session(out); }
+                else if ("POST".equals(parts[0]) && "/api/session".equals(endpoint)) { session(out, headers.get("x-pocketbridge-session")); }
                 else if ("POST".equals(parts[0]) && "/api/mkdirs".equals(endpoint)) { synchronized (ManagedFiles.NAMESPACE) { checkRunning(); mkdirs(out, q.get("path")); } }
                 else if ("POST".equals(parts[0]) && "/api/preview-ticket".equals(endpoint)) { previewTicket(out, q.get("path")); }
                 else if ("POST".equals(parts[0]) && "/api/download-ticket".equals(endpoint)) { downloadTicket(out, q.get("path")); }
@@ -739,25 +714,6 @@ final class FileServer {
         return f;
     }
 
-    private String issueSession() {
-        long now = System.currentTimeMillis();
-        for (Map.Entry<String, Long> e : sessions.entrySet()) if (e.getValue() < now) sessions.remove(e.getKey());
-        if (sessions.size() >= SESSION_LIMIT) sessions.clear();
-        byte[] random = new byte[16];
-        new SecureRandom().nextBytes(random);
-        StringBuilder id = new StringBuilder(32);
-        for (byte b : random) id.append(String.format(Locale.US, "%02x", b & 255));
-        sessions.put(id.toString(), now + SESSION_TTL);
-        return id.toString();
-    }
-
-    private void requireSession(String token) throws ApiException {
-        Long expires = token == null ? null : sessions.get(token);
-        if (expires == null || expires < System.currentTimeMillis()) {
-            throw new ApiException(403, "Сессия истекла. Обновите страницу.");
-        }
-    }
-
     private String issue(String type, String path, String mime, String name, List<ZipItem> items, long ttl) throws IOException {
         long now = System.currentTimeMillis();
         for (Map.Entry<String, Ticket> e : tickets.entrySet()) if (e.getValue().expires < now) tickets.remove(e.getKey());
@@ -770,11 +726,11 @@ final class FileServer {
         return id.toString();
     }
 
-    private void session(OutputStream out) throws Exception {
-        JSONObject json = new JSONObject();
-        json.put("token", issueSession());
-        json.put("ttl", SESSION_TTL);
-        send(out, 200, "application/json; charset=utf-8", json.toString().getBytes(StandardCharsets.UTF_8), null);
+    private void session(OutputStream out, String previous) throws Exception {
+        JSONObject data = new JSONObject();
+        data.put("token", sessions.issue(previous));
+        data.put("ttl", ThumbnailSessions.TTL_MS);
+        json(out, data);
     }
 
     private void mkdirs(OutputStream out, String path) throws Exception {
@@ -792,7 +748,7 @@ final class FileServer {
     }
 
     private void thumbnail(OutputStream out, String token, String path, String width) throws Exception {
-        requireSession(token);
+        sessions.require(token);
         File f = readable(path);
         String mime = mediaMime(f);
         boolean image = mime != null && mime.startsWith("image/");
@@ -2057,16 +2013,6 @@ final class FileServer {
         throw new ApiException(409, "Не удалось подобрать свободное имя");
     }
 
-    private void cleanupUploads() {
-        long now = System.currentTimeMillis();
-        for (Map.Entry<String, Upload> e : uploads.entrySet()) {
-            if (now - e.getValue().created > UPLOAD_TTL) {
-                Upload upload = uploads.remove(e.getKey());
-                if (upload != null) upload.tmp.delete();
-            }
-        }
-    }
-
     private void cleanupThumbsCache(boolean force) {
         if (cacheDir == null) return;
         long now = System.currentTimeMillis();
@@ -2089,13 +2035,6 @@ final class FileServer {
         }
     }
 
-    private Upload requireUpload(String id) throws ApiException {
-        cleanupUploads();
-        Upload upload = id == null ? null : uploads.get(id);
-        if (upload == null) throw new ApiException(404, "Загрузка не найдена или устарела. Начните заново.");
-        return upload;
-    }
-
     private void uploadInit(OutputStream out, Map<String, String> q) throws Exception {
         if (q.containsKey("id") || q.containsKey("sha256")) {
             File parent = resolve(q.getOrDefault("path", "/"));
@@ -2105,7 +2044,6 @@ final class FileServer {
                     q.get("sha256"), "1".equals(q.get("overwrite")), "1".equals(q.get("unique"))));
             return;
         }
-        cleanupUploads();
         File parent = resolve(q.getOrDefault("path", "/"));
         if (!parent.isDirectory()) throw new ApiException(400, "Папка недоступна");
         String name = q.get("name");
@@ -2117,25 +2055,24 @@ final class FileServer {
         long size;
         try { size = Long.parseLong(q.getOrDefault("size", "-1")); } catch (Exception e) { size = -1; }
         if (size < 0 || size > MAX_UPLOAD) throw new ApiException(400, "Некорректный размер файла");
-        if (uploads.size() >= 32) throw new ApiException(429, "Слишком много одновременных загрузок");
-        byte[] random = new byte[12];
-        new SecureRandom().nextBytes(random);
-        StringBuilder id = new StringBuilder(24);
-        for (byte b : random) id.append(String.format(Locale.US, "%02x", b & 255));
-        File tmp = File.createTempFile(".wifi-upload-", ".part", parent);
-        Upload upload = new Upload(id.toString(), target.getName(), parent, tmp, size, overwrite);
-        uploads.put(upload.id, upload);
-        JSONObject json = new JSONObject();
-        json.put("uploadId", upload.id);
-        json.put("name", upload.name);
-        json.put("chunk", 4 * 1024 * 1024);
-        json.put("received", 0);
-        send(out, 200, "application/json; charset=utf-8", json.toString().getBytes(StandardCharsets.UTF_8), null);
+        LegacyUploads.Upload upload;
+        synchronized (ManagedFiles.NAMESPACE) {
+            checkRunning();
+            upload = uploads.create(parent, target.getName(), size, overwrite);
+        }
+        boolean sent = false;
+        try {
+            json(out, new JSONObject().put("uploadId", upload.id).put("name", upload.name)
+                    .put("chunk", 4 * 1024 * 1024).put("received", 0));
+            sent = true;
+        } finally {
+            if (!sent) uploads.discard(upload);
+        }
     }
 
     private void uploadStatus(OutputStream out, Map<String, String> q) throws Exception {
         if (RetainedUploads.isId(q.get("id"))) { json(out, retained.status(q.get("id"))); return; }
-        Upload upload = requireUpload(q.get("id"));
+        LegacyUploads.Upload upload = uploads.require(q.get("id"));
         JSONObject json = new JSONObject();
         json.put("uploadId", upload.id);
         json.put("name", upload.name);
@@ -2156,75 +2093,22 @@ final class FileServer {
             json(out, result, "X-Upload-Received: " + result.getLong("received") + "\r\n");
             return;
         }
-        Upload upload = requireUpload(q.get("id"));
-        long newReceived;
-        synchronized (upload) {
-            if (offset != upload.received) {
-                throw new ApiException(409, "Несовпадение смещения: ожидается " + upload.received,
-                        "X-Upload-Received: " + upload.received + "\r\n");
-            }
-            if (upload.received + length > upload.size) throw new ApiException(400, "Часть выходит за размер файла");
-            byte[] buffer = new byte[Math.min(65536, length)];
-            long remaining = length;
-            long written = 0;
-            try (OutputStream file = new BufferedOutputStream(new FileOutputStream(upload.tmp, true))) {
-                while (remaining > 0) {
-                    int n = in.read(buffer, 0, (int) Math.min(buffer.length, remaining));
-                    if (n < 0) break;
-                    file.write(buffer, 0, n);
-                    written += n;
-                    remaining -= n;
-                }
-                file.flush();
-            }
-            upload.received += written;
-            if (remaining > 0) throw new IOException("Передача прервана");
-            newReceived = upload.received;
-        }
-        JSONObject json = new JSONObject();
-        json.put("received", newReceived);
-        json.put("size", upload.size);
-        send(out, 200, "application/json; charset=utf-8", json.toString().getBytes(StandardCharsets.UTF_8), null);
+        LegacyUploads.Upload upload = uploads.require(q.get("id"));
+        long received = uploads.append(upload, offset, length, in);
+        json(out, new JSONObject().put("received", received).put("size", upload.size));
     }
 
     private void uploadFinish(OutputStream out, Map<String, String> q) throws Exception {
         if (RetainedUploads.isId(q.get("id"))) { json(out, retained.finish(q.get("id"))); return; }
-        Upload upload = requireUpload(q.get("id"));
-        synchronized (upload) {
-            if (upload.received != upload.size) {
-                throw new ApiException(409, "Загружено " + upload.received + " из " + upload.size + " байт",
-                        "X-Upload-Received: " + upload.received + "\r\n");
-            }
-            File target = new File(upload.parent, upload.name);
-            boolean ok = false;
-            try {
-                synchronized (ManagedFiles.NAMESPACE) {
-                    checkRunning();
-                    ManagedFiles.directory(upload.parent.toPath());
-                    if (Files.exists(target.toPath(), ManagedFiles.NOFOLLOW) && !upload.overwrite) throw new ApiException(409, "Файл с таким именем уже существует");
-                    if (upload.overwrite) Files.move(upload.tmp.toPath(), target.toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
-                    else Files.move(upload.tmp.toPath(), target.toPath());
-                }
-                ok = true;
-            } finally {
-                uploads.remove(upload.id);
-                if (!ok) upload.tmp.delete();
-            }
-        }
-        JSONObject json = new JSONObject();
-        json.put("ok", true);
-        json.put("name", upload.name);
-        json.put("size", upload.size);
-        send(out, 200, "application/json; charset=utf-8", json.toString().getBytes(StandardCharsets.UTF_8), null);
+        LegacyUploads.Upload upload = uploads.require(q.get("id"));
+        uploads.finish(upload);
+        json(out, new JSONObject().put("ok", true).put("name", upload.name).put("size", upload.size));
     }
 
     private void uploadAbort(OutputStream out, Map<String, String> q) throws Exception {
         String id = q.get("id");
         if (RetainedUploads.isId(id)) { json(out, retained.abort(id)); return; }
-        Upload upload = id == null ? null : uploads.remove(id);
-        if (upload != null) {
-            synchronized (upload) { upload.tmp.delete(); }
-        }
+        uploads.abort(id);
         ok(out);
     }
 

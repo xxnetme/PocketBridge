@@ -376,10 +376,69 @@ async function mobile() {
   await context.close();
 }
 
+async function thumbnailCapacity() {
+  const freshContext = async () => {
+    const context = await browser.newContext({ ignoreHTTPSErrors: true });
+    await context.addInitScript(() => localStorage.setItem('pb-lang', 'en'));
+    return context;
+  };
+  const existing = await freshContext();
+  try {
+    const page = await login(existing, newKey);
+    await folder(page, 'Thumbnails');
+    let full = false;
+    for (let i = 0; i <= 16; i++) {
+      const r = await existing.request.post(`${serverUrl}/api/session`, { headers: { 'X-Access-Key': newKey } });
+      if (r.status() === 429) {
+        assert.ok(Number(r.headers()['retry-after']) > 0);
+        full = true;
+        break;
+      }
+      assert.equal(r.status(), 200);
+    }
+    assert.ok(full, 'Thumbnail slots should be full');
+    const renewals = [], firstTokens = [], retryTokens = [];
+    page.on('request', r => {
+      if (new URL(r.url()).pathname === '/api/session') renewals.push(r.headers()['x-pocketbridge-session']);
+    });
+    await page.route('**/thumb?**', async route => {
+      const query = new URL(route.request().url()).searchParams;
+      if (!query.has('retry')) {
+        firstTokens.push(query.get('token'));
+        await route.fulfill({ status: 403, body: 'Synthetic failed image request' });
+      } else {
+        retryTokens.push(query.get('token'));
+        await route.continue();
+      }
+    });
+    await page.click('#view');
+    await page.waitForFunction(() => document.querySelectorAll('#grid img.is-ready').length === 2);
+    assert.equal(firstTokens.length, 2);
+    assert.deepEqual(renewals, [firstTokens[0]]);
+    assert.deepEqual(retryTokens, firstTokens);
+    report('Two failed thumbnails share one renewal at capacity and keep the same token');
+
+    const extra = await freshContext();
+    try {
+      let requests = 0;
+      extra.on('request', r => { if (new URL(r.url()).pathname === '/api/session') requests++; });
+      const newPage = await login(extra, newKey);
+      await folder(newPage, 'Thumbnails');
+      await newPage.click('#view');
+      await newPage.waitForFunction(() => document.querySelectorAll('#grid .cardicon').length === 2);
+      assert.equal(await newPage.locator('#grid img').count(), 0);
+      assert.equal(requests, 1, '429 backoff should suppress duplicate session requests');
+      report('A new tab at capacity still browses files with icon fallbacks');
+    } finally { await extra.close(); }
+  } finally { await existing.close(); }
+}
+
 (async () => {
-  for (const dir of ['Tools', 'Search', 'CompareA', 'CompareB', 'Large']) fs.mkdirSync(path.join(root, dir), { recursive: true });
+  for (const dir of ['Tools', 'Search', 'CompareA', 'CompareB', 'Large', 'Thumbnails']) fs.mkdirSync(path.join(root, dir), { recursive: true });
   const put = (p, data) => fs.writeFileSync(path.join(root, p), data);
   put('Tools/a.txt', 'one'); put('Tools/b.txt', 'two');
+  const icon = '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32"><rect width="32" height="32" fill="green"/></svg>';
+  put('Thumbnails/one.svg', icon); put('Thumbnails/two.svg', icon);
   for (const [f, size, date] of [['good.jpg', 20000, '2025-04-15'], ['bad.png', 20000, '2025-04-15'],
     ['small.jpg', 100, '2025-04-15'], ['old.jpg', 20000, '2025-02-15']]) {
     put('Search/' + f, Buffer.alloc(size));
@@ -396,6 +455,7 @@ async function mobile() {
   await toolsTest(context, await transferControls(context, page));
   await context.close();
   await mobile();
+  await thumbnailCapacity();
   assert.deepEqual(events, [], 'browser JS errors');
   report('No unhandled JavaScript errors');
 })().catch(e => { console.error(e.stack || e); process.exitCode = 1; }).finally(async () => {

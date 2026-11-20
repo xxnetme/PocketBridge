@@ -54,10 +54,6 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.google.zxing.BarcodeFormat;
-import com.google.zxing.EncodeHintType;
-import com.google.zxing.common.BitMatrix;
-import com.google.zxing.qrcode.QRCodeWriter;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
@@ -68,21 +64,14 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
-import java.net.Inet4Address;
 import java.net.InetAddress;
-import java.net.NetworkInterface;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
-import java.util.LinkedHashSet;
 import java.util.Date;
-import java.util.EnumMap;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 
 public final class MainActivity extends Activity {
     private static final int BG = 0xff071015;
@@ -1259,12 +1248,20 @@ public final class MainActivity extends Activity {
 
     private void updateAddresses() {
         nextAddressCheck = SystemClock.uptimeMillis() + 3000L;
-        List<String> ips = ipAddresses();
-        boolean hasIp = !ips.isEmpty();
-        firstAddress = hasIp ? "https://" + ips.get(0) + ":" + port : "";
-        List<String> urls = new ArrayList<>();
-        for (String ip : ips) urls.add("https://" + ip + ":" + port);
-        addressText.setText(hasIp ? String.join("\n", urls) : tr("Нет локального адреса", "No local address"));
+        List<InetAddress> current = LanAddresses.advertised();
+        List<InetAddress> certified = service.certifiedAddresses();
+        List<String> urls = LanAddresses.httpsUrls(current, certified, port);
+        boolean hasIp = !urls.isEmpty();
+        firstAddress = hasIp ? urls.get(0) : "";
+        String shown = hasIp ? String.join("\n", urls) : "";
+        if (!certified.containsAll(current)) {
+            if (hasIp) shown += "\n";
+            shown += tr("Сеть изменилась. Чтобы использовать новый адрес, остановите и запустите доступ.",
+                    "Network changed. Stop and start access to use the new address.");
+        } else if (!hasIp) {
+            shown = tr("Нет локального адреса", "No local address");
+        }
+        addressText.setText(shown);
         davText.setText(hasIp ? davUrl() : "—");
         setControlEnabled(copyAddress, hasIp);
         setControlEnabled(copyLink, hasIp);
@@ -1292,7 +1289,7 @@ public final class MainActivity extends Activity {
             return;
         }
         if (!link.equals(lastQrLink)) {
-            Bitmap fresh = renderQrBitmap(link, 512);
+            Bitmap fresh = ConnectionQr.render(link, 512);
             if (fresh != null) {
                 Bitmap old = currentQrBitmap;
                 currentQrBitmap = fresh;
@@ -1322,28 +1319,6 @@ public final class MainActivity extends Activity {
         } else {
             qrSection.setVisibility(View.VISIBLE);
             qrImage.setAlpha(1f);
-        }
-    }
-
-    private static Bitmap renderQrBitmap(String content, int size) {
-        try {
-            Map<EncodeHintType, Object> hints = new EnumMap<>(EncodeHintType.class);
-            hints.put(EncodeHintType.CHARACTER_SET, "UTF-8");
-            hints.put(EncodeHintType.MARGIN, 1);
-            BitMatrix matrix = new QRCodeWriter().encode(content, BarcodeFormat.QR_CODE, size, size, hints);
-            int w = matrix.getWidth(), h = matrix.getHeight();
-            int[] pixels = new int[w * h];
-            for (int y = 0; y < h; y++) {
-                int rowOffset = y * w;
-                for (int x = 0; x < w; x++) {
-                    pixels[rowOffset + x] = matrix.get(x, y) ? 0xff071015 : 0xffffffff;
-                }
-            }
-            Bitmap bitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
-            bitmap.setPixels(pixels, 0, w, 0, 0, w, h);
-            return bitmap;
-        } catch (Exception e) {
-            return null;
         }
     }
 
@@ -1856,29 +1831,6 @@ public final class MainActivity extends Activity {
             if (service != null) service.stopFromUi();
         }
         Toast.makeText(this, tr("Доступ остановлен", "Access stopped"), Toast.LENGTH_SHORT).show();
-    }
-
-    private List<String> ipAddresses() {
-        LinkedHashSet<String> ips = new LinkedHashSet<>();
-        try {
-            List<NetworkInterface> interfaces = Collections.list(NetworkInterface.getNetworkInterfaces());
-            interfaces.sort((a, b) -> Integer.compare(networkPriority(a), networkPriority(b)));
-            for (NetworkInterface ni : interfaces) {
-                if (!ni.isUp() || ni.isLoopback()) continue;
-                for (InetAddress ip : Collections.list(ni.getInetAddresses())) {
-                    if (ip instanceof Inet4Address && !ip.isLoopbackAddress() && FileServer.allowedAddress(ip)) {
-                        ips.add(ip.getHostAddress());
-                    }
-                }
-            }
-        } catch (Exception ignored) {}
-        return new ArrayList<>(ips);
-    }
-
-    private static int networkPriority(NetworkInterface ni) {
-        String name = ni.getName().toLowerCase(Locale.ROOT);
-        if (name.contains("wlan") || name.startsWith("ap") || name.startsWith("wifi") || name.startsWith("softap")) return 0;
-        return name.startsWith("eth") ? 1 : 2;
     }
 
     @SuppressWarnings("deprecation")

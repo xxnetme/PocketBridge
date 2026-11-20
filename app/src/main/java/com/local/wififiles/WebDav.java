@@ -3,9 +3,12 @@ package com.local.wififiles;
 import java.io.*;
 import java.net.URI;
 import java.net.URLEncoder;
+import java.nio.channels.Channels;
+import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
+import java.nio.file.StandardOpenOption;
 import java.security.MessageDigest;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -24,6 +27,7 @@ final class WebDav {
     private final String key;
     private final boolean readOnly;
     private final TrashStore trash;
+    private final DavFiles files;
     private static final String READ_METHODS = "OPTIONS, GET, HEAD, PROPFIND";
 
     WebDav(File root, String key, boolean readOnly, TrashStore trash) throws IOException {
@@ -31,6 +35,7 @@ final class WebDav {
         this.key = key;
         this.readOnly = readOnly;
         this.trash = trash;
+        this.files = new DavFiles(this.root);
     }
 
     static boolean matches(String endpoint) {
@@ -55,32 +60,21 @@ final class WebDav {
         }
         String raw = endpoint.length() > PREFIX.length() ? endpoint.substring(PREFIX.length()) : "/";
         if (raw.isEmpty()) raw = "/";
-        File target;
-        try { target = resolve(raw); }
-        catch (FileServer.ApiException e) { sendText(out, 403, "Путь вне хранилища"); return true; }
-
         switch (method) {
-            case "PROPFIND": return propfind(out, target, raw, headers, in);
-            case "GET": case "HEAD": return get(out, target, raw, method.equals("HEAD"), headers.get("range"));
-            case "PUT":
-                File parent;
-                try { parent = resolveParent(raw); }
-                catch (FileServer.ApiException e) { sendText(out, 403, "Путь вне хранилища"); return true; }
-                return put(out, parent, nameOf(raw), in, headers);
-            case "MKCOL": synchronized (ManagedFiles.NAMESPACE) { checkRunning(); return mkcol(out, resolve(raw)); }
-            case "DELETE":
-                if (Files.isSymbolicLink(new File(root, raw.replaceFirst("^/+", "")).toPath())) {
-                    sendText(out, 403, "Нельзя удалить ссылку"); return true;
-                }
-                synchronized (ManagedFiles.NAMESPACE) { checkRunning(); return delete(out, resolve(raw)); }
-            case "MOVE": case "COPY":
+            case "PROPFIND": return propfind(out, files.resolve(raw), raw, headers, in);
+            case "GET": case "HEAD": return get(out, files.resolve(raw), raw, method.equals("HEAD"), headers.get("range"));
+            case "PUT": return put(out, raw, in, headers);
+            case "MKCOL": case "DELETE": case "MOVE": case "COPY": case "LOCK":
                 synchronized (ManagedFiles.NAMESPACE) {
                     checkRunning();
-                    return moveOrCopy(out, resolve(raw), headers.get("destination"), "MOVE".equals(method), headers);
+                    File target = files.resolve(raw);
+                    if ("MKCOL".equals(method)) return mkcol(out, target);
+                    if ("DELETE".equals(method)) return delete(out, target);
+                    if ("LOCK".equals(method)) return lock(out, target, raw);
+                    return moveOrCopy(out, target, headers.get("destination"), "MOVE".equals(method), headers);
                 }
-            case "PROPPATCH": return proppatch(out, target, raw);
-            case "LOCK": return lock(out, target, raw);
-            case "UNLOCK": return unlock(out);
+            case "PROPPATCH": return proppatch(out, files.resolve(raw), raw);
+            case "UNLOCK": files.resolve(raw); return unlock(out);
             default: sendText(out, 405, "Метод не поддерживается"); return true;
         }
     }
@@ -124,13 +118,12 @@ final class WebDav {
         StringBuilder body = new StringBuilder();
         body.append("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<D:multistatus xmlns:D=\"DAV:\">");
         appendEntry(body, target, raw, propnameOnly);
-        if (level == 1 && target.isDirectory() && !Files.isSymbolicLink(target.toPath())) {
+        if (level == 1 && Files.isDirectory(target.toPath(), ManagedFiles.NOFOLLOW)) {
             File[] children = target.listFiles();
             if (children != null) {
                 Arrays.sort(children, Comparator.comparing(File::getName));
                 for (File child : children) {
-                    if (FileServer.isTempName(child.getName())) continue;
-                    if (Files.isSymbolicLink(child.toPath())) continue;
+                    if (!DavFiles.visible(child)) continue;
                     appendEntry(body, child, joinRaw(raw, child.getName()), propnameOnly);
                 }
             }
@@ -164,13 +157,13 @@ final class WebDav {
     }
 
     private boolean get(OutputStream out, File target, String raw, boolean headOnly, String range) throws Exception {
-        if (target.isDirectory()) {
+        if (Files.isDirectory(target.toPath(), ManagedFiles.NOFOLLOW)) {
             String displayPath = (raw == null || raw.isEmpty()) ? "/dav/" : ("/dav/" + raw + "/");
             File[] children = target.listFiles();
             List<File> visible = new ArrayList<>();
             if (children != null) {
                 for (File child : children) {
-                    if (!FileServer.isTempName(child.getName())) visible.add(child);
+                    if (DavFiles.visible(child)) visible.add(child);
                 }
                 visible.sort(Comparator.comparing((File f) -> !f.isDirectory())
                     .thenComparing(f -> f.getName().toLowerCase(Locale.ROOT)));
@@ -225,7 +218,7 @@ final class WebDav {
             out.flush();
             return true;
         }
-        if (!target.isFile() || !target.canRead()) { sendText(out, 404, "Файл не найден"); return true; }
+        if (!Files.isRegularFile(target.toPath(), ManagedFiles.NOFOLLOW) || !target.canRead()) { sendText(out, 404, "Файл не найден"); return true; }
         String mime = mimeOf(target);
         if (mime == null) mime = "application/octet-stream";
 
@@ -263,14 +256,19 @@ final class WebDav {
         if (mime.startsWith("text/html") || mime.startsWith("image/svg+xml")) {
             extra.put("Content-Security-Policy", SANDBOX_CSP);
         }
-        writeHead(out, partial ? 206 : 200, mime, count, extra);
-        if (headOnly || count == 0) { out.flush(); return true; }
-        try (RandomAccessFile raf = new RandomAccessFile(target, "r")) {
-            raf.seek(start);
+        if (headOnly || count == 0) {
+            writeHead(out, partial ? 206 : 200, mime, count, extra);
+            out.flush();
+            return true;
+        }
+        try (FileChannel file = FileChannel.open(target.toPath(), StandardOpenOption.READ, ManagedFiles.NOFOLLOW)) {
+            file.position(start);
+            InputStream input = Channels.newInputStream(file);
+            writeHead(out, partial ? 206 : 200, mime, count, extra);
             byte[] buffer = new byte[65536];
             long remaining = count;
             while (remaining > 0) {
-                int n = raf.read(buffer, 0, (int) Math.min(buffer.length, remaining));
+                int n = input.read(buffer, 0, (int) Math.min(buffer.length, remaining));
                 if (n < 0) break;
                 out.write(buffer, 0, n);
                 remaining -= n;
@@ -280,29 +278,28 @@ final class WebDav {
         return true;
     }
 
-    private boolean put(OutputStream out, File parent, String name, InputStream in, Map<String, String> headers) throws Exception {
-        if (parent == null || !parent.isDirectory()) { sendText(out, 409, "Папка назначения не существует"); return true; }
-        if (name == null || name.isEmpty() || name.equals(".") || name.equals("..") || name.contains("/") || name.contains("\\")) {
-            sendText(out, 400, "Недопустимое имя");
-            return true;
-        }
-        File target;
-        try { target = safeChild(parent, name); }
-        catch (FileServer.ApiException e) { sendText(out, 400, e.getMessage()); return true; }
-        if (target.isDirectory()) { sendText(out, 409, "Имя занято папкой"); return true; }
-
-        boolean existed = target.exists();
-        String transferEncoding = headers.getOrDefault("transfer-encoding", "").toLowerCase(Locale.US);
-        boolean chunked = transferEncoding.contains("chunked");
+    private boolean put(OutputStream out, String raw, InputStream in, Map<String, String> headers) throws Exception {
+        boolean chunked = headers.getOrDefault("transfer-encoding", "").toLowerCase(Locale.US).contains("chunked");
         long length = -1;
         if (!chunked) {
-            try { length = Long.parseLong(headers.getOrDefault("content-length", "-1")); } catch (Exception ignored) {}
-            if (length < 0 || length > MAX_PUT) { sendText(out, 411, "Нужен Content-Length (до 20 ГБ)"); return true; }
+            try { length = Long.parseLong(headers.getOrDefault("content-length", "-1")); } catch (NumberFormatException ignored) {}
+        }
+        File target, tmp;
+        synchronized (ManagedFiles.NAMESPACE) {
+            checkRunning();
+            target = files.resolve(raw);
+            if (!TrashStore.validName(nameOf(raw))) { sendText(out, 400, "Недопустимое имя"); return true; }
+            File parent = target.getParentFile();
+            if (parent == null || !parent.isDirectory()) { sendText(out, 409, "Папка назначения не существует"); return true; }
+            if (target.isDirectory()) { sendText(out, 409, "Имя занято папкой"); return true; }
+            if (!chunked && (length < 0 || length > MAX_PUT)) { sendText(out, 411, "Нужен Content-Length (до 20 ГБ)"); return true; }
+            tmp = File.createTempFile(".wifi-upload-", ".part", parent);
         }
 
-        File tmp = File.createTempFile(".wifi-upload-", ".part", parent);
+        boolean existed;
         try {
-            try (OutputStream file = new BufferedOutputStream(new FileOutputStream(tmp))) {
+            try (OutputStream file = new BufferedOutputStream(Files.newOutputStream(tmp.toPath(),
+                    StandardOpenOption.WRITE, ManagedFiles.NOFOLLOW))) {
                 if (chunked) {
                     copyChunked(in, file, MAX_PUT);
                 } else {
@@ -318,11 +315,14 @@ final class WebDav {
             }
             synchronized (ManagedFiles.NAMESPACE) {
                 checkRunning();
-                ManagedFiles.directory(parent.toPath());
+                files.resolve(raw); // A link may have appeared while streaming the body.
+                if (!Files.isRegularFile(tmp.toPath(), ManagedFiles.NOFOLLOW)) throw ManagedFiles.error(409, "Временный файл изменился");
+                if (target.isDirectory()) throw ManagedFiles.error(409, "Имя занято папкой");
+                existed = Files.exists(target.toPath(), ManagedFiles.NOFOLLOW);
                 Files.move(tmp.toPath(), target.toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
             }
         } finally {
-            if (tmp.exists()) tmp.delete();
+            tmp.delete();
         }
         send(out, existed ? 204 : 201, "text/plain; charset=utf-8", new byte[0], null);
         return true;
@@ -391,37 +391,29 @@ final class WebDav {
     private boolean moveOrCopy(OutputStream out, File source, String destination, boolean move, Map<String, String> headers) throws Exception {
         String targetRaw = destinationPath(destination);
         if (targetRaw == null) { sendText(out, 400, "Некорректный Destination"); return true; }
-        File target;
-        try { target = resolve(targetRaw); }
-        catch (FileServer.ApiException e) { sendText(out, 403, "Путь вне хранилища"); return true; }
+        File target = files.resolve(targetRaw);
         if (!source.exists()) { sendText(out, 404, "Источник не найден"); return true; }
-        if (source.equals(root) || target.equals(root) || source.equals(target)) {
-            sendText(out, 403, "Недопустимая цель");
-            return true;
-        }
-        if (source.isDirectory() && target.getPath().startsWith(source.getPath() + File.separator)) {
-            sendText(out, 403, "Нельзя копировать или перемещать папку внутрь самой себя");
+        if (source.equals(root) || target.equals(root)
+                || source.toPath().startsWith(target.toPath()) || target.toPath().startsWith(source.toPath())) {
+            sendText(out, 403, "Источник и назначение не должны пересекаться");
             return true;
         }
         File parent = target.getParentFile();
         if (parent == null || !parent.isDirectory()) { sendText(out, 409, "Родительская папка не существует"); return true; }
         boolean overwrite = !"F".equalsIgnoreCase(headers.getOrDefault("overwrite", "T").trim());
-        if (move) ManagedFiles.movableTree(source.toPath());
         boolean existed = target.exists();
+        if (existed && !overwrite) { sendText(out, 412, "Цель существует"); return true; }
+
+        // Reject linked trees before touching an existing destination. COPY may omit
+        // PocketBridge's managed areas; MOVE must not omit anything it later removes.
+        DavFiles.checkTree(source.toPath(), !move);
         if (existed) {
-            if (!overwrite) { sendText(out, 412, "Цель существует"); return true; }
-            ManagedFiles.movableTree(target.toPath());
-            deleteTree(target);
+            DavFiles.checkTree(target.toPath(), false);
+            DavFiles.removeTree(target.toPath());
         }
-        if (move) {
-            if (source.renameTo(target)) {
-                send(out, existed ? 204 : 201, "text/plain; charset=utf-8", new byte[0], null);
-                return true;
-            }
-            copyTree(source, target);
-            deleteTree(source);
-        } else {
-            copyTree(source, target);
+        if (!move || !source.renameTo(target)) {
+            DavFiles.copyTree(source.toPath(), target.toPath(), !move);
+            if (move) DavFiles.removeTree(source.toPath());
         }
         send(out, existed ? 204 : 201, "text/plain; charset=utf-8", new byte[0], null);
         return true;
@@ -472,53 +464,11 @@ final class WebDav {
         }
     }
 
-    private File resolve(String raw) throws IOException {
-        if (raw == null || raw.indexOf('\0') >= 0) throw new FileServer.ApiException(400, "Недопустимый путь");
-        String clean = raw;
-        while (clean.startsWith("/")) clean = clean.substring(1);
-        File rawFile = new File(root, clean);
-        ManagedFiles.publicPath(root.toPath().relativize(rawFile.toPath()));
-        File file;
-        if (rawFile.exists()) {
-            file = rawFile.toPath().toRealPath().toFile();
-        } else if (Files.isSymbolicLink(rawFile.toPath())) {
-            throw new FileServer.ApiException(400, "Недопустимая ссылка");
-        } else {
-            file = rawFile.getCanonicalFile();
-        }
-        String base = root.getPath();
-        String prefix = base.endsWith(File.separator) ? base : base + File.separator;
-        if (!file.getPath().equals(base) && !file.getPath().startsWith(prefix)) {
-            throw new FileServer.ApiException(400, "Путь вне хранилища");
-        }
-        ManagedFiles.publicPath(root.toPath().relativize(file.toPath()));
-        return file;
-    }
-
-    private File resolveParent(String raw) throws IOException {
-        String clean = raw;
-        while (clean.startsWith("/")) clean = clean.substring(1);
-        while (clean.endsWith("/")) clean = clean.substring(0, clean.length() - 1);
-        int slash = clean.lastIndexOf('/');
-        String parent = slash < 0 ? "/" : clean.substring(0, slash);
-        return resolve(parent);
-    }
-
     private static String nameOf(String raw) {
         String clean = raw;
         while (clean.endsWith("/")) clean = clean.substring(0, clean.length() - 1);
         int slash = clean.lastIndexOf('/');
         return slash < 0 ? clean : clean.substring(slash + 1);
-    }
-
-    private File safeChild(File parent, String name) throws IOException {
-        if (!TrashStore.validName(name)) throw new FileServer.ApiException(400, "Недопустимое имя");
-        File rawChild = new File(parent, name);
-        if (Files.isSymbolicLink(rawChild.toPath())) throw new FileServer.ApiException(400, "Недопустимое имя");
-        File parentReal = parent.toPath().toRealPath().toFile();
-        File child = rawChild.exists() ? rawChild.toPath().toRealPath().toFile() : new File(parentReal, name);
-        if (!parentReal.equals(child.getParentFile())) throw new FileServer.ApiException(400, "Недопустимое имя");
-        return child;
     }
 
     /** Корректно декодирует URL как для абсолютного (https://host/dav/...), так и для относительного (/dav/...) Destination. */
@@ -531,32 +481,6 @@ final class WebDav {
             return path.length() > PREFIX.length() ? path.substring(PREFIX.length()) : "/";
         } catch (Exception e) {
             return null;
-        }
-    }
-
-    private void deleteTree(File file) throws IOException {
-        if (file.isDirectory() && !Files.isSymbolicLink(file.toPath())) {
-            File[] children = file.listFiles();
-            if (children != null) for (File child : children) deleteTree(child);
-        }
-        if (!file.delete()) throw new IOException("Не удалось удалить: " + file.getName());
-    }
-
-    private void copyTree(File source, File target) throws IOException {
-        if (Files.isSymbolicLink(source.toPath())) return;
-        if (source.isDirectory()) {
-            if (!target.exists() && !target.mkdirs()) throw new IOException("Не удалось создать папку");
-            File[] children = source.listFiles();
-            if (children != null) {
-                for (File child : children) {
-                    if (FileServer.isTempName(child.getName())) continue;
-                    copyTree(child, new File(target, child.getName()));
-                }
-            }
-        } else {
-            File parent = target.getParentFile();
-            if (parent != null && !parent.exists() && !parent.mkdirs()) throw new IOException("Не удалось создать папку");
-            Files.copy(source.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING);
         }
     }
 

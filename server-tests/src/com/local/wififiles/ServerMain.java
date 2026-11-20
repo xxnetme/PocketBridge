@@ -15,7 +15,7 @@ public final class ServerMain {
         SSLContext context = null;
         if (tls) {
             File dir = Files.createTempDirectory("pocketbridge-tls").toFile();
-            context = SelfSignedCertificate.createContext(dir);
+            context = SelfSignedCertificate.createContext(dir, LanAddresses.advertised());
         }
         File cache = new File(System.getProperty("java.io.tmpdir"), "pb-thumbs");
         FileServer server = new FileServer(new Context(new File(assets)), root, key, context, cache, Integer.getInteger("pb.port", 8765));
