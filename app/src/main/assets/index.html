@@ -2118,6 +2118,7 @@ let queue = [], running = 0, globalPaused = false, uploadBusy = false, queueColl
 let pbClip = null, draggingItems = null, lastCheckIdx = -1;
 let quickDirs = [], pinnedDirs = loadPins();
 let sharedClipState = { text: '', updatedAt: 0, source: '' }, sharedClipPrevFocus = null;
+let sharedClipLoadId = 0, sharedClipEditRevision = 0;
 let previewRotation = 0, previewImgEl = null, rotateSaving = false;
 let editorState = null, editorWrapLines = safeGet('pb-wrap') !== '0';
 let propsSerial = 0, propsItem = null, propsHashHex = '', propsPrevFocus = null;
@@ -4624,14 +4625,18 @@ function renderSharedClipMeta() {
 }
 
 async function loadSharedClip() {
+  const id = ++sharedClipLoadId;
+  const editRevision = sharedClipEditRevision;
   try {
     const d = await (await api('clipboard')).json();
+    if (id !== sharedClipLoadId) return;
     sharedClipState = { text: d.text || '', updatedAt: Number(d.updatedAt) || 0, source: d.source || '' };
-    el('sharedClipInput').value = sharedClipState.text;
+    // Keep a draft typed while the initial read/refresh was in flight.
+    if (editRevision === sharedClipEditRevision) el('sharedClipInput').value = sharedClipState.text;
     updateClipDot(!!sharedClipState.text);
     renderSharedClipMeta();
   } catch (e) {
-    msg(e.message);
+    if (id === sharedClipLoadId) msg(e.message);
   }
 }
 
@@ -4646,6 +4651,7 @@ function openSharedClip() {
 function closeSharedClip() {
   const m = el('clipModal');
   if (!m || m.classList.contains('hidden')) return;
+  sharedClipLoadId++;
   m.classList.add('hidden');
   if (sharedClipPrevFocus && document.contains(sharedClipPrevFocus)) sharedClipPrevFocus.focus();
   sharedClipPrevFocus = null;
@@ -4653,6 +4659,8 @@ function closeSharedClip() {
 
 async function sendSharedClip(textVal, btn = null) {
   if (readOnly) return;
+  sharedClipLoadId++;
+  const editRevision = sharedClipEditRevision;
   await withBtnFeedback(btn, async () => {
     try {
       const r = await api('clipboard', {}, {
@@ -4662,7 +4670,7 @@ async function sendSharedClip(textVal, btn = null) {
       });
       const d = await r.json();
       sharedClipState = { text: d.text || '', updatedAt: Number(d.updatedAt) || 0, source: d.source || '' };
-      el('sharedClipInput').value = sharedClipState.text;
+      if (editRevision === sharedClipEditRevision) el('sharedClipInput').value = sharedClipState.text;
       updateClipDot(!!sharedClipState.text);
       renderSharedClipMeta();
       showToast(t(sharedClipState.text ? 'msgClipSent' : 'msgClipCleared'));
@@ -4678,7 +4686,7 @@ async function sendSharedClip(textVal, btn = null) {
 el('openClip').onclick = openSharedClip;
 el('sharedClipClose').onclick = closeSharedClip;
 el('clipModal').onclick = e => { if (e.target === el('clipModal')) closeSharedClip(); };
-el('sharedClipInput').oninput = renderSharedClipMeta;
+el('sharedClipInput').oninput = () => { sharedClipEditRevision++; renderSharedClipMeta(); };
 el('sharedClipInput').addEventListener('keydown', e => {
   if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
     e.preventDefault();

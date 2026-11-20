@@ -135,6 +135,7 @@ public final class ShareActivity extends Activity {
     }
 
     private boolean canReadSharedUri(Uri uri) {
+        if ((getIntent().getFlags() & Intent.FLAG_GRANT_READ_URI_PERMISSION) == 0) return false;
         try {
             return checkUriPermission(uri, Process.myPid(), Process.myUid(), Intent.FLAG_GRANT_READ_URI_PERMISSION)
                     == PackageManager.PERMISSION_GRANTED;

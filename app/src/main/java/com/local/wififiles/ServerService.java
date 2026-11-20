@@ -166,11 +166,16 @@ public final class ServerService extends Service {
     void updateDiscovery() {
         stopDiscovery();
         if (server != null && BridgeOptions.discovery(this)) {
-            discovery = new LanDiscovery(this, name -> {
-                discoveryName = name;
-                notifyListeners();
-            });
-            discovery.start(port);
+            try {
+                discovery = new LanDiscovery(this, name -> {
+                    discoveryName = name;
+                    notifyListeners();
+                });
+                discovery.start(port);
+            } catch (RuntimeException unavailable) {
+                stopDiscovery();
+                discoveryName = "";
+            }
         }
         notifyListeners();
     }

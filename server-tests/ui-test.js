@@ -586,7 +586,7 @@ function zipEntries(zipPath) {
   await page.waitForFunction(() => {
     const dot = document.getElementById('openClipDot');
     return dot && !dot.classList.contains('hidden');
-  }, { timeout: 5000 });
+  }, null, { timeout: 5000 });
   const clipMetaTxt = (await page.locator('#sharedClipMeta').textContent()) || '';
   rec('Общий буфер: отправка по Ctrl+Enter и индикатор в панели',
       clipMetaTxt.includes('Из браузера') && await page.locator('#openClipDot').isVisible(), clipMetaTxt);
@@ -1009,7 +1009,7 @@ function zipEntries(zipPath) {
     rec('Только чтение: видимое предупреждение, загрузка и создание скрыты',
       (await ro.locator('#readonlyNotice').textContent()).includes('Только чтение')
       && await ro.locator('#upload, #mkdir, #mkfile').evaluateAll(nodes => nodes.every(n => n.offsetWidth === 0)), '');
-    await ro.screenshot({ path: path.join(shots, '39-readonly-desktop.png') });
+    await ro.screenshot({ path: path.join(shots, '39-readonly-desktop.png'), animations: 'disabled' });
     await openFolder(ro, 'Документы');
     const note = ro.locator('#rows tr', { hasText: 'заметки.md' });
     await note.locator('input[type=checkbox]').check();
@@ -1065,7 +1065,7 @@ function zipEntries(zipPath) {
     const widthOK = await rom.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1);
     rec('Только чтение: iPhone 13, EN / light, без горизонтального переполнения', widthOK
         && (await rom.locator('#readonlyNotice').textContent()).includes('Read only'), '');
-    await rom.screenshot({ path: path.join(shots, '40-readonly-mobile.png') });
+    await rom.screenshot({ path: path.join(shots, '40-readonly-mobile.png'), animations: 'disabled' });
     await roMobile.close();
   }
 

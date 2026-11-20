@@ -1,7 +1,6 @@
 package com.local.wififiles;
 
 import android.app.AlertDialog;
-import android.app.AppOpsManager;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.DialogInterface;
@@ -11,6 +10,7 @@ import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.drawable.Drawable;
 import android.os.IBinder;
+import android.os.Environment;
 import android.util.TypedValue;
 import android.view.ContextThemeWrapper;
 import android.view.View;
@@ -27,7 +27,10 @@ import org.robolectric.Shadows;
 import org.robolectric.android.controller.ActivityController;
 import org.robolectric.android.controller.ServiceController;
 import org.robolectric.annotation.Config;
+import org.robolectric.annotation.Implementation;
+import org.robolectric.annotation.Implements;
 import org.robolectric.shadows.ShadowAlertDialog;
+import org.robolectric.shadows.ShadowEnvironment;
 import org.robolectric.shadows.ShadowLooper;
 
 import java.io.File;
@@ -220,10 +223,9 @@ public class MainActivityLaunchTest {
     }
 
     @Test
-    @Config(sdk = 34)
+    @Config(sdk = 34, shadows = AllFilesEnvironment.class)
     public void serverServiceStartsBindsRendersQrAndStopsCleanly() throws Exception {
         Context app = RuntimeEnvironment.getApplication();
-        allowAllFiles(app);
         File ext = android.os.Environment.getExternalStorageDirectory();
         if (ext != null && !ext.isDirectory()) {
             //noinspection ResultOfMethodCallIgnored
@@ -238,7 +240,7 @@ public class MainActivityLaunchTest {
         ServiceController<ServerService> sc = Robolectric.buildService(ServerService.class, startIntent).create().startCommand(0, 1);
         ServerService svc = sc.get();
         try {
-            assertTrue("ServerService must start HTTPS listener", svc.isRunning());
+            assertTrue("ServerService must start HTTPS listener: " + svc.lastError(), svc.isRunning());
             assertEquals(svc, ServerService.active());
             assertTrue("Bound port must be valid", svc.port() >= 1024);
             assertEquals("0123456789abcdef", svc.accessKey());
@@ -401,16 +403,18 @@ public class MainActivityLaunchTest {
         return null;
     }
 
-    private static void allowAllFiles(Context app) {
-        Shadows.shadowOf(app.getSystemService(AppOpsManager.class)).setMode(
-                "android:manage_external_storage", app.getApplicationInfo().uid, app.getPackageName(), AppOpsManager.MODE_ALLOWED);
+    // The sandbox does not supply Android's StorageManager volume/AppOps plumbing.
+    // Model the user's All files grant while keeping the real service and filesystem.
+    @Implements(value = Environment.class, minSdk = 30)
+    public static class AllFilesEnvironment extends ShadowEnvironment {
+        @Implementation(minSdk = 30)
+        protected static boolean isExternalStorageManager() { return true; }
     }
 
     @Test
-    @Config(sdk = 34)
+    @Config(sdk = 34, shadows = AllFilesEnvironment.class)
     public void tileStartUsesSelectedReadOnlyRootAndUnavailableRootFailsClosed() throws Exception {
         Context app = RuntimeEnvironment.getApplication();
-        allowAllFiles(app);
         File storage = android.os.Environment.getExternalStorageDirectory();
         File share = new File(storage, "Selected");
         assertTrue(share.mkdirs() || share.isDirectory());
@@ -421,7 +425,7 @@ public class MainActivityLaunchTest {
         ServerService service = sc.get();
         try {
             assertEquals(share.getCanonicalFile(), BridgeOptions.sharedFolder(app));
-            assertTrue(service.isRunning());
+            assertTrue("Tile start failed: " + service.lastError(), service.isRunning());
             assertTrue(service.isReadOnly());
             assertEquals(service, ServerService.active());
             assertTrue(service.accessKey().matches("[0-9a-f]{16}"));
