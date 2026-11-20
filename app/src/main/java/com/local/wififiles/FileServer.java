@@ -12,6 +12,7 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.security.MessageDigest;
@@ -1627,15 +1628,21 @@ final class FileServer {
         zip.setLevel(1);
         byte[] buffer = new byte[65536];
         for (ZipItem item : items) {
-            try (InputStream file = new BufferedInputStream(new FileInputStream(item.file))) {
+            // A ZIP ticket can be used minutes later. Check the real path again before reading.
+            Path path;
+            InputStream source;
+            try {
+                path = item.file.toPath().toRealPath();
+                if (!path.startsWith(root.toPath()) || !Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS)) continue;
+                source = Files.newInputStream(path, LinkOption.NOFOLLOW_LINKS);
+            } catch (IOException ignored) { continue; }
+            try (InputStream file = new BufferedInputStream(source)) {
                 ZipEntry entry = new ZipEntry(item.name);
-                entry.setTime(item.file.lastModified());
+                entry.setTime(path.toFile().lastModified());
                 zip.putNextEntry(entry);
                 int nread;
                 while ((nread = file.read(buffer)) != -1) zip.write(buffer, 0, nread);
                 zip.closeEntry();
-            } catch (IOException e) {
-                android.util.Log.w("WiFiFiles", "zip skip: " + item.name + " " + e.getMessage());
             }
         }
         zip.finish(); zip.flush(); chunked.finish();

@@ -403,7 +403,7 @@ public class MainActivityLaunchTest {
 
     private static void allowAllFiles(Context app) {
         Shadows.shadowOf(app.getSystemService(AppOpsManager.class)).setMode(
-                AppOpsManager.OPSTR_MANAGE_EXTERNAL_STORAGE, app.getApplicationInfo().uid, app.getPackageName(), AppOpsManager.MODE_ALLOWED);
+                "android:manage_external_storage", app.getApplicationInfo().uid, app.getPackageName(), AppOpsManager.MODE_ALLOWED);
     }
 
     @Test
