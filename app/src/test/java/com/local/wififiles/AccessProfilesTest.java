@@ -50,7 +50,7 @@ public class AccessProfilesTest {
         ServerService service = sc.get();
         MainActivity activity = ac.get();
         try {
-            assertTrue(service.lastError(), service.isRunning());
+            MainActivityLaunchTest.awaitStarted(service);
             assertFalse(service.isReadOnly());
             assertEquals(downloads.getCanonicalFile(), BridgeOptions.sharedFolder(app));
             selectProfile(activity, 1);  // the selected profile no longer exists
@@ -68,7 +68,7 @@ public class AccessProfilesTest {
             assertNotEquals(original, next);
             assertTrue(next.matches("[0-9a-f]{16}"));
             service.onStartCommand(start(app, next), 0, 2);
-            assertTrue(service.lastError(), service.isRunning());
+            MainActivityLaunchTest.awaitStarted(service);
             assertTrue(service.isReadOnly());
             assertEquals(next, service.accessKey());
             AccessProfiles.delete(app, photos);
@@ -80,6 +80,32 @@ public class AccessProfilesTest {
             service.stopFromUi();
             sc.destroy();
         }
+    }
+
+    @Test public void stopDuringCertificatePreparationCannotPublishAStaleListener() throws Exception {
+        Context app = RuntimeEnvironment.getApplication();
+        Files.createDirectories(Environment.getExternalStorageDirectory().toPath());
+        AccessProfiles.configure(app, "", false, null);
+        Intent first = start(app, "0123456789abcdef");
+        ServiceController<ServerService> sc = Robolectric.buildService(ServerService.class, first).create();
+        ServerService service = sc.get();
+        try {
+            synchronized (SelfSignedCertificate.class) {
+                sc.startCommand(0, 1);
+                assertTrue(service.isStarting());
+                assertFalse(service.isRunning());
+                assertNull(ServerService.active());
+                assertSame(service, ServerService.current());
+                service.stopFromUi();
+                assertFalse(service.isStarting());
+                assertNull(ServerService.current());
+                // A second request must not publish the result or key of the cancelled start.
+                service.onStartCommand(start(app, "fedcba9876543210"), 0, 2);
+            }
+            MainActivityLaunchTest.awaitStarted(service);
+            assertEquals("fedcba9876543210", service.accessKey());
+            assertSame(service, ServerService.active());
+        } finally { sc.destroy(); }
     }
 
     private static Intent start(Context app, String key) {

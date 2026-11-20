@@ -23,7 +23,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import javax.net.ssl.SSLContext;
@@ -47,9 +49,16 @@ public final class ServerService extends Service {
 
     private final LocalBinder binder = new LocalBinder();
     private final CopyOnWriteArrayList<Runnable> listeners = new CopyOnWriteArrayList<>();
-    // Lifecycle, active instance and DNS-SD registration are owned by the main thread.
-    private static ServerService active;
+    // Lifecycle, startup generation and DNS-SD registration are main-thread owned.
+    private static ServerService current;
     private final Handler main = new Handler(Looper.getMainLooper());
+    private final ExecutorService tlsWorker = Executors.newSingleThreadExecutor(r -> {
+        Thread thread = new Thread(r, "pocketbridge-tls-identity");
+        thread.setDaemon(true);
+        return thread;
+    });
+    private Future<?> preparation;
+    private long startGeneration;
     private volatile FileServer server;
     private List<InetAddress> certifiedAddresses = Collections.emptyList();
     private LanDiscovery discovery;
@@ -66,7 +75,9 @@ public final class ServerService extends Service {
 
     @Override public IBinder onBind(Intent intent) { return binder; }
 
-    static ServerService active() { return active; }
+    static ServerService current() { return current; }
+    static ServerService active() { return current != null && current.isRunning() ? current : null; }
+    boolean isStarting() { return preparation != null; }
     boolean isRunning() { return server != null; }
     boolean isReadOnly() { FileServer s = server; return s != null && s.isReadOnly(); }
     String discoveryName() { return discoveryName; }
@@ -109,38 +120,64 @@ public final class ServerService extends Service {
         if (ACTION_STOP.equals(action)) { shutdown(); return START_NOT_STICKY; }
         boolean tileStart = ACTION_TILE_START.equals(action);
         boolean reload = ACTION_RELOAD.equals(action);
-        if (reload && server == null) { stopSelf(); return START_NOT_STICKY; }
-        String requested = reload ? key : tileStart ? (server == null ? newKey() : key)
+        if (reload && server == null && !isStarting()) { stopSelf(); return START_NOT_STICKY; }
+        String requested = reload ? key : tileStart ? (current == this ? key : newKey())
                 : intent == null ? null : intent.getStringExtra(EXTRA_KEY);
         if (requested == null || requested.isEmpty()) { stopSelf(); return START_NOT_STICKY; }
-        if (!reload && server != null && requested.equals(key)) {
-            if (!startInForeground(tr("PocketBridge активен · :" + port, "PocketBridge active · :" + port))) shutdown();
+        if (!reload && current == this && requested.equals(key)) {
+            String title = server != null ? runningTitle() : startingTitle();
+            if (!startInForeground(title)) shutdown();
             else publishState();
             return START_NOT_STICKY;
         }
         closeServer();
         key = requested;
         error = "";
-        if (!startInForeground(tr("Запуск доступа…", "Starting access…"))) {
+        if (!startInForeground(startingTitle())) {
             failStart(tileStart);
             return START_NOT_STICKY;
         }
+        if (readyRoot(tileStart) == null) return START_NOT_STICKY;
+        File identityDir = getFilesDir();
+        long generation = startGeneration;
+        current = this;
+        preparation = tlsWorker.submit(() -> {
+            try {
+                List<InetAddress> addresses = LanAddresses.advertised();
+                SSLContext ssl = SelfSignedCertificate.createContext(identityDir, addresses);
+                main.post(() -> finishStart(generation, tileStart, addresses, ssl));
+            } catch (Exception failure) {
+                main.post(() -> { if (generation == startGeneration) startFailed(tileStart, failure); });
+            }
+        });
+        publishState();
+        return START_NOT_STICKY;
+    }
+
+    private String startingTitle() { return tr("Запуск доступа…", "Starting access…"); }
+    private String runningTitle() { return tr("PocketBridge активен · :" + port, "PocketBridge active · :" + port); }
+
+    private File readyRoot(boolean tileStart) {
         if (!BridgeOptions.hasStorageAccess(this)) {
             error = tr("Сначала разрешите доступ к файлам", "Grant storage access first");
-            failStart(tileStart);
-            return START_NOT_STICKY;
+        } else {
+            try { return BridgeOptions.sharedFolder(this); }
+            catch (Exception unavailable) {
+                error = tr("Общая папка недоступна. Выберите другую в настройках.",
+                        "Shared folder unavailable. Choose another folder in Settings.");
+            }
         }
-        File root;
-        try { root = BridgeOptions.sharedFolder(this); }
-        catch (Exception unavailable) {
-            error = tr("Общая папка недоступна. Выберите другую в настройках.",
-                    "Shared folder unavailable. Choose another folder in Settings.");
-            failStart(tileStart);
-            return START_NOT_STICKY;
-        }
+        failStart(tileStart);
+        return null;
+    }
+
+    private void finishStart(long generation, boolean tileStart, List<InetAddress> addresses, SSLContext ssl) {
+        // A stopped or replaced request may still finish native RSA work. Never open its listener.
+        if (generation != startGeneration) return;
+        preparation = null;
+        File root = readyRoot(tileStart);
+        if (root == null) return;
         try {
-            List<InetAddress> addresses = LanAddresses.advertised();
-            SSLContext ssl = SelfSignedCertificate.createContext(getFilesDir(), addresses);
             int preferredPort = safePrefInt(PREF_PORT, DEFAULT_PORT);
             server = new FileServer(this, root, key, ssl, getCacheDir(), preferredPort, BridgeOptions.readOnly(this));
             server.setClipboardListener(this::notifyListeners);
@@ -148,19 +185,22 @@ public final class ServerService extends Service {
             certifiedAddresses = addresses;
             acquireWifiLock();
             startWatchdog();
-        } catch (Exception e) {
-            error = e.getMessage() == null ? tr("Не удалось запустить сервер", "Could not start server") : e.getMessage();
-            failStart(tileStart);
-            return START_NOT_STICKY;
+        } catch (Exception failure) {
+            startFailed(tileStart, failure);
+            return;
         }
-        if (!startInForeground(tr("PocketBridge активен · :" + port, "PocketBridge active · :" + port))) {
+        if (!startInForeground(runningTitle())) {
             failStart(tileStart);
-            return START_NOT_STICKY;
+            return;
         }
-        active = this;
         updateDiscovery();
         publishState();
-        return START_NOT_STICKY;
+    }
+
+    private void startFailed(boolean tileStart, Exception failure) {
+        Log.w("WiFiFiles", "Server startup failed", failure);
+        error = failure.getMessage() == null ? tr("Не удалось запустить сервер", "Could not start server") : failure.getMessage();
+        failStart(tileStart);
     }
 
     private void failStart(boolean tileStart) {
@@ -254,12 +294,17 @@ public final class ServerService extends Service {
     }
 
     private void closeServer() {
+        startGeneration++;
+        if (preparation != null) {
+            preparation.cancel(true);
+            preparation = null;
+        }
         stopWatchdog();
         stopDiscovery();
         FileServer old = server;
         server = null;
         certifiedAddresses = Collections.emptyList();
-        if (active == this) active = null;
+        if (current == this) current = null;
         if (old != null) old.stop();
         releaseWifiLock();
     }
@@ -273,6 +318,7 @@ public final class ServerService extends Service {
 
     @Override public void onDestroy() {
         closeServer();
+        tlsWorker.shutdownNow();
         main.removeCallbacksAndMessages(null);
         publishState();
         super.onDestroy();

@@ -1071,7 +1071,7 @@ public final class MainActivity extends Activity {
         }
         lastRunningState = running;
 
-        boolean starting = pendingState == PENDING_STARTING;
+        boolean starting = pendingState == PENDING_STARTING || (service != null && service.isStarting());
         boolean stopping = pendingState == PENDING_STOPPING;
         boolean rotating = pendingState == PENDING_ROTATING;
         boolean busyTransition = starting || stopping || rotating;
@@ -1712,7 +1712,7 @@ public final class MainActivity extends Activity {
             Toast.makeText(this, tr("Папка недоступна. Настройки не изменены.", "Folder unavailable. Settings unchanged."), Toast.LENGTH_LONG).show();
             return;
         }
-        ServerService running = ServerService.active();
+        ServerService running = ServerService.current();
         if (running == null && isRunning()) running = service;
         if (running != null) running.stopFromUi();
         try { AccessProfiles.configure(this, folder, readOnly, profileId); }

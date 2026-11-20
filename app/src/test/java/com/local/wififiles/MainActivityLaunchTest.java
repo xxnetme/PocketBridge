@@ -240,7 +240,7 @@ public class MainActivityLaunchTest {
         ServiceController<ServerService> sc = Robolectric.buildService(ServerService.class, startIntent).create().startCommand(0, 1);
         ServerService svc = sc.get();
         try {
-            assertTrue("ServerService must start HTTPS listener: " + svc.lastError(), svc.isRunning());
+            awaitStarted(svc);
             assertEquals(svc, ServerService.active());
             assertTrue("Bound port must be valid", svc.port() >= 1024);
             assertEquals("0123456789abcdef", svc.accessKey());
@@ -289,7 +289,7 @@ public class MainActivityLaunchTest {
                     .setAction(ServerService.ACTION_START)
                     .putExtra(ServerService.EXTRA_KEY, "fedcba9876543210");
             svc.onStartCommand(rotateIntent, 0, 3);
-            ShadowLooper.idleMainLooper();
+            awaitStarted(svc);
             assertEquals("fedcba9876543210", codeText.getText().toString());
             assertEquals(View.GONE, statusSpinner.getVisibility());
             assertTrue(newKey.isEnabled());
@@ -425,7 +425,7 @@ public class MainActivityLaunchTest {
         ServerService service = sc.get();
         try {
             assertEquals(share.getCanonicalFile(), BridgeOptions.sharedFolder(app));
-            assertTrue("Tile start failed: " + service.lastError(), service.isRunning());
+            awaitStarted(service);
             assertTrue(service.isReadOnly());
             assertEquals(service, ServerService.active());
             assertTrue(service.accessKey().matches("[0-9a-f]{16}"));
@@ -443,6 +443,15 @@ public class MainActivityLaunchTest {
             service.onStartCommand(tileStart, 0, 4);
             assertFalse("Invalid folder setting must not expose full storage", service.isRunning());
         } finally { sc.destroy(); }
+    }
+
+    static void awaitStarted(ServerService service) throws InterruptedException {
+        long deadline = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(15);
+        while (service.isStarting() && System.nanoTime() < deadline) {
+            ShadowLooper.idleMainLooper();
+            if (service.isStarting()) Thread.sleep(10);
+        }
+        assertTrue("Async HTTPS start failed: " + service.lastError(), service.isRunning());
     }
 
     @Test

@@ -28,7 +28,7 @@ public final class BridgeTileService extends TileService {
     }
 
     private void toggle() {
-        ServerService active = ServerService.active();
+        ServerService active = ServerService.current();
         if (active != null) {
             active.stopFromUi();
             updateTile();
