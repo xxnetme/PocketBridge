@@ -133,6 +133,23 @@ function draftStatus(context, id) {
   return context.request.get(`${serverUrl}/api/upload-status?id=${id}`, { headers: { 'X-Access-Key': newKey } });
 }
 
+async function discardViaButton(page, row, id, control) {
+  const [response] = await Promise.all([
+    page.waitForResponse(r => {
+      const url = new URL(r.url());
+      return r.request().method() === 'POST' && url.pathname === '/api/upload-abort' && url.searchParams.get('id') === id;
+    }),
+    control.click()
+  ]);
+  assert.equal(response.status(), 200, 'The phone should acknowledge the discard');
+  assert.equal((await response.json()).ok, true);
+  // This label is rendered after the browser's IndexedDB deletion commits.
+  // waitForFunction treats a returned Promise as truthy, not as a polled result.
+  await row.getByText('cancelled', { exact: true }).waitFor();
+  assert.equal(await page.evaluate(id => Drafts.all().then(rs => rs.some(r => r.id === id)), id), false,
+    'The acknowledged draft must also be removed from IndexedDB');
+}
+
 async function pauseAfterPart(context, page, name, data) {
   // Stop the second request before it reaches the live server; its XHR is aborted by Pause.
   let parked;
@@ -185,8 +202,7 @@ async function transferControls(context, page) {
   await again.waitFor();
   assert.equal((await draftStatus(context, discard.id)).status(), 200);
   assert.equal(await page.evaluate(id => Drafts.all().then(rs => rs.find(r => r.id === id)?.cancelPending), discard.id), true);
-  await again.click();
-  await page.waitForFunction(id => Drafts.all().then(rs => !rs.some(r => r.id === id)), discard.id);
+  await discardViaButton(page, discard.row, discard.id, again);
   assert.equal((await draftStatus(context, discard.id)).status(), 404);
   assert.ok(!fs.existsSync(path.join(root, '.pocketbridge-uploads', discard.id + '.part')));
   assert.ok(!fs.existsSync(path.join(root, name)));
@@ -225,8 +241,8 @@ async function transferControls(context, page) {
   const missingRow = queueRow(page, name);
   await missingRow.getByText(/Draft is missing or expired/).waitFor();
   assert.equal(await missingRow.getByRole('button', { name: /^(Retry|Select file)$/ }).count(), 0);
-  await missingRow.getByRole('button', { name: 'Remove from queue', exact: true }).click();
-  await page.waitForFunction(id => Drafts.all().then(rs => !rs.some(r => r.id === id)), missing.id);
+  await discardViaButton(page, missingRow, missing.id,
+    missingRow.getByRole('button', { name: 'Remove from queue', exact: true }));
   context.off('request', record);
   assert.deepEqual(resent, []);
   assert.ok(!fs.existsSync(path.join(root, name)));
