@@ -18,6 +18,7 @@ echo "→ Компилирую сервер и заглушки Android API"
 {
   find server-tests/stubs -name '*.java'
   echo app/src/main/java/com/local/wififiles/FileServer.java
+  echo app/src/main/java/com/local/wififiles/ServerLog.java
   echo app/src/main/java/com/local/wififiles/SelfSignedCertificate.java
   echo app/src/main/java/com/local/wififiles/Thumbnails.java
   echo app/src/main/java/com/local/wififiles/WebDav.java

@@ -224,7 +224,7 @@ final class FileServer {
                         rejectBusy(s);
                     }
                 } catch (Exception e) {
-                    if (!listener.isClosed()) android.util.Log.e("WiFiFiles", "accept", e);
+                    if (!listener.isClosed()) ServerLog.failure(ServerLog.Event.ACCEPT_FAILED, e);
                 }
             }
         }, "wifi-file-server");
@@ -433,9 +433,9 @@ final class FileServer {
                 sendText(out, 400, e.getMessage() == null ? "Ошибка операции" : e.getMessage());
             }
         } catch (javax.net.ssl.SSLException e) {
-            android.util.Log.d("WiFiFiles", "tls handshake rejected: " + e.getMessage());
+            ServerLog.failure(ServerLog.Event.TLS_REJECTED, e);
         } catch (Exception e) {
-            android.util.Log.w("WiFiFiles", "request failed: " + e.getMessage());
+            ServerLog.failure(ServerLog.Event.REQUEST_FAILED, e);
         }
     }
 

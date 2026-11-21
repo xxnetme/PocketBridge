@@ -13,7 +13,6 @@ import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.IBinder;
-import android.util.Log;
 import android.widget.Toast;
 
 import java.io.File;
@@ -198,7 +197,7 @@ public final class ServerService extends Service {
     }
 
     private void startFailed(boolean tileStart, Exception failure) {
-        Log.w("WiFiFiles", "Server startup failed", failure);
+        ServerLog.failure(ServerLog.Event.SERVER_START_FAILED, failure);
         error = failure.getMessage() == null ? tr("Не удалось запустить сервер", "Could not start server") : failure.getMessage();
         failStart(tileStart);
     }
@@ -257,7 +256,7 @@ public final class ServerService extends Service {
                 wifiLock.acquire();
             }
         } catch (Exception e) {
-            Log.w("WiFiFiles", "wifiLock acquire failed: " + e.getMessage());
+            ServerLog.failure(ServerLog.Event.WIFI_LOCK_FAILED, e);
         }
     }
 
@@ -334,7 +333,7 @@ public final class ServerService extends Service {
             }
             return true;
         } catch (Exception e) {
-            Log.e("WiFiFiles", "startForeground failed", e);
+            ServerLog.failure(ServerLog.Event.FOREGROUND_START_FAILED, e);
             error = tr("Android запретил фоновый запуск — откройте приложение и нажмите «Запустить»",
                     "Foreground start blocked — keep PocketBridge open and tap Start");
             return false;

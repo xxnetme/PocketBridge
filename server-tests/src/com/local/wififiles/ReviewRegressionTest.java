@@ -8,6 +8,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.PrintStream;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Socket;
@@ -45,6 +46,30 @@ final class ReviewRegressionTest {
         dav(fixture);
         limits(fixture);
         expiry(fixture);
+    }
+
+    static void safeServerLog() {
+        // Synthetic values; never pass live credentials to a diagnostic regression test.
+        IOException failure = new IOException("test-message", new IOException("test-cause"));
+        failure.addSuppressed(new IOException("test-suppressed"));
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        PrintStream previous = System.err;
+        try (PrintStream captured = new PrintStream(bytes, true, StandardCharsets.UTF_8)) {
+            System.setErr(captured);
+            for (ServerLog.Event event : ServerLog.Event.values()) ServerLog.failure(event, failure);
+        } finally { System.setErr(previous); }
+        String output = bytes.toString(StandardCharsets.UTF_8);
+        List<String> entries = output.lines().filter(line -> line.contains("WiFiFiles")).toList();
+        boolean noPayload = List.of("test-message", "test-cause", "test-suppressed").stream()
+                .noneMatch(output::contains);
+        check("Диагностика сервера: только разрешённые коды и тип исключения, без сообщений и причин",
+                noPayload && entries.equals(List.of(
+                        "[E]WiFiFiles: ACCEPT_FAILED [IOException]",
+                        "[D]WiFiFiles: TLS_REJECTED [IOException]",
+                        "[W]WiFiFiles: REQUEST_FAILED [IOException]",
+                        "[W]WiFiFiles: SERVER_START_FAILED [IOException]",
+                        "[W]WiFiFiles: WIFI_LOCK_FAILED [IOException]",
+                        "[E]WiFiFiles: FOREGROUND_START_FAILED [IOException]")), "");
     }
 
     private static FileServer server(Path root, SSLContext ssl) throws IOException {

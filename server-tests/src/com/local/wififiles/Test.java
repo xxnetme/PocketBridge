@@ -36,6 +36,7 @@ public class Test {
     static final List<String> notes = new ArrayList<>();
 
     public static void main(String[] args) throws Exception {
+        ReviewRegressionTest.safeServerLog(); // Capture before any listener can write to stderr.
         TMP = Files.createTempDirectory("pocketbridge-test").toFile();
         ROOT = new File(TMP, "root");
         try {
