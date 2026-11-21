@@ -29,7 +29,11 @@ final class BridgeOptions {
     }
 
     static File sharedFolder(Context context) throws IOException {
-        return StorageRoot.resolve(Environment.getExternalStorageDirectory(), root(context));
+        return resolveSharedFolder(root(context));
+    }
+
+    static File resolveSharedFolder(String selection) throws IOException {
+        return StorageRoot.resolve(Environment.getExternalStorageDirectory(), selection);
     }
 
     static boolean readOnly(Context context) {

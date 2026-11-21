@@ -437,21 +437,29 @@ public class MainActivityLaunchTest {
             assertEquals(null, ServerService.active());
             options.edit().putString(BridgeOptions.ROOT, "Missing").commit();
             service.onStartCommand(tileStart, 0, 3);
+            awaitStartResult(service);
             assertFalse("Missing folder must not expose full storage", service.isRunning());
             assertFalse(service.lastError().isEmpty());
             options.edit().putInt(BridgeOptions.ROOT, 42).commit();
             service.onStartCommand(tileStart, 0, 4);
+            awaitStartResult(service);
             assertFalse("Invalid folder setting must not expose full storage", service.isRunning());
+            assertFalse(service.lastError().isEmpty());
         } finally { sc.destroy(); }
     }
 
     static void awaitStarted(ServerService service) throws InterruptedException {
+        awaitStartResult(service);
+        assertTrue("Async HTTPS start failed: " + service.lastError(), service.isRunning());
+    }
+
+    static void awaitStartResult(ServerService service) throws InterruptedException {
         long deadline = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(15);
         while (service.isStarting() && System.nanoTime() < deadline) {
             ShadowLooper.idleMainLooper();
             if (service.isStarting()) Thread.sleep(10);
         }
-        assertTrue("Async HTTPS start failed: " + service.lastError(), service.isRunning());
+        assertFalse("Server preparation did not finish", service.isStarting());
     }
 
     @Test

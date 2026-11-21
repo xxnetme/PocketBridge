@@ -16,11 +16,13 @@ import android.os.IBinder;
 import android.widget.Toast;
 
 import java.io.File;
+import java.io.IOException;
 import java.net.InetAddress;
 import java.security.SecureRandom;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -51,8 +53,8 @@ public final class ServerService extends Service {
     // Lifecycle, startup generation and DNS-SD registration are main-thread owned.
     private static ServerService current;
     private final Handler main = new Handler(Looper.getMainLooper());
-    private final ExecutorService tlsWorker = Executors.newSingleThreadExecutor(r -> {
-        Thread thread = new Thread(r, "pocketbridge-tls-identity");
+    private final ExecutorService startupWorker = Executors.newSingleThreadExecutor(r -> {
+        Thread thread = new Thread(r, "pocketbridge-server-prepare");
         thread.setDaemon(true);
         return thread;
     });
@@ -136,49 +138,84 @@ public final class ServerService extends Service {
             failStart(tileStart);
             return START_NOT_STICKY;
         }
-        if (readyRoot(tileStart) == null) return START_NOT_STICKY;
-        File identityDir = getFilesDir();
-        long generation = startGeneration;
         current = this;
-        preparation = tlsWorker.submit(() -> {
+        prepareStart(startGeneration, tileStart, requested);
+        publishState();
+        return START_NOT_STICKY;
+    }
+
+    private void prepareStart(long generation, boolean tileStart, String requested) {
+        preparation = startupWorker.submit(() -> {
             try {
+                // Reject unavailable storage before generating a cold TLS identity, then recheck after it.
+                requireReadyRoot(BridgeOptions.root(this));
+                if (Thread.currentThread().isInterrupted()) return;
                 List<InetAddress> addresses = LanAddresses.advertised();
-                SSLContext ssl = SelfSignedCertificate.createContext(identityDir, addresses);
-                main.post(() -> finishStart(generation, tileStart, addresses, ssl));
+                SSLContext ssl = SelfSignedCertificate.createContext(getFilesDir(), addresses);
+                if (Thread.currentThread().isInterrupted()) return;
+                StartSettings settings = startSettings();
+                File root = requireReadyRoot(settings.selection);
+                FileServer candidate = new FileServer(this, root, requested, ssl, getCacheDir(),
+                        settings.port, settings.readOnly);
+                // Constructing a candidate does not open sockets or start any of its workers.
+                main.post(() -> finishStart(generation, tileStart, settings, candidate, addresses));
             } catch (Exception failure) {
                 main.post(() -> { if (generation == startGeneration) startFailed(tileStart, failure); });
             }
         });
-        publishState();
-        return START_NOT_STICKY;
     }
 
     private String startingTitle() { return tr("Запуск доступа…", "Starting access…"); }
     private String runningTitle() { return tr("PocketBridge активен · :" + port, "PocketBridge active · :" + port); }
 
-    private File readyRoot(boolean tileStart) {
-        if (!BridgeOptions.hasStorageAccess(this)) {
-            error = tr("Сначала разрешите доступ к файлам", "Grant storage access first");
-        } else {
-            try { return BridgeOptions.sharedFolder(this); }
-            catch (Exception unavailable) {
-                error = tr("Общая папка недоступна. Выберите другую в настройках.",
-                        "Shared folder unavailable. Choose another folder in Settings.");
-            }
+    private static final class StartSettings {
+        final String selection;
+        final int port;
+        final boolean readOnly;
+
+        StartSettings(String selection, int port, boolean readOnly) {
+            this.selection = selection;
+            this.port = port;
+            this.readOnly = readOnly;
         }
-        failStart(tileStart);
-        return null;
+
+        boolean matches(StartSettings other) {
+            return Objects.equals(selection, other.selection) && port == other.port && readOnly == other.readOnly;
+        }
     }
 
-    private void finishStart(long generation, boolean tileStart, List<InetAddress> addresses, SSLContext ssl) {
-        // A stopped or replaced request may still finish native RSA work. Never open its listener.
+    private StartSettings startSettings() {
+        return new StartSettings(BridgeOptions.root(this), safePrefInt(PREF_PORT, DEFAULT_PORT), BridgeOptions.readOnly(this));
+    }
+
+    private void requireStoragePermission() throws IOException {
+        if (!BridgeOptions.hasStorageAccess(this)) {
+            throw new IOException(tr("Сначала разрешите доступ к файлам", "Grant storage access first"));
+        }
+    }
+
+    private File requireReadyRoot(String selection) throws IOException {
+        requireStoragePermission();
+        try { return BridgeOptions.resolveSharedFolder(selection); }
+        catch (Exception unavailable) {
+            throw new IOException(tr("Общая папка недоступна. Выберите другую в настройках.",
+                    "Shared folder unavailable. Choose another folder in Settings."));
+        }
+    }
+
+    private void finishStart(long generation, boolean tileStart, StartSettings settings,
+                             FileServer candidate, List<InetAddress> addresses) {
+        // Only the current generation can activate a prepared listener, even if cancellation arrived late.
         if (generation != startGeneration) return;
-        preparation = null;
-        File root = readyRoot(tileStart);
-        if (root == null) return;
         try {
-            int preferredPort = safePrefInt(PREF_PORT, DEFAULT_PORT);
-            server = new FileServer(this, root, key, ssl, getCacheDir(), preferredPort, BridgeOptions.readOnly(this));
+            requireStoragePermission();
+            if (!settings.matches(startSettings())) {
+                // Preferences might change while the completion waits in the main looper.
+                prepareStart(generation, tileStart, key);
+                return;
+            }
+            preparation = null;
+            server = candidate;
             server.setClipboardListener(this::notifyListeners);
             port = server.start();
             certifiedAddresses = addresses;
@@ -317,7 +354,7 @@ public final class ServerService extends Service {
 
     @Override public void onDestroy() {
         closeServer();
-        tlsWorker.shutdownNow();
+        startupWorker.shutdownNow();
         main.removeCallbacksAndMessages(null);
         publishState();
         super.onDestroy();
